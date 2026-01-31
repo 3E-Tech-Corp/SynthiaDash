@@ -39,6 +39,34 @@ public class StatusController : ControllerBase
     }
 
     /// <summary>
+    /// Debug: verify JWT token and auth config
+    /// </summary>
+    [HttpGet("auth-check")]
+    [AllowAnonymous]
+    public IActionResult AuthCheck()
+    {
+        var hasAuth = Request.Headers.ContainsKey("Authorization");
+        var authHeader = Request.Headers["Authorization"].ToString();
+        var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+        var email = User.FindFirst("email")?.Value;
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+        return Ok(new
+        {
+            hasAuthHeader = hasAuth,
+            authHeaderPrefix = hasAuth ? authHeader[..Math.Min(30, authHeader.Length)] + "..." : null,
+            isAuthenticated,
+            email,
+            role,
+            jwtIssuer = config["Jwt:Issuer"],
+            jwtAudience = config["Jwt:Audience"],
+            jwtKeyLength = config["Jwt:Key"]?.Length,
+            hasConnectionString = !string.IsNullOrEmpty(config.GetConnectionString("DefaultConnection"))
+        });
+    }
+
+    /// <summary>
     /// Get full system status (admin only)
     /// </summary>
     [HttpGet("full")]

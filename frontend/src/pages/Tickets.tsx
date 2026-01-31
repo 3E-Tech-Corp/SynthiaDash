@@ -291,16 +291,60 @@ export default function TicketsPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // Handle paste from clipboard (Ctrl+V an image anywhere on the form)
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault()
+        const file = items[i].getAsFile()
+        if (!file) continue
+
+        if (file.size > 10 * 1024 * 1024) {
+          setCreateError('Image must be under 10MB')
+          return
+        }
+
+        setImageFile(file)
+        const reader = new FileReader()
+        reader.onload = () => setImagePreview(reader.result as string)
+        reader.readAsDataURL(file)
+        return
+      }
+    }
+  }
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError(null)
     setCreating(true)
 
     try {
+      // For bugs: auto-generate title if blank, allow image-only
+      const title = createForm.title.trim()
+        || (createForm.type === 'bug'
+          ? `Bug Report ${new Date().toLocaleDateString()}`
+          : '')
+      const description = createForm.description.trim()
+        || (imageFile ? '(see attached screenshot)' : '')
+
+      if (!title) {
+        setCreateError('Title is required for feature requests')
+        setCreating(false)
+        return
+      }
+      if (!description && !imageFile) {
+        setCreateError('Please provide a description or attach an image')
+        setCreating(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('type', createForm.type)
-      formData.append('title', createForm.title)
-      formData.append('description', createForm.description)
+      formData.append('title', title)
+      formData.append('description', description)
       if (createForm.repoFullName) formData.append('repoFullName', createForm.repoFullName)
       if (imageFile) formData.append('image', imageFile)
 
@@ -393,7 +437,7 @@ export default function TicketsPage() {
       {/* Create Ticket Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} onPaste={handlePaste}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-xl font-bold text-white">New Ticket</h2>
               <button onClick={() => setShowCreate(false)} className="text-gray-500 hover:text-white p-1">
@@ -439,30 +483,34 @@ export default function TicketsPage() {
 
               {/* Title */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Title *</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Title <span className="text-gray-600">(optional for bugs)</span>
+                </label>
                 <input
                   value={createForm.title}
                   onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
-                  placeholder={createForm.type === 'bug' ? 'e.g., Login button not responding' : 'e.g., Add dark mode support'}
+                  placeholder={createForm.type === 'bug' ? 'Auto-generated if left blank' : 'e.g., Add dark mode support'}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                  required
+                  required={createForm.type === 'feature'}
                   autoFocus
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Description *</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Description <span className="text-gray-600">{createForm.type === 'bug' ? '(optional if image provided)' : '*'}</span>
+                </label>
                 <textarea
                   value={createForm.description}
                   onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
                   placeholder={createForm.type === 'bug'
-                    ? 'Steps to reproduce, expected vs actual behavior...'
+                    ? 'Paste text or just attach a screenshot...'
                     : 'Describe the feature, why it would be useful...'
                   }
                   rows={5}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
-                  required
+                  required={createForm.type === 'feature' || (!imageFile && !createForm.description)}
                 />
               </div>
 

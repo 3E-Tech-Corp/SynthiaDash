@@ -96,11 +96,19 @@ public class TicketsController : ControllerBase
         if (type != "bug" && type != "feature")
             return BadRequest(new { error = "Type must be 'bug' or 'feature'" });
 
+        // Feature requests require title; bugs auto-generate if blank
+        if (type == "feature" && string.IsNullOrWhiteSpace(title))
+            return BadRequest(new { error = "Title is required for feature requests" });
+
         if (string.IsNullOrWhiteSpace(title))
-            return BadRequest(new { error = "Title is required" });
+            title = $"Bug Report {DateTime.UtcNow:yyyy-MM-dd}";
+
+        // Require at least description OR image
+        if (string.IsNullOrWhiteSpace(description) && (image == null || image.Length == 0))
+            return BadRequest(new { error = "Please provide a description or attach an image" });
 
         if (string.IsNullOrWhiteSpace(description))
-            return BadRequest(new { error = "Description is required" });
+            description = "(see attached screenshot)";
 
         // Handle image upload
         string? imagePath = null;

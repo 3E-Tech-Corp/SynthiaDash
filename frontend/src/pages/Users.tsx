@@ -10,6 +10,12 @@ const ROLES = [
   { value: 'viewer', label: 'Viewer', icon: Eye, color: 'text-gray-400', desc: 'Read-only access' },
 ]
 
+const TICKET_ACCESS = [
+  { value: 'none', label: 'No Access', color: 'text-gray-500', desc: 'Cannot submit tickets' },
+  { value: 'submit', label: 'Submit', color: 'text-green-400', desc: 'Submit tickets (admin notified)' },
+  { value: 'execute', label: 'Execute', color: 'text-violet-400', desc: 'Submit & auto-execute via Synthia' },
+]
+
 function RoleBadge({ role }: { role: string }) {
   const r = ROLES.find(x => x.value === role) || ROLES[2]
   const Icon = r.icon
@@ -34,6 +40,7 @@ function timeAgo(dateStr?: string): string {
 interface EditState {
   role: string
   repos: string
+  ticketAccess: string
   isActive: boolean
 }
 
@@ -43,6 +50,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   const [edit, setEdit] = useState<EditState>({
     role: user.role,
     repos: user.repos || '',
+    ticketAccess: user.ticketAccess || 'none',
     isActive: user.isActive,
   })
 
@@ -52,6 +60,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
       await api.updateUser(user.id, {
         role: edit.role,
         repos: edit.repos || undefined,
+        ticketAccess: edit.ticketAccess,
         isActive: edit.isActive,
       })
       setEditing(false)
@@ -64,7 +73,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', ticketAccess: user.ticketAccess || 'none', isActive: user.isActive })
     setEditing(false)
   }
 
@@ -145,6 +154,27 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
             />
           </div>
 
+          {/* Ticket Access */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Ticket Access</label>
+            <div className="flex gap-2">
+              {TICKET_ACCESS.map(ta => (
+                <button
+                  key={ta.value}
+                  onClick={() => setEdit({ ...edit, ticketAccess: ta.value })}
+                  className={`flex-1 text-xs py-2 px-3 rounded-lg border transition-colors ${
+                    edit.ticketAccess === ta.value
+                      ? 'border-violet-600 bg-violet-900/30 text-violet-300'
+                      : 'border-gray-700 text-gray-500 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="font-medium">{ta.label}</div>
+                  <div className="text-[10px] mt-0.5 opacity-70">{ta.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -161,10 +191,16 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-4 text-xs text-gray-600 mt-2">
+        <div className="flex items-center gap-4 text-xs text-gray-600 mt-2 flex-wrap">
           {user.repos && (
             <span>Repos: <span className="text-gray-400 font-mono">{user.repos}</span></span>
           )}
+          <span>
+            Tickets: <span className={
+              user.ticketAccess === 'execute' ? 'text-violet-400' :
+              user.ticketAccess === 'submit' ? 'text-green-400' : 'text-gray-500'
+            }>{user.ticketAccess || 'none'}</span>
+          </span>
           <span>Joined {timeAgo(user.createdAt)}</span>
           <span>Last login {timeAgo(user.lastLoginAt)}</span>
         </div>

@@ -82,6 +82,8 @@ builder.Services.AddScoped<IGitHubService, GitHubService>();
 builder.Services.AddScoped<IUserScopeService, UserScopeService>();
 builder.Services.AddSingleton<ITaskService, TaskService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -115,6 +117,38 @@ var app = builder.Build();
                         CONSTRAINT UQ_Users_Email UNIQUE (Email)
                     );
                     CREATE INDEX IX_Users_Email ON Users(Email);
+                END";
+            cmd.ExecuteNonQuery();
+
+            // Add TicketAccess column if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'TicketAccess')
+                    ALTER TABLE Users ADD TicketAccess NVARCHAR(20) NOT NULL DEFAULT 'none';";
+            cmd.ExecuteNonQuery();
+
+            // Create Tickets table if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Tickets')
+                BEGIN
+                    CREATE TABLE Tickets (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        UserId INT NOT NULL,
+                        Type NVARCHAR(20) NOT NULL,
+                        Title NVARCHAR(256) NOT NULL,
+                        Description NVARCHAR(MAX) NOT NULL,
+                        ImagePath NVARCHAR(512) NULL,
+                        RepoFullName NVARCHAR(256) NULL,
+                        Status NVARCHAR(20) NOT NULL DEFAULT 'submitted',
+                        AgentTaskId NVARCHAR(50) NULL,
+                        Result NVARCHAR(MAX) NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CompletedAt DATETIME2 NULL,
+                        CONSTRAINT FK_Tickets_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+                    );
+                    CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
+                    CREATE INDEX IX_Tickets_Status ON Tickets(Status);
+                    CREATE INDEX IX_Tickets_CreatedAt ON Tickets(CreatedAt DESC);
                 END";
             cmd.ExecuteNonQuery();
             app.Logger.LogInformation("Database migration check complete");

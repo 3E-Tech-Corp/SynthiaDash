@@ -14,7 +14,7 @@ public interface IAuthService
     Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer");
     Task<UserDto?> GetUserByEmailAsync(string email);
     Task<List<UserDto>> GetAllUsersAsync();
-    Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive);
+    Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive, string? ticketAccess = null);
     Task<bool> UpdateLastLoginAsync(string email);
 }
 
@@ -33,6 +33,7 @@ public class UserDto
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = "viewer";
     public string? Repos { get; set; }
+    public string TicketAccess { get; set; } = "none";
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
@@ -140,7 +141,7 @@ public class AuthService : IAuthService
         return users.Select(MapToDto).ToList();
     }
 
-    public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive)
+    public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive, string? ticketAccess = null)
     {
         using var db = new SqlConnection(_connectionString);
         var updates = new List<string>();
@@ -150,6 +151,7 @@ public class AuthService : IAuthService
         if (role != null) { updates.Add("Role = @Role"); parameters.Add("Role", role); }
         if (repos != null) { updates.Add("Repos = @Repos"); parameters.Add("Repos", repos); }
         if (isActive.HasValue) { updates.Add("IsActive = @IsActive"); parameters.Add("IsActive", isActive.Value); }
+        if (ticketAccess != null) { updates.Add("TicketAccess = @TicketAccess"); parameters.Add("TicketAccess", ticketAccess); }
 
         if (updates.Count == 0) return false;
 
@@ -223,6 +225,7 @@ public class AuthService : IAuthService
         DisplayName = user.DisplayName,
         Role = user.Role,
         Repos = user.Repos,
+        TicketAccess = user.TicketAccess,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,
         LastLoginAt = user.LastLoginAt
@@ -236,6 +239,7 @@ public class AuthService : IAuthService
         public string PasswordHash { get; set; } = string.Empty;
         public string Role { get; set; } = "viewer";
         public string? Repos { get; set; }
+        public string TicketAccess { get; set; } = "none";
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }

@@ -104,7 +104,7 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
     {
-        var success = await _authService.UpdateUserAsync(id, request.Role, request.Repos, request.IsActive);
+        var success = await _authService.UpdateUserAsync(id, request.Role, request.Repos, request.IsActive, request.TicketAccess);
         if (!success) return NotFound();
         return Ok(new { message = "User updated" });
     }
@@ -129,4 +129,5 @@ public class UpdateUserRequest
     public string? Role { get; set; }
     public string? Repos { get; set; }
     public bool? IsActive { get; set; }
+    public string? TicketAccess { get; set; }
 }

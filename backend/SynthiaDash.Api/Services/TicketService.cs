@@ -12,6 +12,7 @@ public interface ITicketService
     Task<Ticket?> UpdateTicketAsync(int id, UpdateTicketRequest request);
     Task<bool> DeleteTicketAsync(int id);
     Task<string> GetUserTicketAccessAsync(int userId);
+    Task<(string bugAccess, string featureAccess)> GetUserTicketAccessSplitAsync(int userId);
 }
 
 public class TicketService : ITicketService
@@ -121,5 +122,18 @@ public class TicketService : ITicketService
             "SELECT TicketAccess FROM Users WHERE Id = @Id AND IsActive = 1",
             new { Id = userId });
         return access ?? "none";
+    }
+
+    public async Task<(string bugAccess, string featureAccess)> GetUserTicketAccessSplitAsync(int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var user = await db.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT BugAccess, FeatureAccess FROM Users WHERE Id = @Id AND IsActive = 1",
+            new { Id = userId });
+        if (user == null) return ("none", "none");
+        return (
+            (string)(user.BugAccess ?? "none"),
+            (string)(user.FeatureAccess ?? "none")
+        );
     }
 }

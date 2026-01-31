@@ -86,11 +86,20 @@ public class TicketsController : ControllerBase
         var email = User.FindFirst("email")?.Value ?? "";
         var isAdmin = _userScopeService.IsAdmin(email);
 
-        // Check ticket access (admins always have execute)
-        var access = isAdmin ? "execute" : await _ticketService.GetUserTicketAccessAsync(userId);
+        // Check per-type ticket access (admins always have execute)
+        string access;
+        if (isAdmin)
+        {
+            access = "execute";
+        }
+        else
+        {
+            var (bugAccess, featureAccess) = await _ticketService.GetUserTicketAccessSplitAsync(userId);
+            access = type == "bug" ? bugAccess : featureAccess;
+        }
 
         if (access == "none")
-            return Forbid("You don't have permission to submit tickets.");
+            return Forbid("You don't have permission to submit this type of ticket.");
 
         // Validate type
         if (type != "bug" && type != "feature")
@@ -153,11 +162,22 @@ public class TicketsController : ControllerBase
         // Handle based on access level
         if (access == "execute")
         {
-            // Auto-execute: create agent task and trigger
             _ = Task.Run(async () =>
             {
                 try
                 {
+                    // Safeguard: if this is a "bug" that looks like a feature request, flag it
+                    if (type == "bug" && !isAdmin && LooksLikeFeatureRequest(title, description))
+                    {
+                        _logger.LogWarning("Ticket #{Id} classified as disguised feature request — flagging for review", ticket.Id);
+                        await _ticketService.UpdateTicketAsync(ticket.Id, new UpdateTicketRequest
+                        {
+                            Status = "flagged"
+                        });
+                        await _notificationService.NotifyTicketFlagged(ticket);
+                        return;
+                    }
+
                     await _notificationService.NotifyTicketExecuting(ticket);
                     await TriggerAgentForTicket(ticket);
                 }
@@ -169,7 +189,6 @@ public class TicketsController : ControllerBase
         }
         else // access == "submit"
         {
-            // Just notify Feng
             _ = Task.Run(async () =>
             {
                 try
@@ -271,7 +290,7 @@ public class TicketsController : ControllerBase
     }
 
     /// <summary>
-    /// Check current user's ticket access level
+    /// Check current user's ticket access levels (per type)
     /// </summary>
     [HttpGet("access")]
     public async Task<IActionResult> GetAccess()
@@ -280,10 +299,10 @@ public class TicketsController : ControllerBase
         var isAdmin = _userScopeService.IsAdmin(email);
 
         if (isAdmin)
-            return Ok(new { access = "execute" });
+            return Ok(new { bugAccess = "execute", featureAccess = "execute" });
 
-        var access = await _ticketService.GetUserTicketAccessAsync(GetUserId());
-        return Ok(new { access });
+        var (bugAccess, featureAccess) = await _ticketService.GetUserTicketAccessSplitAsync(GetUserId());
+        return Ok(new { bugAccess, featureAccess });
     }
 
     private async Task TriggerAgentForTicket(Ticket ticket)
@@ -348,6 +367,48 @@ public class TicketsController : ControllerBase
 
         _logger.LogInformation("Ticket #{Id} completed: {Status}", id, request.Status);
         return Ok(ticket);
+    }
+
+    /// <summary>
+    /// Heuristic check: does this "bug report" actually look like a feature request?
+    /// Catches users trying to sneak features through the bug pipeline.
+    /// </summary>
+    private static bool LooksLikeFeatureRequest(string title, string description)
+    {
+        var text = $"{title} {description}".ToLower();
+
+        // Feature request indicators
+        var featureKeywords = new[]
+        {
+            "add a ", "add an ", "add new ", "add the ",
+            "can you add", "could you add", "please add",
+            "would be nice", "would be great", "it would be",
+            "i want ", "i'd like", "i would like",
+            "new feature", "feature request", "enhancement",
+            "can we have", "can you make", "could you make",
+            "implement ", "introduce ", "support for ",
+            "how about ", "what about ", "suggestion",
+            "it should ", "it needs to ", "we need ",
+            "ability to ", "option to ", "allow us to",
+        };
+
+        // Bug indicators (if present, it's likely a real bug)
+        var bugKeywords = new[]
+        {
+            "error", "crash", "broken", "doesn't work", "does not work",
+            "not working", "bug", "issue", "exception", "fail",
+            "wrong", "incorrect", "unexpected", "cannot ", "can't ",
+            "unable to", "stacktrace", "stack trace", "null",
+            "undefined", "typeerror", "referenceerror", "404", "500",
+            "401", "403", "timeout", "freeze", "hang", "blank page",
+            "white screen", "console error", "log:", "TypeError",
+        };
+
+        int featureScore = featureKeywords.Count(k => text.Contains(k));
+        int bugScore = bugKeywords.Count(k => text.Contains(k));
+
+        // Flag if strong feature signals and weak bug signals
+        return featureScore >= 2 && bugScore == 0;
     }
 
     private int GetUserId()

@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string; label: string }> = {
   submitted: { icon: Clock, color: 'text-yellow-400', label: 'Submitted' },
+  flagged: { icon: Clock, color: 'text-orange-400', label: 'Flagged for Review' },
   in_progress: { icon: PlayCircle, color: 'text-blue-400', label: 'In Progress' },
   completed: { icon: CheckCircle, color: 'text-green-400', label: 'Completed' },
   closed: { icon: XCircle, color: 'text-gray-500', label: 'Closed' },
@@ -168,7 +169,7 @@ function TicketCard({
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-2">
-              {isAdmin && ticket.status === 'submitted' && (
+              {isAdmin && (ticket.status === 'submitted' || ticket.status === 'flagged') && (
                 <button
                   onClick={handleExecute}
                   disabled={executing}
@@ -178,7 +179,7 @@ function TicketCard({
                   Execute
                 </button>
               )}
-              {isAdmin && ticket.status === 'submitted' && (
+              {isAdmin && (ticket.status === 'submitted' || ticket.status === 'flagged') && (
                 <button
                   onClick={() => handleStatusChange('closed')}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-xs font-medium transition-colors"
@@ -214,7 +215,8 @@ export default function TicketsPage() {
   const { isAdmin } = useAuth()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
-  const [access, setAccess] = useState<string>('none')
+  const [bugAccess, setBugAccess] = useState<string>('none')
+  const [featureAccess, setFeatureAccess] = useState<string>('none')
   const [showCreate, setShowCreate] = useState(false)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [repos, setRepos] = useState<RepoStatus[]>([])
@@ -255,7 +257,8 @@ export default function TicketsPage() {
   const fetchAccess = async () => {
     try {
       const data = await api.getTicketAccess()
-      setAccess(data.access)
+      setBugAccess(data.bugAccess)
+      setFeatureAccess(data.featureAccess)
     } catch {
       // ignore
     }
@@ -366,7 +369,8 @@ export default function TicketsPage() {
     return true
   })
 
-  const canSubmit = access === 'submit' || access === 'execute'
+  const currentAccess = createForm.type === 'bug' ? bugAccess : featureAccess
+  const canSubmit = bugAccess !== 'none' || featureAccess !== 'none'
 
   return (
     <div className="max-w-4xl">
@@ -379,9 +383,11 @@ export default function TicketsPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Bug reports & feature requests
-            {access !== 'none' && (
+            {(bugAccess !== 'none' || featureAccess !== 'none') && (
               <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">
-                Access: <span className={access === 'execute' ? 'text-violet-400' : 'text-green-400'}>{access}</span>
+                🐛 <span className={bugAccess === 'execute' ? 'text-violet-400' : bugAccess === 'submit' ? 'text-green-400' : 'text-gray-600'}>{bugAccess}</span>
+                {' · '}
+                💡 <span className={featureAccess === 'execute' ? 'text-violet-400' : featureAccess === 'submit' ? 'text-green-400' : 'text-gray-600'}>{featureAccess}</span>
               </span>
             )}
           </p>
@@ -412,7 +418,7 @@ export default function TicketsPage() {
           ))}
         </div>
         <div className="flex rounded-lg overflow-hidden border border-gray-800">
-          {['all', 'submitted', 'in_progress', 'completed', 'closed'].map(s => (
+          {['all', 'submitted', 'flagged', 'in_progress', 'completed', 'closed'].map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -567,16 +573,22 @@ export default function TicketsPage() {
               </div>
 
               {/* Access info */}
-              {access === 'execute' && (
+              {currentAccess === 'execute' && (
                 <div className="bg-violet-900/20 border border-violet-800/50 rounded-lg p-3 text-sm text-violet-300 flex items-center gap-2">
                   <Zap className="w-4 h-4 flex-shrink-0" />
-                  <span>You have <strong>execute</strong> access — Synthia will start working on this automatically.</span>
+                  <span>You have <strong>execute</strong> access for {createForm.type === 'bug' ? 'bugs' : 'features'} — Synthia will start working on this automatically.</span>
                 </div>
               )}
-              {access === 'submit' && (
+              {currentAccess === 'submit' && (
                 <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-3 text-sm text-blue-300 flex items-center gap-2">
                   <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>You have <strong>submit</strong> access — the admin will be notified of your submission.</span>
+                  <span>You have <strong>submit</strong> access for {createForm.type === 'bug' ? 'bugs' : 'features'} — the admin will be notified.</span>
+                </div>
+              )}
+              {currentAccess === 'none' && (
+                <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-3 text-sm text-red-300 flex items-center gap-2">
+                  <XCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>You don't have access to submit {createForm.type === 'bug' ? 'bug reports' : 'feature requests'}.</span>
                 </div>
               )}
 
@@ -591,11 +603,13 @@ export default function TicketsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
+                  disabled={creating || currentAccess === 'none'}
                   className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {creating ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                  ) : currentAccess === 'none' ? (
+                    <>No Access</>
                   ) : (
                     <><Plus className="w-4 h-4" /> Submit Ticket</>
                   )}

@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Zap, LayoutDashboard, FolderGit2, Bot, Cpu, LogOut, User, Users, TicketIcon } from 'lucide-react'
+import { Zap, LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Layout() {
@@ -29,10 +29,6 @@ export default function Layout() {
           <NavLink to="/repos" className={linkClass}>
             <FolderGit2 className="w-4 h-4" />
             Repos
-          </NavLink>
-          <NavLink to="/repos/3E-Tech-Corp/Zhijian" className={linkClass}>
-            <Cpu className="w-4 h-4" />
-            Zhijian
           </NavLink>
           <NavLink to="/tasks" className={linkClass}>
             <Bot className="w-4 h-4" />

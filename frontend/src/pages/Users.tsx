@@ -10,10 +10,10 @@ const ROLES = [
   { value: 'viewer', label: 'Viewer', icon: Eye, color: 'text-gray-400', desc: 'Read-only access' },
 ]
 
-const TICKET_ACCESS = [
-  { value: 'none', label: 'No Access', color: 'text-gray-500', desc: 'Cannot submit tickets' },
-  { value: 'submit', label: 'Submit', color: 'text-green-400', desc: 'Submit tickets (admin notified)' },
-  { value: 'execute', label: 'Execute', color: 'text-violet-400', desc: 'Submit & auto-execute via Synthia' },
+const ACCESS_LEVELS = [
+  { value: 'none', label: 'None', color: 'text-gray-500' },
+  { value: 'submit', label: 'Submit', color: 'text-green-400' },
+  { value: 'execute', label: 'Execute', color: 'text-violet-400' },
 ]
 
 function RoleBadge({ role }: { role: string }) {
@@ -40,7 +40,8 @@ function timeAgo(dateStr?: string): string {
 interface EditState {
   role: string
   repos: string
-  ticketAccess: string
+  bugAccess: string
+  featureAccess: string
   isActive: boolean
 }
 
@@ -50,7 +51,8 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   const [edit, setEdit] = useState<EditState>({
     role: user.role,
     repos: user.repos || '',
-    ticketAccess: user.ticketAccess || 'none',
+    bugAccess: user.bugAccess || 'none',
+    featureAccess: user.featureAccess || 'none',
     isActive: user.isActive,
   })
 
@@ -60,7 +62,8 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
       await api.updateUser(user.id, {
         role: edit.role,
         repos: edit.repos || undefined,
-        ticketAccess: edit.ticketAccess,
+        bugAccess: edit.bugAccess,
+        featureAccess: edit.featureAccess,
         isActive: edit.isActive,
       })
       setEditing(false)
@@ -73,7 +76,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', ticketAccess: user.ticketAccess || 'none', isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', isActive: user.isActive })
     setEditing(false)
   }
 
@@ -154,22 +157,41 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
             />
           </div>
 
-          {/* Ticket Access */}
+          {/* Bug Access */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Ticket Access</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">🐛 Bug Access</label>
             <div className="flex gap-2">
-              {TICKET_ACCESS.map(ta => (
+              {ACCESS_LEVELS.map(al => (
                 <button
-                  key={ta.value}
-                  onClick={() => setEdit({ ...edit, ticketAccess: ta.value })}
+                  key={al.value}
+                  onClick={() => setEdit({ ...edit, bugAccess: al.value })}
                   className={`flex-1 text-xs py-2 px-3 rounded-lg border transition-colors ${
-                    edit.ticketAccess === ta.value
+                    edit.bugAccess === al.value
                       ? 'border-violet-600 bg-violet-900/30 text-violet-300'
                       : 'border-gray-700 text-gray-500 hover:border-gray-600'
                   }`}
                 >
-                  <div className="font-medium">{ta.label}</div>
-                  <div className="text-[10px] mt-0.5 opacity-70">{ta.desc}</div>
+                  {al.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Feature Access */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">💡 Feature Access</label>
+            <div className="flex gap-2">
+              {ACCESS_LEVELS.map(al => (
+                <button
+                  key={al.value}
+                  onClick={() => setEdit({ ...edit, featureAccess: al.value })}
+                  className={`flex-1 text-xs py-2 px-3 rounded-lg border transition-colors ${
+                    edit.featureAccess === al.value
+                      ? 'border-violet-600 bg-violet-900/30 text-violet-300'
+                      : 'border-gray-700 text-gray-500 hover:border-gray-600'
+                  }`}
+                >
+                  {al.label}
                 </button>
               ))}
             </div>
@@ -196,10 +218,15 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
             <span>Repos: <span className="text-gray-400 font-mono">{user.repos}</span></span>
           )}
           <span>
-            Tickets: <span className={
-              user.ticketAccess === 'execute' ? 'text-violet-400' :
-              user.ticketAccess === 'submit' ? 'text-green-400' : 'text-gray-500'
-            }>{user.ticketAccess || 'none'}</span>
+            🐛 <span className={
+              user.bugAccess === 'execute' ? 'text-violet-400' :
+              user.bugAccess === 'submit' ? 'text-green-400' : 'text-gray-500'
+            }>{user.bugAccess || 'none'}</span>
+            {' · '}
+            💡 <span className={
+              user.featureAccess === 'execute' ? 'text-violet-400' :
+              user.featureAccess === 'submit' ? 'text-green-400' : 'text-gray-500'
+            }>{user.featureAccess || 'none'}</span>
           </span>
           <span>Joined {timeAgo(user.createdAt)}</span>
           <span>Last login {timeAgo(user.lastLoginAt)}</span>

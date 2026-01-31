@@ -67,7 +67,9 @@ export interface User {
   displayName: string
   role: string
   repos?: string
-  ticketAccess: string // none, submit, execute
+  ticketAccess: string // legacy
+  bugAccess: string // none, submit, execute
+  featureAccess: string // none, submit, execute
   isActive: boolean
   createdAt: string
   lastLoginAt?: string
@@ -109,7 +111,7 @@ export const api = {
       body: JSON.stringify({ email, displayName, password, role }),
     }),
 
-  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; ticketAccess?: string }) =>
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string }) =>
     fetchApi<{ message: string }>(`/auth/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -182,7 +184,7 @@ export const api = {
   executeTicket: (id: number) =>
     fetchApi<{ message: string }>(`/tickets/${id}/execute`, { method: 'POST' }),
 
-  getTicketAccess: () => fetchApi<{ access: string }>('/tickets/access'),
+  getTicketAccess: () => fetchApi<{ bugAccess: string; featureAccess: string }>('/tickets/access'),
 
   getTicketImageUrl: (imagePath: string) =>
     `${API_BASE}/tickets/image/${imagePath.replace('tickets/', '')}`,

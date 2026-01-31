@@ -11,6 +11,7 @@ public interface INotificationService
 {
     Task NotifyTicketSubmitted(Ticket ticket);
     Task NotifyTicketExecuting(Ticket ticket);
+    Task NotifyTicketFlagged(Ticket ticket);
 }
 
 public class NotificationService : INotificationService
@@ -42,6 +43,20 @@ public class NotificationService : INotificationService
 
         if (!string.IsNullOrEmpty(ticket.ImagePath))
             message += "\n\n📎 Image attached (view on dashboard)";
+
+        await SendToGateway(message);
+    }
+
+    public async Task NotifyTicketFlagged(Ticket ticket)
+    {
+        var message = $"⚠️ **Ticket Flagged for Review**\n\n"
+            + $"**From:** {ticket.UserDisplayName} ({ticket.UserEmail})\n"
+            + $"**Title:** {ticket.Title}\n"
+            + $"**Submitted as:** Bug Report\n"
+            + $"**Reason:** Looks like a feature request disguised as a bug.\n"
+            + (string.IsNullOrEmpty(ticket.RepoFullName) ? "" : $"**Repo:** {ticket.RepoFullName}\n")
+            + $"\n{ticket.Description}\n\n"
+            + "Review it on the dashboard and execute manually if it's legit.";
 
         await SendToGateway(message);
     }

@@ -14,7 +14,8 @@ public interface IAuthService
     Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer");
     Task<UserDto?> GetUserByEmailAsync(string email);
     Task<List<UserDto>> GetAllUsersAsync();
-    Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive, string? ticketAccess = null);
+    Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
+        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null);
     Task<bool> UpdateLastLoginAsync(string email);
 }
 
@@ -33,7 +34,9 @@ public class UserDto
     public string DisplayName { get; set; } = string.Empty;
     public string Role { get; set; } = "viewer";
     public string? Repos { get; set; }
-    public string TicketAccess { get; set; } = "none";
+    public string TicketAccess { get; set; } = "none"; // legacy
+    public string BugAccess { get; set; } = "none";
+    public string FeatureAccess { get; set; } = "none";
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
@@ -141,7 +144,8 @@ public class AuthService : IAuthService
         return users.Select(MapToDto).ToList();
     }
 
-    public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive, string? ticketAccess = null)
+    public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
+        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null)
     {
         using var db = new SqlConnection(_connectionString);
         var updates = new List<string>();
@@ -152,6 +156,8 @@ public class AuthService : IAuthService
         if (repos != null) { updates.Add("Repos = @Repos"); parameters.Add("Repos", repos); }
         if (isActive.HasValue) { updates.Add("IsActive = @IsActive"); parameters.Add("IsActive", isActive.Value); }
         if (ticketAccess != null) { updates.Add("TicketAccess = @TicketAccess"); parameters.Add("TicketAccess", ticketAccess); }
+        if (bugAccess != null) { updates.Add("BugAccess = @BugAccess"); parameters.Add("BugAccess", bugAccess); }
+        if (featureAccess != null) { updates.Add("FeatureAccess = @FeatureAccess"); parameters.Add("FeatureAccess", featureAccess); }
 
         if (updates.Count == 0) return false;
 
@@ -226,6 +232,8 @@ public class AuthService : IAuthService
         Role = user.Role,
         Repos = user.Repos,
         TicketAccess = user.TicketAccess,
+        BugAccess = user.BugAccess,
+        FeatureAccess = user.FeatureAccess,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,
         LastLoginAt = user.LastLoginAt
@@ -240,6 +248,8 @@ public class AuthService : IAuthService
         public string Role { get; set; } = "viewer";
         public string? Repos { get; set; }
         public string TicketAccess { get; set; } = "none";
+        public string BugAccess { get; set; } = "none";
+        public string FeatureAccess { get; set; } = "none";
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }

@@ -123,10 +123,20 @@ var app = builder.Build();
                 END";
             cmd.ExecuteNonQuery();
 
-            // Add TicketAccess column if missing
+            // Add ticket access columns if missing
             cmd.CommandText = @"
                 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'TicketAccess')
-                    ALTER TABLE Users ADD TicketAccess NVARCHAR(20) NOT NULL DEFAULT 'none';";
+                    ALTER TABLE Users ADD TicketAccess NVARCHAR(20) NOT NULL DEFAULT 'none';
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'BugAccess')
+                    ALTER TABLE Users ADD BugAccess NVARCHAR(20) NOT NULL DEFAULT 'none';
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'FeatureAccess')
+                    ALTER TABLE Users ADD FeatureAccess NVARCHAR(20) NOT NULL DEFAULT 'none';";
+            cmd.ExecuteNonQuery();
+
+            // Migrate old TicketAccess to new columns
+            cmd.CommandText = @"
+                UPDATE Users SET BugAccess = TicketAccess, FeatureAccess = TicketAccess
+                WHERE BugAccess = 'none' AND FeatureAccess = 'none' AND TicketAccess != 'none';";
             cmd.ExecuteNonQuery();
 
             // Create Tickets table if missing

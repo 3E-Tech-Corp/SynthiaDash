@@ -48,6 +48,19 @@ export interface SessionInfo {
   messageCount: number;
 }
 
+export interface AgentTask {
+  id: string;
+  repoFullName: string;
+  status: string; // pending, running, completed, failed
+  errorContent?: string;
+  prompt?: string;
+  result?: string;
+  prUrl?: string;
+  createdAt: string;
+  completedAt?: string;
+  sessionKey: string;
+}
+
 export const api = {
   getStatus: () => fetchApi<GatewayStatus>('/status'),
 
@@ -69,5 +82,16 @@ export const api = {
     fetchApi<{ response: string }>('/chat', {
       method: 'POST',
       body: JSON.stringify({ message, sessionKey }),
+    }),
+
+  // Tasks
+  getTasks: (limit = 20) => fetchApi<AgentTask[]>(`/tasks?limit=${limit}`),
+
+  getTask: (id: string) => fetchApi<AgentTask>(`/tasks/${id}`),
+
+  createTask: (repoFullName: string, customPrompt?: string) =>
+    fetchApi<AgentTask>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ repoFullName, customPrompt }),
     }),
 };

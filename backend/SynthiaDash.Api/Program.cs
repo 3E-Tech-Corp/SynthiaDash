@@ -68,6 +68,7 @@ builder.Services.AddHttpClient("GitHub", client =>
 builder.Services.AddScoped<IGatewayService, GatewayService>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();
 builder.Services.AddScoped<IUserScopeService, UserScopeService>();
+builder.Services.AddSingleton<ITaskService, TaskService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

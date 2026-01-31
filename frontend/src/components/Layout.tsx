@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Zap, LayoutDashboard, FolderGit2 } from 'lucide-react'
+import { Zap, LayoutDashboard, FolderGit2, Bot } from 'lucide-react'
 
 export default function Layout() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -26,6 +26,10 @@ export default function Layout() {
           <NavLink to="/repos" className={linkClass}>
             <FolderGit2 className="w-4 h-4" />
             Repos
+          </NavLink>
+          <NavLink to="/tasks" className={linkClass}>
+            <Bot className="w-4 h-4" />
+            Tasks
           </NavLink>
         </nav>
 

@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Repos from './pages/Repos'
 import RepoDetail from './pages/RepoDetail'
+import Tasks from './pages/Tasks'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="repos" element={<Repos />} />
           <Route path="repos/:owner/:repo" element={<RepoDetail />} />
+          <Route path="tasks" element={<Tasks />} />
         </Route>
       </Routes>
     </BrowserRouter>

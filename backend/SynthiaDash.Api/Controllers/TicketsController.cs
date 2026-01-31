@@ -315,11 +315,11 @@ public class TicketsController : ControllerBase
 
         if (!string.IsNullOrEmpty(ticket.ImagePath))
         {
-            var appBaseUrl = _configuration["App:BaseUrl"] ?? "https://ai.3eweb.com";
+            var appBaseUrl = _configuration["App:BaseUrl"] ?? "https://synthia.bot";
             prompt += $"\n### Screenshot:\n{appBaseUrl}/api/tickets/image/{Path.GetFileName(ticket.ImagePath)}\n";
         }
 
-        var callbackUrl = _configuration["App:BaseUrl"] ?? "https://ai.3eweb.com";
+        var callbackUrl = _configuration["App:BaseUrl"] ?? "https://synthia.bot";
         prompt += $"\n### Instructions:\n"
             + "1. Analyze the issue described above\n"
             + (string.IsNullOrEmpty(ticket.RepoFullName)

@@ -93,7 +93,7 @@ public class NotificationService : INotificationService
         try
         {
             var gatewayBaseUrl = _configuration["Gateway:BaseUrl"] ?? "http://localhost:18789";
-            var token = _configuration["Gateway:Token"];
+            var token = _configuration["Gateway:HookToken"] ?? _configuration["Gateway:Token"];
 
             var client = _httpClientFactory.CreateClient();
             if (!string.IsNullOrEmpty(token))

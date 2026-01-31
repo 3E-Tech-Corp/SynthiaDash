@@ -121,7 +121,7 @@ public class TaskService : ITaskService
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {hookToken}");
 
-            var callbackUrl = _configuration["App:BaseUrl"] ?? "https://ai.3eweb.com";
+            var callbackUrl = _configuration["App:BaseUrl"] ?? "https://synthia.bot";
 
             var callbackEndpoint = $"{callbackUrl}/api/tasks/{task.Id}/complete";
             var additionalInstructions = string.IsNullOrEmpty(task.Prompt) ? "" : $"\n### Additional Instructions:\n{task.Prompt}\n";

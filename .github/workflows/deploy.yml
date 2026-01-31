@@ -92,9 +92,9 @@ jobs:
         shell: powershell
         run: |
           & artifacts\scripts\deploy-iis.ps1 `
-            -SiteName "ai.3eweb.com" `
-            -FrontendPath "F:\New_WWW\ai.3eweb.com\WWW" `
-            -BackendPath "F:\New_WWW\ai.3eweb.com\API" `
+            -SiteName "synthia.bot" `
+            -FrontendPath "F:\New_WWW\synthia.bot\WWW" `
+            -BackendPath "F:\New_WWW\synthia.bot\API" `
             -FrontendArtifact "artifacts\frontend" `
             -BackendArtifact "artifacts\backend" `
             -HealthCheckUrl ""
@@ -105,4 +105,4 @@ jobs:
         run: |
           $commitHash = "${{ github.sha }}".Substring(0,7)
           $status = "${{ job.status }}"
-          Write-Host "DEPLOYMENT: ai.3eweb.com ($commitHash) [$status]"
+          Write-Host "DEPLOYMENT: synthia.bot ($commitHash) [$status]"

@@ -69,6 +69,7 @@ builder.Services.AddScoped<IGatewayService, GatewayService>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();
 builder.Services.AddScoped<IUserScopeService, UserScopeService>();
 builder.Services.AddSingleton<ITaskService, TaskService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

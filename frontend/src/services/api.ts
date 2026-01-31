@@ -61,7 +61,42 @@ export interface AgentTask {
   sessionKey: string;
 }
 
+export interface User {
+  id: number
+  email: string
+  displayName: string
+  role: string
+  repos?: string
+  isActive: boolean
+  createdAt: string
+  lastLoginAt?: string
+}
+
 export const api = {
+  // Auth
+  login: (email: string, password: string) =>
+    fetchApi<{ token: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+
+  getMe: () => fetchApi<User>('/auth/me'),
+
+  getUsers: () => fetchApi<User[]>('/auth/users'),
+
+  registerUser: (email: string, displayName: string, password: string, role: string) =>
+    fetchApi<{ token: string; user: User }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, displayName, password, role }),
+    }),
+
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean }) =>
+    fetchApi<{ message: string }>(`/auth/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+
+  // Status
   getStatus: () => fetchApi<GatewayStatus>('/status'),
 
   getFullStatus: () => fetchApi<{

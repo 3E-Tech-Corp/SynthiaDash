@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using CynthiaDash.Api.Services;
+using SynthiaDash.Api.Services;
 
-namespace CynthiaDash.Api.Controllers;
+namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -19,7 +19,7 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// Send a message to Cynthia, scoped to the user's repos
+    /// Send a message to Synthia, scoped to the user's repos
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> SendMessage([FromBody] ChatRequest request)
@@ -30,7 +30,7 @@ public class ChatController : ControllerBase
         if (scope.Role == "none")
             return Forbid();
 
-        // Prefix message with scope context so Cynthia knows who's talking and their limits
+        // Prefix message with scope context so Synthia knows who's talking and their limits
         var scopedMessage = $"[Dashboard: {email} | Role: {scope.Role} | Repos: {string.Join(", ", scope.Repos)}]\n{request.Message}";
 
         var response = await _gatewayService.SendMessageAsync(

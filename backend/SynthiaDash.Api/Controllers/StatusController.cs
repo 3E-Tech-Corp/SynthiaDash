@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using CynthiaDash.Api.Services;
+using SynthiaDash.Api.Services;
 
-namespace CynthiaDash.Api.Controllers;
+namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -18,7 +18,7 @@ public class StatusController : ControllerBase
     }
 
     /// <summary>
-    /// Get Cynthia's current status. Public endpoint — shows basic online/offline.
+    /// Get Synthia's current status. Public endpoint — shows basic online/offline.
     /// Authenticated users get more detail.
     /// </summary>
     [HttpGet]

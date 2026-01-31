@@ -1,7 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using CynthiaDash.Api.Services;
+using SynthiaDash.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,7 +57,7 @@ builder.Services.AddHttpClient("Gateway", client =>
 builder.Services.AddHttpClient("GitHub", client =>
 {
     client.BaseAddress = new Uri("https://api.github.com/");
-    client.DefaultRequestHeaders.Add("User-Agent", "CynthiaDash");
+    client.DefaultRequestHeaders.Add("User-Agent", "SynthiaDash");
     var token = builder.Configuration["GitHub:Token"];
     if (!string.IsNullOrEmpty(token))
     {

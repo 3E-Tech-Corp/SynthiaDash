@@ -1,7 +1,7 @@
 using System.Text.Json;
-using CynthiaDash.Api.Models;
+using SynthiaDash.Api.Models;
 
-namespace CynthiaDash.Api.Services;
+namespace SynthiaDash.Api.Services;
 
 public interface IGatewayService
 {
@@ -82,7 +82,7 @@ public class GatewayService : IGatewayService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send message to gateway");
-            return "Error: Could not reach Cynthia";
+            return "Error: Could not reach Synthia";
         }
     }
 }

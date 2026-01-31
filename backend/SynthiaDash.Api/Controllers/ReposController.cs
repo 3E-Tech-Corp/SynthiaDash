@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using CynthiaDash.Api.Services;
+using SynthiaDash.Api.Services;
 
-namespace CynthiaDash.Api.Controllers;
+namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

@@ -1,6 +1,6 @@
-# CynthiaDash ⚡
+# SynthiaDash ⚡
 
-Mission Control dashboard for Cynthia AI assistant.
+Mission Control dashboard for Synthia AI assistant.
 
 ## Features
 
@@ -10,13 +10,13 @@ Mission Control dashboard for Cynthia AI assistant.
 - Session monitor (active conversations)
 - Cron job management
 - Token usage & cost tracking
-- Direct chat with Cynthia
+- Direct chat with Synthia
 
 ### For Team Members (Scoped Access)
 - View their assigned repo(s) only
 - Trigger builds & deploys
 - View build logs & deploy history
-- Chat with Cynthia (scoped to their repo)
+- Chat with Synthia (scoped to their repo)
 - Basic status indicators
 
 ## Tech Stack
@@ -45,7 +45,7 @@ Mission Control dashboard for Cynthia AI assistant.
 
 ```bash
 # Backend
-cd backend/CynthiaDash.Api
+cd backend/SynthiaDash.Api
 dotnet restore
 dotnet run
 

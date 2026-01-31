@@ -40,7 +40,7 @@ export default function StatusCard() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Activity className="w-5 h-5 text-violet-400" />
-          Cynthia Status
+          Synthia Status
         </h2>
         <div className={`flex items-center gap-2 text-sm ${
           status?.online ? 'text-green-400' : 'text-red-400'

@@ -1,7 +1,7 @@
 using System.Text.Json;
-using CynthiaDash.Api.Models;
+using SynthiaDash.Api.Models;
 
-namespace CynthiaDash.Api.Services;
+namespace SynthiaDash.Api.Services;
 
 public interface IGitHubService
 {

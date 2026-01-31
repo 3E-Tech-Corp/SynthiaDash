@@ -1,4 +1,4 @@
-namespace CynthiaDash.Api.Models;
+namespace SynthiaDash.Api.Models;
 
 public class UserScope
 {

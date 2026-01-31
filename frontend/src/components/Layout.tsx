@@ -15,7 +15,7 @@ export default function Layout() {
       <aside className="w-64 border-r border-gray-800 p-4 flex flex-col gap-6">
         <div className="flex items-center gap-2 px-2">
           <Zap className="w-6 h-6 text-violet-400" />
-          <span className="text-xl font-bold">CynthiaDash</span>
+          <span className="text-xl font-bold">SynthiaDash</span>
         </div>
 
         <nav className="flex flex-col gap-1">
@@ -30,7 +30,7 @@ export default function Layout() {
         </nav>
 
         <div className="mt-auto px-2 text-xs text-gray-600">
-          Cynthia ⚡ Mission Control
+          Synthia ⚡ Mission Control
         </div>
       </aside>
 

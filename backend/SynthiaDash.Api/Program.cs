@@ -30,8 +30,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "FuntimePickleball",
-            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "FuntimePickleballUsers",
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "SynthiaDash",
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "SynthiaDashUsers",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
         // Log JWT auth failures for debugging

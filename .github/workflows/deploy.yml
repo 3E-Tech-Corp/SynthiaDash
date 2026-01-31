@@ -1,0 +1,108 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-synthiadash
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore backend
+        run: dotnet restore backend/SynthiaDash.Api/SynthiaDash.Api.csproj
+
+      - name: Build backend
+        run: dotnet build backend/SynthiaDash.Api/SynthiaDash.Api.csproj --configuration Release --no-restore
+
+      - name: Publish backend
+        run: dotnet publish backend/SynthiaDash.Api/SynthiaDash.Api.csproj --configuration Release --output ./publish/backend --no-build
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: publish/backend/
+          retention-days: 3
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist/
+          retention-days: 3
+
+      - name: Upload deploy script
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-script
+          path: Deployment/deploy-iis.ps1
+          retention-days: 3
+
+  deploy:
+    name: Deploy to IIS
+    needs: build
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend
+          path: artifacts/backend
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend
+          path: artifacts/frontend
+
+      - name: Download deploy script
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-script
+          path: artifacts/scripts
+
+      - name: Deploy to IIS
+        shell: powershell
+        run: |
+          & artifacts\scripts\deploy-iis.ps1 `
+            -SiteName "ai.3eweb.com" `
+            -FrontendPath "F:\New_WWW\ai.3eweb.com\WWW" `
+            -BackendPath "F:\New_WWW\ai.3eweb.com\API" `
+            -FrontendArtifact "artifacts\frontend" `
+            -BackendArtifact "artifacts\backend" `
+            -HealthCheckUrl "https://ai.3eweb.com/api/status"
+
+      - name: Summary
+        if: always()
+        shell: powershell
+        run: |
+          $commitHash = "${{ github.sha }}".Substring(0,7)
+          $status = "${{ job.status }}"
+          Write-Host "DEPLOYMENT: ai.3eweb.com ($commitHash) [$status]"

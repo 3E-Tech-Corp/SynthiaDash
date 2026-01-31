@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2 } from 'lucide-react'
+import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2 } from 'lucide-react'
 import { api } from '../services/api'
-import type { User } from '../services/api'
+import type { User, RepoStatus } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const ROLES = [
@@ -45,7 +45,7 @@ interface EditState {
   isActive: boolean
 }
 
-function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
+function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => void; allRepos: RepoStatus[] }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [edit, setEdit] = useState<EditState>({
@@ -147,14 +147,44 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
           {/* Repo access */}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">
-              Repo Access <span className="text-gray-600">(JSON array, empty = role default, admin sees all)</span>
+              Repo Access <span className="text-gray-600">(admin sees all regardless)</span>
             </label>
-            <input
-              value={edit.repos}
-              onChange={e => setEdit({ ...edit, repos: e.target.value })}
-              placeholder='["3E-Tech-Corp/Zhijian"]'
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-violet-500"
-            />
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1.5">
+              {allRepos.length === 0 ? (
+                <span className="text-xs text-gray-600">Loading repos...</span>
+              ) : (
+                allRepos.map(repo => {
+                  const selectedRepos: string[] = (() => {
+                    try { return edit.repos ? JSON.parse(edit.repos) : [] } catch { return [] }
+                  })()
+                  const isChecked = selectedRepos.includes(repo.fullName)
+
+                  const toggleRepo = () => {
+                    const updated = isChecked
+                      ? selectedRepos.filter(r => r !== repo.fullName)
+                      : [...selectedRepos, repo.fullName]
+                    setEdit({ ...edit, repos: updated.length > 0 ? JSON.stringify(updated) : '' })
+                  }
+
+                  return (
+                    <label
+                      key={repo.fullName}
+                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-700/50 rounded px-1.5 py-1 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={toggleRepo}
+                        className="rounded border-gray-600 bg-gray-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
+                      />
+                      <FolderGit2 className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+                      <span className="text-gray-300 truncate">{repo.fullName}</span>
+                      {repo.private && <span className="text-[10px] text-gray-600 bg-gray-800 px-1.5 rounded">private</span>}
+                    </label>
+                  )
+                })
+              )}
+            </div>
           </div>
 
           {/* Bug Access */}
@@ -239,6 +269,7 @@ function UserRow({ user, onUpdate }: { user: User; onUpdate: () => void }) {
 export default function UsersPage() {
   const { isAdmin } = useAuth()
   const [users, setUsers] = useState<User[]>([])
+  const [repos, setRepos] = useState<RepoStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ email: '', displayName: '', password: '', role: 'viewer' })
@@ -256,7 +287,10 @@ export default function UsersPage() {
     }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers()
+    api.getRepos().then(setRepos).catch(() => {})
+  }, [])
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -381,7 +415,7 @@ export default function UsersPage() {
       ) : (
         <div className="space-y-4">
           {users.map(user => (
-            <UserRow key={user.id} user={user} onUpdate={fetchUsers} />
+            <UserRow key={user.id} user={user} onUpdate={fetchUsers} allRepos={repos} />
           ))}
         </div>
       )}

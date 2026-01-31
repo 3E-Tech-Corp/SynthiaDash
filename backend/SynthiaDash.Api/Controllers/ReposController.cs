@@ -30,7 +30,7 @@ public class ReposController : ControllerBase
 
         // Internal dashboard: unauthenticated users get admin-level repo access
         var repoFilter = (scope.Role == "none" || string.IsNullOrEmpty(email))
-            ? new[] { "*" }
+            ? new List<string> { "*" }
             : scope.Repos;
 
         var repos = await _githubService.GetReposAsync(repoFilter);

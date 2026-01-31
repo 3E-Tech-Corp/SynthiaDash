@@ -124,7 +124,7 @@ export default function ProjectsPage() {
     name: '',
     slug: '',
     domain: '',
-    baseDomain: 'pickleball.community',
+    baseDomain: 'synthia.bot',
   })
 
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function ProjectsPage() {
         domain: form.domain,
       })
       setShowCreate(false)
-      setForm({ name: '', slug: '', domain: '', baseDomain: 'pickleball.community' })
+      setForm({ name: '', slug: '', domain: '', baseDomain: 'synthia.bot' })
       fetchProjects()
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create project')
@@ -283,6 +283,7 @@ export default function ProjectsPage() {
                   onChange={e => handleBaseDomainChange(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500"
                 >
+                  <option value="synthia.bot">synthia.bot</option>
                   <option value="pickleball.community">pickleball.community</option>
                   <option value="3eweb.com">3eweb.com</option>
                   <option value="funtimepb.com">funtimepb.com</option>

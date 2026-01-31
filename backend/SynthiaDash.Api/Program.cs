@@ -5,14 +5,43 @@ using SynthiaDash.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS
+// CORS — supports exact origins + wildcard subdomain patterns (e.g., *.synthia.bot)
 builder.Services.AddCors(options =>
 {
+    var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? new[] { "http://localhost:5173" };
+
     options.AddDefaultPolicy(policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? new[] { "http://localhost:5173" };
-        policy.WithOrigins(origins)
+        policy.SetIsOriginAllowed(origin =>
+            {
+                var uri = new Uri(origin);
+                foreach (var allowed in origins)
+                {
+                    // Wildcard subdomain pattern: *.synthia.bot
+                    if (allowed.Contains("*"))
+                    {
+                        var pattern = allowed.Replace("*.", "");
+                        // Extract scheme and host pattern
+                        var schemeEnd = pattern.IndexOf("://");
+                        if (schemeEnd >= 0)
+                        {
+                            var scheme = pattern[..schemeEnd];
+                            var hostPattern = pattern[(schemeEnd + 3)..];
+                            if (uri.Scheme == scheme &&
+                                (uri.Host == hostPattern || uri.Host.EndsWith("." + hostPattern)))
+                                return true;
+                        }
+                    }
+                    else
+                    {
+                        // Exact match
+                        if (origin.Equals(allowed, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                }
+                return false;
+            })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

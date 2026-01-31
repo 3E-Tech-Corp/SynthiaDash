@@ -12,6 +12,7 @@ public interface INotificationService
     Task NotifyTicketSubmitted(Ticket ticket);
     Task NotifyTicketExecuting(Ticket ticket);
     Task NotifyTicketFlagged(Ticket ticket);
+    Task NotifyProjectProvisioned(Project project);
 }
 
 public class NotificationService : INotificationService
@@ -57,6 +58,18 @@ public class NotificationService : INotificationService
             + (string.IsNullOrEmpty(ticket.RepoFullName) ? "" : $"**Repo:** {ticket.RepoFullName}\n")
             + $"\n{ticket.Description}\n\n"
             + "Review it on the dashboard and execute manually if it's legit.";
+
+        await SendToGateway(message);
+    }
+
+    public async Task NotifyProjectProvisioned(Project project)
+    {
+        var message = $"🚀 **Project Provisioned**\n\n"
+            + $"**Name:** {project.Name}\n"
+            + $"**Domain:** {project.Domain}\n"
+            + $"**Repo:** github.com/{project.RepoFullName}\n"
+            + $"**Database:** {project.DatabaseName}\n\n"
+            + "Ready for development! Assign users on the dashboard.";
 
         await SendToGateway(message);
     }

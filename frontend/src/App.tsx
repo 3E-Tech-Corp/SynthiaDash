@@ -6,6 +6,7 @@ import Repos from './pages/Repos'
 import RepoDetail from './pages/RepoDetail'
 import Tasks from './pages/Tasks'
 import TicketsPage from './pages/Tickets'
+import ProjectsPage from './pages/Projects'
 import UsersPage from './pages/Users'
 import Login from './pages/Login'
 
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="repos/:owner/:repo" element={<RepoDetail />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="tickets" element={<TicketsPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
         <Route path="users" element={<UsersPage />} />
       </Route>
     </Routes>

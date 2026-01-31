@@ -75,6 +75,23 @@ export interface User {
   lastLoginAt?: string
 }
 
+export interface Project {
+  id: number
+  name: string
+  slug: string
+  domain: string
+  repoFullName: string
+  databaseName: string
+  iisSiteName: string
+  status: string // pending, provisioning, ready, failed
+  statusDetail?: string
+  error?: string
+  createdByUserId: number
+  createdByEmail?: string
+  createdAt: string
+  readyAt?: string
+}
+
 export interface Ticket {
   id: number
   userId: number
@@ -188,4 +205,15 @@ export const api = {
 
   getTicketImageUrl: (imagePath: string) =>
     `${API_BASE}/tickets/image/${imagePath.replace('tickets/', '')}`,
+
+  // Projects
+  getProjects: () => fetchApi<Project[]>('/projects'),
+
+  getProject: (id: number) => fetchApi<Project>(`/projects/${id}`),
+
+  createProject: (data: { name: string; slug: string; domain: string }) =>
+    fetchApi<Project>('/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

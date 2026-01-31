@@ -87,6 +87,7 @@ builder.Services.AddSingleton<ITaskService, TaskService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -164,6 +165,32 @@ var app = builder.Build();
                     CREATE INDEX IX_Tickets_CreatedAt ON Tickets(CreatedAt DESC);
                 END";
             cmd.ExecuteNonQuery();
+            // Create Projects table if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Projects')
+                BEGIN
+                    CREATE TABLE Projects (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Name NVARCHAR(128) NOT NULL,
+                        Slug NVARCHAR(64) NOT NULL,
+                        Domain NVARCHAR(256) NOT NULL,
+                        RepoFullName NVARCHAR(256) NOT NULL,
+                        DatabaseName NVARCHAR(128) NOT NULL,
+                        IisSiteName NVARCHAR(256) NOT NULL,
+                        Status NVARCHAR(20) NOT NULL DEFAULT 'pending',
+                        StatusDetail NVARCHAR(MAX) NULL,
+                        Error NVARCHAR(MAX) NULL,
+                        CreatedByUserId INT NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        ReadyAt DATETIME2 NULL,
+                        CONSTRAINT FK_Projects_Users FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id),
+                        CONSTRAINT UQ_Projects_Slug UNIQUE (Slug),
+                        CONSTRAINT UQ_Projects_Domain UNIQUE (Domain)
+                    );
+                    CREATE INDEX IX_Projects_Status ON Projects(Status);
+                END";
+            cmd.ExecuteNonQuery();
+
             app.Logger.LogInformation("Database migration check complete");
         }
         catch (Exception ex)

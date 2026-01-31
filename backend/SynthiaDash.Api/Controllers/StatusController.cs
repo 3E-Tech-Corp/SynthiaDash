@@ -5,7 +5,7 @@ using SynthiaDash.Api.Services;
 namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 public class StatusController : ControllerBase
 {
     private readonly IGatewayService _gatewayService;

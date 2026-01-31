@@ -5,7 +5,7 @@ using SynthiaDash.Api.Services;
 namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("[controller]")]
 [Authorize]
 public class ReposController : ControllerBase
 {

@@ -24,6 +24,7 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? "default-dev-key-change-in-prod
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false; // Don't remap claim types (keep "email" as "email")
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -32,7 +33,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "SynthiaDash",
             ValidAudience = builder.Configuration["Jwt:Audience"] ?? "SynthiaDashUsers",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+            NameClaimType = System.Security.Claims.ClaimTypes.Name
         };
         // Log JWT auth failures for debugging
         options.Events = new JwtBearerEvents

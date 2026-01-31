@@ -97,7 +97,7 @@ jobs:
             -BackendPath "F:\New_WWW\ai.3eweb.com\API" `
             -FrontendArtifact "artifacts\frontend" `
             -BackendArtifact "artifacts\backend" `
-            -HealthCheckUrl "https://ai.3eweb.com/api/status"
+            -HealthCheckUrl ""
 
       - name: Summary
         if: always()

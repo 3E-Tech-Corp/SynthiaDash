@@ -123,32 +123,22 @@ public class TaskService : ITaskService
 
             var callbackUrl = _configuration["App:BaseUrl"] ?? "https://ai.3eweb.com";
 
-            var message = $"""
-                ## Agent Task: Fix Build Errors
+            var callbackEndpoint = $"{callbackUrl}/api/tasks/{task.Id}/complete";
+            var additionalInstructions = string.IsNullOrEmpty(task.Prompt) ? "" : $"\n### Additional Instructions:\n{task.Prompt}\n";
 
-                **Repository:** {task.RepoFullName}
-                **Task ID:** {task.Id}
-                **Dashboard Callback:** POST {callbackUrl}/api/tasks/{task.Id}/complete
-
-                ### Error Content (from ErrorMessage.md):
-                ```
-                {task.ErrorContent}
-                ```
-
-                {(string.IsNullOrEmpty(task.Prompt) ? "" : $"### Additional Instructions:\n{task.Prompt}\n")}
-
-                ### Your Mission:
-                1. Analyze the build/compile errors above
-                2. Clone or navigate to the repo: {task.RepoFullName}
-                3. Fix the code issues
-                4. Commit and push the fixes
-                5. When done, call back to the dashboard:
-                   ```
-                   POST {callbackUrl}/api/tasks/{task.Id}/complete
-                   Content-Type: application/json
-                   {{"status": "completed", "result": "Your summary of what you fixed", "prUrl": "optional PR URL"}}
-                   ```
-                """;
+            var message = $"## Agent Task: Fix Build Errors\n\n"
+                + $"**Repository:** {task.RepoFullName}\n"
+                + $"**Task ID:** {task.Id}\n"
+                + $"**Dashboard Callback:** POST {callbackEndpoint}\n\n"
+                + $"### Error Content (from ErrorMessage.md):\n```\n{task.ErrorContent}\n```\n"
+                + additionalInstructions
+                + "\n### Your Mission:\n"
+                + "1. Analyze the build/compile errors above\n"
+                + $"2. Clone or navigate to the repo: {task.RepoFullName}\n"
+                + "3. Fix the code issues\n"
+                + "4. Commit and push the fixes\n"
+                + $"5. When done, use web_fetch or exec curl to POST to: {callbackEndpoint}\n"
+                + "   Body (JSON): {\"status\": \"completed\", \"result\": \"Your summary\", \"prUrl\": \"optional\"}\n";
 
             var payload = new
             {

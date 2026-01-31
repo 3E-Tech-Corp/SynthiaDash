@@ -77,6 +77,43 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Auto-migrate: create Users table if it doesn't exist
+{
+    var connStr = app.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrEmpty(connStr))
+    {
+        try
+        {
+            using var db = new Microsoft.Data.SqlClient.SqlConnection(connStr);
+            db.Open();
+            using var cmd = db.CreateCommand();
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Users')
+                BEGIN
+                    CREATE TABLE Users (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Email NVARCHAR(256) NOT NULL,
+                        DisplayName NVARCHAR(128) NOT NULL,
+                        PasswordHash NVARCHAR(512) NOT NULL,
+                        Role NVARCHAR(20) NOT NULL DEFAULT 'viewer',
+                        Repos NVARCHAR(MAX) NULL,
+                        IsActive BIT NOT NULL DEFAULT 1,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        LastLoginAt DATETIME2 NULL,
+                        CONSTRAINT UQ_Users_Email UNIQUE (Email)
+                    );
+                    CREATE INDEX IX_Users_Email ON Users(Email);
+                END";
+            cmd.ExecuteNonQuery();
+            app.Logger.LogInformation("Database migration check complete");
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogWarning(ex, "Database migration failed — auth features won't work until DB is configured");
+        }
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

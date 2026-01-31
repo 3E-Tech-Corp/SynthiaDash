@@ -19,19 +19,18 @@ public class ReposController : ControllerBase
     }
 
     /// <summary>
-    /// Get repos visible to the current user (anonymous = admin view for internal dashboard)
+    /// Get repos visible to the current user
     /// </summary>
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetRepos()
     {
         var email = User.FindFirst("email")?.Value ?? "";
         var scope = _scopeService.GetUserScope(email);
 
-        // Internal dashboard: unauthenticated users get admin-level repo access
-        var repoFilter = (scope.Role == "none" || string.IsNullOrEmpty(email))
-            ? new List<string> { "*" }
-            : scope.Repos;
+        if (scope.Role == "none")
+            return Forbid();
+
+        var repoFilter = scope.Repos;
 
         var repos = await _githubService.GetReposAsync(repoFilter);
 

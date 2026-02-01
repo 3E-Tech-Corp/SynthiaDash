@@ -157,6 +157,17 @@ public class TicketsController : ControllerBase
 
         var ticket = await _ticketService.CreateTicketAsync(userId, request, imagePath);
 
+        // Add initial system comment
+        try
+        {
+            await _ticketService.AddSystemCommentAsync(ticket.Id,
+                "Ticket submitted. We'll review it and may ask follow-up questions here.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to add initial system comment for ticket #{Id}", ticket.Id);
+        }
+
         _logger.LogInformation("Ticket #{Id} created by {Email} (access: {Access})", ticket.Id, email, access);
 
         // Handle based on access level
@@ -174,6 +185,12 @@ public class TicketsController : ControllerBase
                         {
                             Status = "flagged"
                         });
+                        try
+                        {
+                            await _ticketService.AddSystemCommentAsync(ticket.Id,
+                                "This ticket has been flagged for admin review. Status changed to Flagged for Review.");
+                        }
+                        catch { /* non-critical */ }
                         await _notificationService.NotifyTicketFlagged(ticket);
                         return;
                     }
@@ -212,10 +229,49 @@ public class TicketsController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketRequest request)
     {
+        // Get current ticket to detect status changes
+        var currentTicket = await _ticketService.GetTicketAsync(id);
+        if (currentTicket == null) return NotFound();
+
+        var oldStatus = currentTicket.Status;
+
         var ticket = await _ticketService.UpdateTicketAsync(id, request);
         if (ticket == null) return NotFound();
+
+        // Auto-add system comment when status changes
+        if (request.Status != null && request.Status != oldStatus)
+        {
+            var statusLabel = STATUS_LABELS.GetValueOrDefault(request.Status, request.Status);
+            var systemComment = request.Status switch
+            {
+                "in_progress" => $"Synthia has started working on this ticket. Status changed to {statusLabel}.",
+                "completed" => $"This ticket has been completed! 🎉 Status changed to {statusLabel}.",
+                "closed" => $"This ticket has been closed. Status changed to {statusLabel}.",
+                "flagged" => $"This ticket has been flagged for review. Status changed to {statusLabel}.",
+                _ => $"Status changed to {statusLabel}."
+            };
+
+            try
+            {
+                await _ticketService.AddSystemCommentAsync(id, systemComment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to add system comment for ticket #{Id}", id);
+            }
+        }
+
         return Ok(ticket);
     }
+
+    private static readonly Dictionary<string, string> STATUS_LABELS = new()
+    {
+        ["submitted"] = "Submitted",
+        ["flagged"] = "Flagged for Review",
+        ["in_progress"] = "In Progress",
+        ["completed"] = "Completed",
+        ["closed"] = "Closed"
+    };
 
     /// <summary>
     /// Delete a ticket (admin or owner)
@@ -305,6 +361,53 @@ public class TicketsController : ControllerBase
         return Ok(new { bugAccess, featureAccess });
     }
 
+    /// <summary>
+    /// Get all comments for a ticket
+    /// </summary>
+    [HttpGet("{id}/comments")]
+    public async Task<IActionResult> GetComments(int id)
+    {
+        var ticket = await _ticketService.GetTicketAsync(id);
+        if (ticket == null) return NotFound();
+
+        var email = User.FindFirst("email")?.Value;
+        var isAdmin = _userScopeService.IsAdmin(email ?? "");
+
+        if (!isAdmin && ticket.UserId != GetUserId())
+            return Forbid();
+
+        var comments = await _ticketService.GetCommentsAsync(id);
+        return Ok(comments);
+    }
+
+    /// <summary>
+    /// Add a comment to a ticket (user or admin)
+    /// </summary>
+    [HttpPost("{id}/comments")]
+    public async Task<IActionResult> AddComment(int id, [FromBody] CreateCommentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Comment))
+            return BadRequest(new { error = "Comment cannot be empty" });
+
+        var ticket = await _ticketService.GetTicketAsync(id);
+        if (ticket == null) return NotFound();
+
+        var email = User.FindFirst("email")?.Value;
+        var isAdmin = _userScopeService.IsAdmin(email ?? "");
+        var userId = GetUserId();
+
+        if (!isAdmin && ticket.UserId != userId)
+            return Forbid();
+
+        // Get user display name (stored as ClaimTypes.Name in JWT)
+        var displayName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+            ?? User.FindFirst("name")?.Value
+            ?? email ?? "Unknown";
+
+        var comment = await _ticketService.AddCommentAsync(id, userId, displayName, request.Comment.Trim());
+        return Ok(comment);
+    }
+
     private async Task TriggerAgentForTicket(Ticket ticket)
     {
         var typeLabel = ticket.Type == "bug" ? "Bug Report" : "Feature Request";
@@ -342,6 +445,17 @@ public class TicketsController : ControllerBase
             Status = "in_progress"
         });
 
+        // Add system comment for execution start
+        try
+        {
+            await _ticketService.AddSystemCommentAsync(ticket.Id,
+                "Synthia has started working on this ticket. Status changed to In Progress.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to add system comment for ticket #{Id}", ticket.Id);
+        }
+
         // Update the agent task ID on the ticket via raw SQL (TicketService doesn't expose this)
         // We'll just track it through the task service
         _logger.LogInformation("Agent task {TaskId} created for ticket #{TicketId}", agentTask.Id, ticket.Id);
@@ -364,6 +478,20 @@ public class TicketsController : ControllerBase
         });
 
         if (ticket == null) return NotFound();
+
+        // Add system comment for completion
+        try
+        {
+            var statusLabel = STATUS_LABELS.GetValueOrDefault(request.Status ?? "completed", request.Status ?? "completed");
+            var msg = (request.Status ?? "completed") == "completed"
+                ? "This ticket has been completed! 🎉 Status changed to Completed."
+                : $"Status changed to {statusLabel}.";
+            await _ticketService.AddSystemCommentAsync(id, msg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to add system comment for ticket #{Id}", id);
+        }
 
         _logger.LogInformation("Ticket #{Id} completed: {Status}", id, request.Status);
         return Ok(ticket);

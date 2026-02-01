@@ -35,3 +35,19 @@ public class UpdateTicketRequest
     public string? Status { get; set; }
     public string? Result { get; set; }
 }
+
+public class TicketComment
+{
+    public int Id { get; set; }
+    public int TicketId { get; set; }
+    public int? UserId { get; set; }
+    public string UserDisplayName { get; set; } = string.Empty;
+    public string Comment { get; set; } = string.Empty;
+    public bool IsSystemMessage { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CreateCommentRequest
+{
+    public string Comment { get; set; } = string.Empty;
+}

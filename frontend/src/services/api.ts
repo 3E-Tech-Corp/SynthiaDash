@@ -110,6 +110,16 @@ export interface Ticket {
   userDisplayName?: string
 }
 
+export interface TicketComment {
+  id: number
+  ticketId: number
+  userId: number | null
+  userDisplayName: string
+  comment: string
+  isSystemMessage: boolean
+  createdAt: string
+}
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
@@ -202,6 +212,14 @@ export const api = {
     fetchApi<{ message: string }>(`/tickets/${id}/execute`, { method: 'POST' }),
 
   getTicketAccess: () => fetchApi<{ bugAccess: string; featureAccess: string }>('/tickets/access'),
+
+  getTicketComments: (id: number) => fetchApi<TicketComment[]>(`/tickets/${id}/comments`),
+
+  addTicketComment: (id: number, comment: string) =>
+    fetchApi<TicketComment>(`/tickets/${id}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    }),
 
   getTicketImageUrl: (imagePath: string) =>
     `${API_BASE}/tickets/image/${imagePath.replace('tickets/', '')}`,

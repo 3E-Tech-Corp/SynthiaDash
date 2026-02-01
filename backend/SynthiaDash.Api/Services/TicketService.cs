@@ -13,6 +13,9 @@ public interface ITicketService
     Task<bool> DeleteTicketAsync(int id);
     Task<string> GetUserTicketAccessAsync(int userId);
     Task<(string bugAccess, string featureAccess)> GetUserTicketAccessSplitAsync(int userId);
+    Task<List<TicketComment>> GetCommentsAsync(int ticketId);
+    Task<TicketComment> AddCommentAsync(int ticketId, int userId, string userDisplayName, string comment);
+    Task<TicketComment> AddSystemCommentAsync(int ticketId, string comment);
 }
 
 public class TicketService : ITicketService
@@ -135,5 +138,55 @@ public class TicketService : ITicketService
             (string)(user.BugAccess ?? "none"),
             (string)(user.FeatureAccess ?? "none")
         );
+    }
+
+    public async Task<List<TicketComment>> GetCommentsAsync(int ticketId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var comments = await db.QueryAsync<TicketComment>(
+            @"SELECT Id, TicketId, UserId, UserDisplayName, Comment, IsSystemMessage, CreatedAt
+              FROM TicketComments
+              WHERE TicketId = @TicketId
+              ORDER BY CreatedAt ASC",
+            new { TicketId = ticketId });
+        return comments.ToList();
+    }
+
+    public async Task<TicketComment> AddCommentAsync(int ticketId, int userId, string userDisplayName, string comment)
+    {
+        using var db = new SqlConnection(_connectionString);
+
+        var id = await db.QuerySingleAsync<int>(
+            @"INSERT INTO TicketComments (TicketId, UserId, UserDisplayName, Comment, IsSystemMessage)
+              OUTPUT INSERTED.Id
+              VALUES (@TicketId, @UserId, @UserDisplayName, @Comment, 0)",
+            new { TicketId = ticketId, UserId = userId, UserDisplayName = userDisplayName, Comment = comment });
+
+        // Touch the ticket's UpdatedAt
+        await db.ExecuteAsync(
+            "UPDATE Tickets SET UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+            new { Id = ticketId });
+
+        return (await db.QueryFirstAsync<TicketComment>(
+            "SELECT * FROM TicketComments WHERE Id = @Id", new { Id = id }));
+    }
+
+    public async Task<TicketComment> AddSystemCommentAsync(int ticketId, string comment)
+    {
+        using var db = new SqlConnection(_connectionString);
+
+        var id = await db.QuerySingleAsync<int>(
+            @"INSERT INTO TicketComments (TicketId, UserId, UserDisplayName, Comment, IsSystemMessage)
+              OUTPUT INSERTED.Id
+              VALUES (@TicketId, NULL, 'Synthia', @Comment, 1)",
+            new { TicketId = ticketId, Comment = comment });
+
+        // Touch the ticket's UpdatedAt
+        await db.ExecuteAsync(
+            "UPDATE Tickets SET UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+            new { Id = ticketId });
+
+        return (await db.QueryFirstAsync<TicketComment>(
+            "SELECT * FROM TicketComments WHERE Id = @Id", new { Id = id }));
     }
 }

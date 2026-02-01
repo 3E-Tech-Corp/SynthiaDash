@@ -220,6 +220,26 @@ var app = builder.Build();
                 END";
             cmd.ExecuteNonQuery();
 
+            // Create TicketComments table if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'TicketComments')
+                BEGIN
+                    CREATE TABLE TicketComments (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        TicketId INT NOT NULL,
+                        UserId INT NULL,
+                        UserDisplayName NVARCHAR(128) NOT NULL,
+                        Comment NVARCHAR(MAX) NOT NULL,
+                        IsSystemMessage BIT NOT NULL DEFAULT 0,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT FK_TicketComments_Tickets FOREIGN KEY (TicketId) REFERENCES Tickets(Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_TicketComments_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+                    );
+                    CREATE INDEX IX_TicketComments_TicketId ON TicketComments(TicketId);
+                    CREATE INDEX IX_TicketComments_CreatedAt ON TicketComments(CreatedAt);
+                END";
+            cmd.ExecuteNonQuery();
+
             app.Logger.LogInformation("Database migration check complete");
         }
         catch (Exception ex)

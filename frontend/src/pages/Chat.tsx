@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown } from 'lucide-react'
 import { api } from '../services/api'
-import type { ChatMessageDto } from '../services/api'
+import type { ChatMessageDto, ChatProject } from '../services/api'
 
 const TIER_INFO: Record<string, { icon: typeof Zap; label: string; emoji: string; color: string }> = {
   guide: { icon: BookOpen, label: 'Guide', emoji: '📖', color: 'text-blue-400' },
@@ -128,6 +128,9 @@ export default function ChatPage() {
   const [repoFullName, setRepoFullName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [projects, setProjects] = useState<ChatProject[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [projectsLoading, setProjectsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const streamingRef = useRef(false)
@@ -140,6 +143,19 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
+  // Load projects list
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const projectList = await api.getChatProjects()
+        setProjects(projectList)
+      } catch {
+        // ignore — projects endpoint may not be accessible
+      }
+    }
+    loadProjects()
+  }, [])
+
   // Load initial data
   useEffect(() => {
     const load = async () => {
@@ -148,6 +164,9 @@ export default function ChatPage() {
         setChatAccess(history.chatAccess)
         setProjectName(history.projectName || null)
         setRepoFullName(history.repoFullName || null)
+        if (history.projectId && !selectedProjectId) {
+          setSelectedProjectId(history.projectId)
+        }
         setMessages(
           history.messages.map((m: ChatMessageDto) => ({
             id: String(m.id),
@@ -171,7 +190,34 @@ export default function ChatPage() {
       }
     }
     load()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switch project handler
+  const switchProject = useCallback(async (projectId: number) => {
+    if (projectId === selectedProjectId || streaming) return
+    setSelectedProjectId(projectId)
+    setProjectsLoading(true)
+    setShowClearConfirm(false)
+    try {
+      const history = await api.getChatHistory(50, projectId)
+      setChatAccess(history.chatAccess)
+      setProjectName(history.projectName || null)
+      setRepoFullName(history.repoFullName || null)
+      setMessages(
+        history.messages.map((m: ChatMessageDto) => ({
+          id: String(m.id),
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          createdAt: m.createdAt,
+        }))
+      )
+    } catch {
+      // ignore
+    } finally {
+      setProjectsLoading(false)
+      inputRef.current?.focus()
+    }
+  }, [selectedProjectId, streaming])
 
   const handleSend = async () => {
     const msg = input.trim()
@@ -221,7 +267,8 @@ export default function ChatPage() {
         )
         setStreaming(false)
         streamingRef.current = false
-      }
+      },
+      selectedProjectId || undefined
     )
   }
 
@@ -234,7 +281,7 @@ export default function ChatPage() {
 
   const handleClear = async () => {
     try {
-      await api.clearChatHistory()
+      await api.clearChatHistory(selectedProjectId || undefined)
       setMessages([])
       setShowClearConfirm(false)
     } catch {
@@ -287,11 +334,25 @@ export default function ChatPage() {
               {tierInfo.emoji} {tierInfo.label}
             </span>
           )}
-          {projectName && (
+          {projects.length > 1 ? (
+            <div className="relative">
+              <select
+                value={selectedProjectId || ''}
+                onChange={(e) => switchProject(parseInt(e.target.value))}
+                disabled={streaming || projectsLoading}
+                className="appearance-none bg-gray-900 border border-gray-800 rounded-lg pl-3 pr-8 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-violet-600 hover:border-gray-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+            </div>
+          ) : projectName ? (
             <span className="text-sm text-gray-500">
               · {projectName}
             </span>
-          )}
+          ) : null}
         </div>
         <div className="relative">
           {showClearConfirm ? (
@@ -324,7 +385,15 @@ export default function ChatPage() {
 
       {/* Messages area */}
       <div className="flex-1 bg-gray-900 border border-gray-800 rounded-xl overflow-y-auto p-4 space-y-4 mb-4">
-        {messages.length === 0 && (
+        {projects.length === 0 && !loading && !projectName && (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Zap className="w-10 h-10 text-gray-600 mb-3" />
+            <p className="text-gray-500 text-lg mb-1">No projects available</p>
+            <p className="text-gray-600 text-sm">Ask your admin to add you to a project.</p>
+          </div>
+        )}
+
+        {(projects.length > 0 || projectName) && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Zap className="w-10 h-10 text-violet-400/50 mb-3" />
             <p className="text-gray-500 text-lg mb-1">Start a conversation with Synthia</p>

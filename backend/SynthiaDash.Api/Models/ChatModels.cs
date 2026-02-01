@@ -13,6 +13,7 @@ public class ChatMessage
 public class SendChatRequest
 {
     public string Message { get; set; } = "";
+    public int? ProjectId { get; set; }
 }
 
 public class ChatHistoryResponse
@@ -21,4 +22,5 @@ public class ChatHistoryResponse
     public string ChatAccess { get; set; } = "none";
     public string? ProjectName { get; set; }
     public string? RepoFullName { get; set; }
+    public int? ProjectId { get; set; }
 }

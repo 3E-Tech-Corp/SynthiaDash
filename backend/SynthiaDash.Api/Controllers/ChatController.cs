@@ -39,6 +39,45 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
+    /// Get list of projects the user can chat about
+    /// </summary>
+    [HttpGet("projects")]
+    public async Task<IActionResult> GetChatProjects()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
+        if (chatAccess == "none") return Forbid();
+
+        // Get user's email for scope check
+        var email = User.FindFirst("email")?.Value ?? "";
+        var scope = _scopeService.GetUserScope(email);
+
+        // Get all projects
+        var allProjects = await _projectService.GetProjectsAsync();
+
+        // Filter: admin sees all, others see their own + repos they have access to
+        List<object> projects;
+        if (scope.Role == "admin" || scope.Repos.Contains("*"))
+        {
+            projects = allProjects.Select(p => new { p.Id, p.Name, p.Slug, p.RepoFullName }).Cast<object>().ToList();
+        }
+        else
+        {
+            projects = allProjects
+                .Where(p => p.CreatedByUserId == userId.Value || scope.Repos.Any(r =>
+                    p.RepoFullName.EndsWith("/" + r, StringComparison.OrdinalIgnoreCase) ||
+                    p.RepoFullName.Equals(r, StringComparison.OrdinalIgnoreCase)))
+                .Select(p => new { p.Id, p.Name, p.Slug, p.RepoFullName })
+                .Cast<object>()
+                .ToList();
+        }
+
+        return Ok(projects);
+    }
+
+    /// <summary>
     /// Legacy: Send a message to Synthia, scoped to the user's repos (non-streaming)
     /// </summary>
     [HttpPost]
@@ -81,8 +120,28 @@ public class ChatController : ControllerBase
             return;
         }
 
-        // Get user's project
-        var project = await _projectService.GetProjectForUserAsync(userId.Value);
+        // Get user's project — use specified projectId or fall back to default
+        var project = request.ProjectId.HasValue
+            ? await _projectService.GetProjectAsync(request.ProjectId.Value)
+            : await _projectService.GetProjectForUserAsync(userId.Value);
+
+        // Validate access if a specific project was requested
+        if (request.ProjectId.HasValue && project != null)
+        {
+            var email = User.FindFirst("email")?.Value ?? "";
+            var scope = _scopeService.GetUserScope(email);
+            if (scope.Role != "admin" && !scope.Repos.Contains("*") &&
+                project.CreatedByUserId != userId.Value &&
+                !scope.Repos.Any(r =>
+                    project.RepoFullName.EndsWith("/" + r, StringComparison.OrdinalIgnoreCase) ||
+                    project.RepoFullName.Equals(r, StringComparison.OrdinalIgnoreCase)))
+            {
+                Response.StatusCode = 403;
+                await Response.WriteAsync(JsonSerializer.Serialize(new { error = "No access to this project" }));
+                return;
+            }
+        }
+
         var projectName = project?.Name;
         var repoFullName = project?.RepoFullName;
         var projectSlug = project?.Slug;
@@ -215,13 +274,17 @@ public class ChatController : ControllerBase
     /// Get chat history
     /// </summary>
     [HttpGet("history")]
-    public async Task<IActionResult> GetHistory([FromQuery] int limit = 50)
+    public async Task<IActionResult> GetHistory([FromQuery] int limit = 50, [FromQuery] int? projectId = null)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
         var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
-        var project = await _projectService.GetProjectForUserAsync(userId.Value);
+
+        var project = projectId.HasValue
+            ? await _projectService.GetProjectAsync(projectId.Value)
+            : await _projectService.GetProjectForUserAsync(userId.Value);
+
         var sessionKey = _chatService.BuildSessionKey(userId.Value, project?.Slug);
 
         var messages = await _chatService.GetHistory(userId.Value, sessionKey, limit);
@@ -231,7 +294,8 @@ public class ChatController : ControllerBase
             Messages = messages,
             ChatAccess = chatAccess,
             ProjectName = project?.Name,
-            RepoFullName = project?.RepoFullName
+            RepoFullName = project?.RepoFullName,
+            ProjectId = project?.Id
         });
     }
 
@@ -239,12 +303,15 @@ public class ChatController : ControllerBase
     /// Clear chat history (start new conversation)
     /// </summary>
     [HttpDelete("history")]
-    public async Task<IActionResult> ClearHistory()
+    public async Task<IActionResult> ClearHistory([FromQuery] int? projectId = null)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var project = await _projectService.GetProjectForUserAsync(userId.Value);
+        var project = projectId.HasValue
+            ? await _projectService.GetProjectAsync(projectId.Value)
+            : await _projectService.GetProjectForUserAsync(userId.Value);
+
         var sessionKey = _chatService.BuildSessionKey(userId.Value, project?.Slug);
 
         await _chatService.ClearHistory(userId.Value, sessionKey);

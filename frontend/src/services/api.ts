@@ -90,6 +90,14 @@ export interface ChatHistoryResponse {
   chatAccess: string
   projectName?: string
   repoFullName?: string
+  projectId?: number
+}
+
+export interface ChatProject {
+  id: number
+  name: string
+  slug: string
+  repoFullName: string
 }
 
 export interface ChatAccessResponse {
@@ -261,20 +269,29 @@ export const api = {
     }),
 
   // Chat
-  getChatHistory: (limit = 50) =>
-    fetchApi<ChatHistoryResponse>(`/chat/history?limit=${limit}`),
+  getChatProjects: () =>
+    fetchApi<ChatProject[]>('/chat/projects'),
+
+  getChatHistory: (limit = 50, projectId?: number) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (projectId) params.set('projectId', String(projectId));
+    return fetchApi<ChatHistoryResponse>(`/chat/history?${params}`);
+  },
 
   getChatAccess: () =>
     fetchApi<ChatAccessResponse>('/chat/access'),
 
-  clearChatHistory: () =>
-    fetchApi<{ message: string }>('/chat/history', { method: 'DELETE' }),
+  clearChatHistory: (projectId?: number) => {
+    const params = projectId ? `?projectId=${projectId}` : '';
+    return fetchApi<{ message: string }>(`/chat/history${params}`, { method: 'DELETE' });
+  },
 
   chatStream: async (
     message: string,
     onChunk: (text: string) => void,
     onDone: () => void,
-    onError?: (error: string) => void
+    onError?: (error: string) => void,
+    projectId?: number
   ) => {
     const token = localStorage.getItem('token');
     try {
@@ -284,7 +301,7 @@ export const api = {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, projectId }),
       });
 
       if (!response.ok) {

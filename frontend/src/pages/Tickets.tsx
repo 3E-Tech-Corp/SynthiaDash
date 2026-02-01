@@ -3,7 +3,7 @@ import {
   Bug, Lightbulb, Plus, X, Image as ImageIcon, Loader2,
   Clock, CheckCircle, PlayCircle, XCircle, Trash2, Zap,
   ChevronDown, ChevronUp, MessageSquare, Send, Bot,
-  ArrowLeft, Search, AlertCircle, Info
+  ArrowLeft, Search, AlertCircle, Info, ClipboardList
 } from 'lucide-react'
 import { api } from '../services/api'
 import type { Ticket, RepoStatus, TicketComment } from '../services/api'
@@ -678,6 +678,62 @@ function SubmissionToast({ onDismiss }: { onDismiss: () => void }) {
   )
 }
 
+/** Project Brief Card - shows when brief is set, or info banner when not */
+function ProjectBriefCard({
+  hasBrief,
+  brief,
+  setAt,
+}: {
+  hasBrief: boolean
+  brief: string | null
+  setAt: string | null
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!hasBrief) {
+    return (
+      <div className="bg-amber-900/15 border border-amber-800/40 rounded-xl p-4 mb-6 flex items-start gap-3">
+        <div className="w-9 h-9 rounded-lg bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+          <ClipboardList className="w-5 h-5 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-amber-300">Define your project vision first</p>
+          <p className="text-xs text-amber-200/60 mt-0.5">
+            Your first feature request will be treated as your project's vision statement — describe what your app should do!
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-gray-900 border border-violet-800/40 rounded-xl mb-6 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 p-4 hover:bg-gray-800/50 transition-colors text-left"
+      >
+        <div className="w-9 h-9 rounded-lg bg-violet-900/40 flex items-center justify-center flex-shrink-0">
+          <ClipboardList className="w-5 h-5 text-violet-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium text-violet-300">Project Vision</span>
+          {setAt && (
+            <span className="text-[10px] text-gray-500 ml-2">
+              Set on {new Date(setAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        {expanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-gray-800/50">
+          <p className="text-sm text-gray-300 whitespace-pre-wrap mt-3 leading-relaxed">{brief}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ──────────────────────────────────────────────
 
 export default function TicketsPage() {
@@ -691,6 +747,9 @@ export default function TicketsPage() {
   const [repos, setRepos] = useState<RepoStatus[]>([])
   const [detailTicket, setDetailTicket] = useState<Ticket | null>(null)
   const [showToast, setShowToast] = useState(false)
+  const [projectBrief, setProjectBrief] = useState<{ hasBrief: boolean; brief: string | null; setAt: string | null }>({
+    hasBrief: false, brief: null, setAt: null
+  })
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -712,6 +771,7 @@ export default function TicketsPage() {
     fetchTickets()
     fetchAccess()
     fetchRepos()
+    fetchProjectBrief()
   }, [])
 
   const fetchTickets = async () => {
@@ -746,6 +806,15 @@ export default function TicketsPage() {
       setRepos(data)
     } catch {
       // ignore
+    }
+  }
+
+  const fetchProjectBrief = async () => {
+    try {
+      const data = await api.getProjectBrief()
+      setProjectBrief(data)
+    } catch {
+      // ignore — user may not have a project
     }
   }
 
@@ -833,6 +902,7 @@ export default function TicketsPage() {
       clearImage()
       setShowToast(true)
       fetchTickets()
+      fetchProjectBrief()
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create ticket')
     } finally {
@@ -933,6 +1003,15 @@ export default function TicketsPage() {
         </div>
       </div>
 
+      {/* Project Brief Card */}
+      {(featureAccess === 'execute' || featureAccess === 'submit') && (
+        <ProjectBriefCard
+          hasBrief={projectBrief.hasBrief}
+          brief={projectBrief.brief}
+          setAt={projectBrief.setAt}
+        />
+      )}
+
       {/* No access message */}
       {!canSubmit && !isAdmin && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6 text-center">
@@ -946,7 +1025,11 @@ export default function TicketsPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} onPaste={handlePaste}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-white">New Ticket</h2>
+              <h2 className="text-xl font-bold text-white">
+                {createForm.type === 'feature' && !projectBrief.hasBrief
+                  ? 'Define Your Project Vision'
+                  : 'New Ticket'}
+              </h2>
               <button onClick={() => setShowCreate(false)} className="text-gray-500 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
@@ -996,7 +1079,13 @@ export default function TicketsPage() {
                 <input
                   value={createForm.title}
                   onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
-                  placeholder={createForm.type === 'bug' ? 'Auto-generated if left blank' : 'e.g., Add dark mode support'}
+                  placeholder={
+                    createForm.type === 'bug'
+                      ? 'Auto-generated if left blank'
+                      : !projectBrief.hasBrief
+                        ? 'e.g., My Pickleball Community App'
+                        : 'e.g., Add dark mode support'
+                  }
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
                   required={createForm.type === 'feature'}
                   autoFocus
@@ -1018,7 +1107,9 @@ export default function TicketsPage() {
                   onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
                   placeholder={createForm.type === 'bug'
                     ? 'Paste text or just attach a screenshot...'
-                    : 'Describe what you want — what problem does it solve? Who would use it?'
+                    : !projectBrief.hasBrief
+                      ? 'Describe your app\'s purpose, target audience, and key features. This will guide all future development...'
+                      : 'Describe what you want — what problem does it solve? Who would use it?'
                   }
                   rows={5}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
@@ -1034,7 +1125,33 @@ export default function TicketsPage() {
               </div>
 
               {/* Tips panel for feature requests */}
-              {createForm.type === 'feature' && (
+              {createForm.type === 'feature' && !projectBrief.hasBrief && (
+                <div className="bg-violet-900/15 border border-violet-800/30 rounded-lg p-3.5">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ClipboardList className="w-3.5 h-3.5 text-violet-400" />
+                    <span className="text-xs font-medium text-violet-300">This will be your project vision</span>
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-violet-200/60">
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-violet-500 mt-0.5">•</span>
+                      What is this app for? Who are the users?
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-violet-500 mt-0.5">•</span>
+                      What are the main features you envision?
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-violet-500 mt-0.5">•</span>
+                      Any design or branding preferences?
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-violet-500 mt-0.5">•</span>
+                      The more detail you give, the better the results!
+                    </li>
+                  </ul>
+                </div>
+              )}
+              {createForm.type === 'feature' && projectBrief.hasBrief && (
                 <div className="bg-amber-900/10 border border-amber-800/30 rounded-lg p-3.5">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Lightbulb className="w-3.5 h-3.5 text-amber-400" />

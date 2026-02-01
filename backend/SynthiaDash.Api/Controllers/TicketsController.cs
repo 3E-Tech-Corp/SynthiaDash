@@ -13,6 +13,7 @@ public class TicketsController : ControllerBase
     private readonly ITicketService _ticketService;
     private readonly ITaskService _taskService;
     private readonly INotificationService _notificationService;
+    private readonly IProjectService _projectService;
     private readonly IUserScopeService _userScopeService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TicketsController> _logger;
@@ -21,6 +22,7 @@ public class TicketsController : ControllerBase
         ITicketService ticketService,
         ITaskService taskService,
         INotificationService notificationService,
+        IProjectService projectService,
         IUserScopeService userScopeService,
         IConfiguration configuration,
         ILogger<TicketsController> logger)
@@ -28,6 +30,7 @@ public class TicketsController : ControllerBase
         _ticketService = ticketService;
         _taskService = taskService;
         _notificationService = notificationService;
+        _projectService = projectService;
         _userScopeService = userScopeService;
         _configuration = configuration;
         _logger = logger;
@@ -169,6 +172,63 @@ public class TicketsController : ControllerBase
         }
 
         _logger.LogInformation("Ticket #{Id} created by {Email} (access: {Access})", ticket.Id, email, access);
+
+        // ── Project Brief Logic ──
+        // For feature requests with execute access: check if this is the first feature request
+        // (no project brief set yet). If so, treat it as the project brief instead of executing.
+        if (access == "execute" && type == "feature")
+        {
+            try
+            {
+                var project = await _projectService.GetProjectForUserAsync(userId, repoFullName);
+                if (project != null && string.IsNullOrEmpty(project.ProjectBrief))
+                {
+                    // First feature request → save as project brief
+                    var briefText = $"# {title}\n\n{description}";
+                    await _projectService.SetProjectBriefAsync(project.Id, briefText);
+
+                    // Mark ticket as completed (not executed by agent)
+                    await _ticketService.UpdateTicketAsync(ticket.Id, new UpdateTicketRequest
+                    {
+                        Status = "completed",
+                        Result = "Saved as project brief"
+                    });
+
+                    try
+                    {
+                        await _ticketService.AddSystemCommentAsync(ticket.Id,
+                            "Thank you for describing your project vision! This has been saved as your project brief. " +
+                            "Future feature requests will be built with this context in mind.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to add brief system comment for ticket #{Id}", ticket.Id);
+                    }
+
+                    // Refresh project to get the updated brief for notification
+                    project = await _projectService.GetProjectAsync(project.Id);
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _notificationService.NotifyProjectBriefSet(project!, ticket);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to notify about project brief for ticket #{Id}", ticket.Id);
+                        }
+                    });
+
+                    _logger.LogInformation("Ticket #{Id} saved as project brief for project {ProjectId}", ticket.Id, project!.Id);
+                    return Ok(ticket);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Project brief check failed for ticket #{Id}, proceeding normally", ticket.Id);
+            }
+        }
 
         // Handle based on access level
         if (access == "execute")
@@ -362,6 +422,26 @@ public class TicketsController : ControllerBase
     }
 
     /// <summary>
+    /// Get the current user's project brief (if any)
+    /// </summary>
+    [HttpGet("project-brief")]
+    public async Task<IActionResult> GetProjectBrief()
+    {
+        var userId = GetUserId();
+        var project = await _projectService.GetProjectForUserAsync(userId);
+
+        if (project == null)
+            return Ok(new { hasBrief = false, brief = (string?)null, setAt = (DateTime?)null });
+
+        return Ok(new
+        {
+            hasBrief = !string.IsNullOrEmpty(project.ProjectBrief),
+            brief = project.ProjectBrief,
+            setAt = project.ProjectBriefSetAt
+        });
+    }
+
+    /// <summary>
     /// Get all comments for a ticket
     /// </summary>
     [HttpGet("{id}/comments")]
@@ -415,6 +495,23 @@ public class TicketsController : ControllerBase
             + $"**Submitted by:** {ticket.UserDisplayName}\n"
             + (string.IsNullOrEmpty(ticket.RepoFullName) ? "" : $"**Repository:** {ticket.RepoFullName}\n")
             + $"\n### Description:\n{ticket.Description}\n";
+
+        // Inject project brief if available (for feature requests)
+        if (ticket.Type == "feature")
+        {
+            try
+            {
+                var project = await _projectService.GetProjectForUserAsync(ticket.UserId, ticket.RepoFullName);
+                if (project != null && !string.IsNullOrEmpty(project.ProjectBrief))
+                {
+                    prompt += $"\n### Project Vision:\n{project.ProjectBrief}\n";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch project brief for ticket #{Id}", ticket.Id);
+            }
+        }
 
         if (!string.IsNullOrEmpty(ticket.ImagePath))
         {

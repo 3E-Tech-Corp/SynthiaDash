@@ -13,6 +13,9 @@ public interface IProjectService
     Task<List<Project>> GetProjectsAsync();
     Task<Project?> UpdateProjectStatusAsync(int id, string status, string? detail = null, string? error = null);
     Task ProvisionProjectAsync(Project project);
+    Task<Project?> GetProjectForUserAsync(int userId, string? repoFullName = null);
+    Task SetProjectBriefAsync(int projectId, string brief);
+    Task<(string? brief, DateTime? setAt)?> GetProjectBriefAsync(int projectId);
 }
 
 public class ProjectService : IProjectService
@@ -113,6 +116,50 @@ public class ProjectService : IProjectService
         await db.ExecuteAsync(sql, parameters);
 
         return await GetProjectAsync(id);
+    }
+
+    public async Task<Project?> GetProjectForUserAsync(int userId, string? repoFullName = null)
+    {
+        using var db = new SqlConnection(_connectionString);
+
+        if (!string.IsNullOrEmpty(repoFullName))
+        {
+            // Try to match by repo first
+            var byRepo = await db.QueryFirstOrDefaultAsync<Project>(
+                @"SELECT p.*, u.Email AS CreatedByEmail
+                  FROM Projects p
+                  LEFT JOIN Users u ON p.CreatedByUserId = u.Id
+                  WHERE p.RepoFullName = @RepoFullName AND p.CreatedByUserId = @UserId",
+                new { RepoFullName = repoFullName, UserId = userId });
+            if (byRepo != null) return byRepo;
+        }
+
+        // Fall back to most recent project for this user
+        return await db.QueryFirstOrDefaultAsync<Project>(
+            @"SELECT TOP 1 p.*, u.Email AS CreatedByEmail
+              FROM Projects p
+              LEFT JOIN Users u ON p.CreatedByUserId = u.Id
+              WHERE p.CreatedByUserId = @UserId
+              ORDER BY p.CreatedAt DESC",
+            new { UserId = userId });
+    }
+
+    public async Task SetProjectBriefAsync(int projectId, string brief)
+    {
+        using var db = new SqlConnection(_connectionString);
+        await db.ExecuteAsync(
+            @"UPDATE Projects SET ProjectBrief = @Brief, ProjectBriefSetAt = GETUTCDATE() WHERE Id = @Id",
+            new { Id = projectId, Brief = brief });
+    }
+
+    public async Task<(string? brief, DateTime? setAt)?> GetProjectBriefAsync(int projectId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var result = await db.QueryFirstOrDefaultAsync<dynamic>(
+            "SELECT ProjectBrief, ProjectBriefSetAt FROM Projects WHERE Id = @Id",
+            new { Id = projectId });
+        if (result == null) return null;
+        return ((string?)result.ProjectBrief, (DateTime?)result.ProjectBriefSetAt);
     }
 
     /// <summary>

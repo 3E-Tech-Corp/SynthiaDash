@@ -16,6 +16,8 @@ public class Project
     public string? CreatedByEmail { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReadyAt { get; set; }
+    public string? ProjectBrief { get; set; }
+    public DateTime? ProjectBriefSetAt { get; set; }
 }
 
 public class CreateProjectRequest

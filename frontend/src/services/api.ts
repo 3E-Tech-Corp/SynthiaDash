@@ -213,6 +213,8 @@ export const api = {
 
   getTicketAccess: () => fetchApi<{ bugAccess: string; featureAccess: string }>('/tickets/access'),
 
+  getProjectBrief: () => fetchApi<{ hasBrief: boolean; brief: string | null; setAt: string | null }>('/tickets/project-brief'),
+
   getTicketComments: (id: number) => fetchApi<TicketComment[]>(`/tickets/${id}/comments`),
 
   addTicketComment: (id: number, comment: string) =>

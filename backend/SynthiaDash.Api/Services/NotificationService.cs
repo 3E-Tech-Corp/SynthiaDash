@@ -13,6 +13,7 @@ public interface INotificationService
     Task NotifyTicketExecuting(Ticket ticket);
     Task NotifyTicketFlagged(Ticket ticket);
     Task NotifyProjectProvisioned(Project project);
+    Task NotifyProjectBriefSet(Project project, Ticket ticket);
 }
 
 public class NotificationService : INotificationService
@@ -70,6 +71,18 @@ public class NotificationService : INotificationService
             + $"**Repo:** github.com/{project.RepoFullName}\n"
             + $"**Database:** {project.DatabaseName}\n\n"
             + "Ready for development! Assign users on the dashboard.";
+
+        await SendToGateway(message);
+    }
+
+    public async Task NotifyProjectBriefSet(Project project, Ticket ticket)
+    {
+        var message = $"📋 **Project Brief Set**\n\n"
+            + $"**Project:** {project.Name} ({project.Domain})\n"
+            + $"**Set by:** {ticket.UserDisplayName} ({ticket.UserEmail})\n"
+            + $"**From ticket:** {ticket.Title}\n\n"
+            + $"**Vision:**\n{project.ProjectBrief}\n\n"
+            + "Future feature requests for this project will use this as context.";
 
         await SendToGateway(message);
     }

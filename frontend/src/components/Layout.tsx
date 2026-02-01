@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { Zap, LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X } from 'lucide-react'
+import { Zap, LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Layout() {
@@ -60,6 +60,10 @@ export default function Layout() {
           <NavLink to="/" end className={linkClass} onClick={handleNavClick}>
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
+          </NavLink>
+          <NavLink to="/chat" className={linkClass} onClick={handleNavClick}>
+            <MessageCircle className="w-4 h-4" />
+            Chat
           </NavLink>
           <NavLink to="/repos" className={linkClass} onClick={handleNavClick}>
             <FolderGit2 className="w-4 h-4" />

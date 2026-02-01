@@ -15,7 +15,8 @@ public interface IAuthService
     Task<UserDto?> GetUserByEmailAsync(string email);
     Task<List<UserDto>> GetAllUsersAsync();
     Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
-        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null);
+        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
+        string? chatAccess = null);
     Task<bool> UpdateLastLoginAsync(string email);
 }
 
@@ -37,6 +38,7 @@ public class UserDto
     public string TicketAccess { get; set; } = "none"; // legacy
     public string BugAccess { get; set; } = "none";
     public string FeatureAccess { get; set; } = "none";
+    public string ChatAccess { get; set; } = "none";
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
@@ -145,7 +147,8 @@ public class AuthService : IAuthService
     }
 
     public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
-        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null)
+        string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
+        string? chatAccess = null)
     {
         using var db = new SqlConnection(_connectionString);
         var updates = new List<string>();
@@ -158,6 +161,7 @@ public class AuthService : IAuthService
         if (ticketAccess != null) { updates.Add("TicketAccess = @TicketAccess"); parameters.Add("TicketAccess", ticketAccess); }
         if (bugAccess != null) { updates.Add("BugAccess = @BugAccess"); parameters.Add("BugAccess", bugAccess); }
         if (featureAccess != null) { updates.Add("FeatureAccess = @FeatureAccess"); parameters.Add("FeatureAccess", featureAccess); }
+        if (chatAccess != null) { updates.Add("ChatAccess = @ChatAccess"); parameters.Add("ChatAccess", chatAccess); }
 
         if (updates.Count == 0) return false;
 
@@ -234,6 +238,7 @@ public class AuthService : IAuthService
         TicketAccess = user.TicketAccess,
         BugAccess = user.BugAccess,
         FeatureAccess = user.FeatureAccess,
+        ChatAccess = user.ChatAccess,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,
         LastLoginAt = user.LastLoginAt
@@ -250,6 +255,7 @@ public class AuthService : IAuthService
         public string TicketAccess { get; set; } = "none";
         public string BugAccess { get; set; } = "none";
         public string FeatureAccess { get; set; } = "none";
+        public string ChatAccess { get; set; } = "none";
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }

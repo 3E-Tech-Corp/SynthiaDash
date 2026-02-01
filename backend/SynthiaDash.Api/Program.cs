@@ -117,6 +117,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -237,6 +238,29 @@ var app = builder.Build();
                     );
                     CREATE INDEX IX_TicketComments_TicketId ON TicketComments(TicketId);
                     CREATE INDEX IX_TicketComments_CreatedAt ON TicketComments(CreatedAt);
+                END";
+            cmd.ExecuteNonQuery();
+
+            // Add ChatAccess column to Users if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'ChatAccess')
+                    ALTER TABLE Users ADD ChatAccess NVARCHAR(20) NOT NULL DEFAULT 'none';";
+            cmd.ExecuteNonQuery();
+
+            // Create ChatMessages table if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ChatMessages')
+                BEGIN
+                    CREATE TABLE ChatMessages (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        UserId INT NOT NULL,
+                        SessionKey NVARCHAR(200) NOT NULL,
+                        Role NVARCHAR(20) NOT NULL,
+                        Content NVARCHAR(MAX) NOT NULL,
+                        CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT FK_ChatMessages_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+                    );
+                    CREATE INDEX IX_ChatMessages_Session ON ChatMessages(SessionKey, CreatedAt);
                 END";
             cmd.ExecuteNonQuery();
 

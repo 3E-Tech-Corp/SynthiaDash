@@ -16,6 +16,13 @@ const ACCESS_LEVELS = [
   { value: 'execute', label: 'Execute', color: 'text-violet-400' },
 ]
 
+const CHAT_LEVELS = [
+  { value: 'none', label: 'None', color: 'text-gray-500' },
+  { value: 'guide', label: '📖 Guide', color: 'text-blue-400' },
+  { value: 'bug', label: '🐛 Bug', color: 'text-amber-400' },
+  { value: 'developer', label: '⚡ Dev', color: 'text-violet-400' },
+]
+
 function RoleBadge({ role }: { role: string }) {
   const r = ROLES.find(x => x.value === role) || ROLES[2]
   const Icon = r.icon
@@ -42,6 +49,7 @@ interface EditState {
   repos: string
   bugAccess: string
   featureAccess: string
+  chatAccess: string
   isActive: boolean
 }
 
@@ -53,6 +61,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
     repos: user.repos || '',
     bugAccess: user.bugAccess || 'none',
     featureAccess: user.featureAccess || 'none',
+    chatAccess: user.chatAccess || 'none',
     isActive: user.isActive,
   })
 
@@ -64,6 +73,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         repos: edit.repos || undefined,
         bugAccess: edit.bugAccess,
         featureAccess: edit.featureAccess,
+        chatAccess: edit.chatAccess,
         isActive: edit.isActive,
       })
       setEditing(false)
@@ -76,7 +86,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', isActive: user.isActive })
     setEditing(false)
   }
 
@@ -227,6 +237,26 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
+          {/* Chat Access */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">💬 Chat Access</label>
+            <div className="flex gap-2">
+              {CHAT_LEVELS.map(cl => (
+                <button
+                  key={cl.value}
+                  onClick={() => setEdit({ ...edit, chatAccess: cl.value })}
+                  className={`flex-1 text-xs py-2 px-3 rounded-lg border transition-colors ${
+                    edit.chatAccess === cl.value
+                      ? 'border-violet-600 bg-violet-900/30 text-violet-300'
+                      : 'border-gray-700 text-gray-500 hover:border-gray-600'
+                  }`}
+                >
+                  {cl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -257,6 +287,12 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
               user.featureAccess === 'execute' ? 'text-violet-400' :
               user.featureAccess === 'submit' ? 'text-green-400' : 'text-gray-500'
             }>{user.featureAccess || 'none'}</span>
+            {' · '}
+            💬 <span className={
+              user.chatAccess === 'developer' ? 'text-violet-400' :
+              user.chatAccess === 'bug' ? 'text-amber-400' :
+              user.chatAccess === 'guide' ? 'text-blue-400' : 'text-gray-500'
+            }>{user.chatAccess || 'none'}</span>
           </span>
           <span>Joined {timeAgo(user.createdAt)}</span>
           <span>Last login {timeAgo(user.lastLoginAt)}</span>

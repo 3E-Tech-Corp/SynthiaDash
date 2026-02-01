@@ -70,9 +70,32 @@ export interface User {
   ticketAccess: string // legacy
   bugAccess: string // none, submit, execute
   featureAccess: string // none, submit, execute
+  chatAccess: string // none, guide, bug, developer
   isActive: boolean
   createdAt: string
   lastLoginAt?: string
+}
+
+export interface ChatMessageDto {
+  id: number
+  userId: number
+  sessionKey: string
+  role: string // user, assistant
+  content: string
+  createdAt: string
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatMessageDto[]
+  chatAccess: string
+  projectName?: string
+  repoFullName?: string
+}
+
+export interface ChatAccessResponse {
+  chatAccess: string
+  projectName?: string
+  repoFullName?: string
 }
 
 export interface Project {
@@ -138,7 +161,7 @@ export const api = {
       body: JSON.stringify({ email, displayName, password, role }),
     }),
 
-  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string }) =>
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string }) =>
     fetchApi<{ message: string }>(`/auth/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -236,4 +259,93 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Chat
+  getChatHistory: (limit = 50) =>
+    fetchApi<ChatHistoryResponse>(`/chat/history?limit=${limit}`),
+
+  getChatAccess: () =>
+    fetchApi<ChatAccessResponse>('/chat/access'),
+
+  clearChatHistory: () =>
+    fetchApi<{ message: string }>('/chat/history', { method: 'DELETE' }),
+
+  chatStream: async (
+    message: string,
+    onChunk: (text: string) => void,
+    onDone: () => void,
+    onError?: (error: string) => void
+  ) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`${API_BASE}/chat/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        onError?.(`Error: ${response.status}`);
+        onDone();
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        onError?.('No response stream');
+        onDone();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+
+          if (data === '[DONE]') {
+            onDone();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              onError?.(parsed.error);
+              onDone();
+              return;
+            }
+            const choices = parsed.choices;
+            if (choices) {
+              for (const choice of choices) {
+                const content = choice.delta?.content;
+                if (content) {
+                  onChunk(content);
+                }
+              }
+            }
+          } catch {
+            // Skip non-JSON lines
+          }
+        }
+      }
+
+      onDone();
+    } catch (err: any) {
+      onError?.(err.message || 'Stream failed');
+      onDone();
+    }
+  },
 };

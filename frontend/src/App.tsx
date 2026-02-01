@@ -9,6 +9,7 @@ import Tasks from './pages/Tasks'
 import TicketsPage from './pages/Tickets'
 import ProjectsPage from './pages/Projects'
 import UsersPage from './pages/Users'
+import ChatPage from './pages/Chat'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<RootRoute />}>
         <Route index element={<Dashboard />} />
+        <Route path="chat" element={<ChatPage />} />
         <Route path="repos" element={<Repos />} />
         <Route path="repos/:owner/:repo" element={<RepoDetail />} />
         <Route path="tasks" element={<Tasks />} />

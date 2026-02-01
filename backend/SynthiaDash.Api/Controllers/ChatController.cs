@@ -125,6 +125,14 @@ public class ChatController : ControllerBase
             ? await _projectService.GetProjectAsync(request.ProjectId.Value)
             : await _projectService.GetProjectForUserAsync(userId.Value);
 
+        // Require a project context — don't allow unscoped chat
+        if (project == null)
+        {
+            Response.StatusCode = 400;
+            await Response.WriteAsync(JsonSerializer.Serialize(new { error = "Please select a project first. Chat requires a project context." }));
+            return;
+        }
+
         // Validate access if a specific project was requested
         if (request.ProjectId.HasValue && project != null)
         {

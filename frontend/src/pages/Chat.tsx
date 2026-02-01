@@ -147,18 +147,22 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages, scrollToBottom])
 
-  // Load projects list
+  // Load projects list and auto-select first project
   useEffect(() => {
     const loadProjects = async () => {
       try {
         const projectList = await api.getChatProjects()
         setProjects(projectList)
+        // Auto-select first project if none selected
+        if (projectList.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(projectList[0].id)
+        }
       } catch {
         // ignore — projects endpoint may not be accessible
       }
     }
     loadProjects()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load initial data
   useEffect(() => {
@@ -246,9 +250,11 @@ export default function ChatPage() {
     }
   }
 
+  const noProject = !selectedProjectId && projects.length === 0 && !projectName
+
   const handleSend = async () => {
     const msg = input.trim()
-    if ((!msg && !pendingImage) || streaming) return
+    if ((!msg && !pendingImage) || streaming || noProject) return
 
     const imageData = pendingImage
 
@@ -510,8 +516,8 @@ export default function ChatPage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={streaming ? 'Synthia is responding...' : 'Message Synthia...'}
-              disabled={streaming}
+              placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : 'Message Synthia...'}
+              disabled={streaming || noProject}
               rows={1}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
               style={{ minHeight: '48px', maxHeight: '120px' }}
@@ -550,7 +556,7 @@ export default function ChatPage() {
           />
           <button
             onClick={handleSend}
-            disabled={(!input.trim() && !pendingImage) || streaming}
+            disabled={(!input.trim() && !pendingImage) || streaming || noProject}
             className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
           >
             <Send className="w-5 h-5" />

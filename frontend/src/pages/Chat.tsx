@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip } from 'lucide-react'
 import { api } from '../services/api'
 import type { ChatMessageDto, ChatProject } from '../services/api'
 
@@ -117,6 +117,7 @@ interface DisplayMessage {
   role: 'user' | 'assistant'
   content: string
   createdAt?: string
+  imageUrl?: string
 }
 
 export default function ChatPage() {
@@ -131,8 +132,11 @@ export default function ChatPage() {
   const [projects, setProjects] = useState<ChatProject[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
   const [projectsLoading, setProjectsLoading] = useState(false)
+  const [pendingImage, setPendingImage] = useState<string | null>(null)
+  const [pendingImageName, setPendingImageName] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const streamingRef = useRef(false)
 
   const scrollToBottom = useCallback(() => {
@@ -219,18 +223,46 @@ export default function ChatPage() {
     }
   }, [selectedProjectId, streaming])
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) continue
+        if (file.size > 5 * 1024 * 1024) {
+          // Too large — ignore
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = () => {
+          setPendingImage(reader.result as string)
+          setPendingImageName(file.name || 'pasted-image.png')
+        }
+        reader.readAsDataURL(file)
+        break
+      }
+    }
+  }
+
   const handleSend = async () => {
     const msg = input.trim()
-    if (!msg || streaming) return
+    if ((!msg && !pendingImage) || streaming) return
+
+    const imageData = pendingImage
 
     // Add user message immediately
     const userMsg: DisplayMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: msg,
+      content: msg || '(image)',
+      imageUrl: imageData || undefined,
     }
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    setPendingImage(null)
+    setPendingImageName(null)
     setStreaming(true)
     streamingRef.current = true
 
@@ -268,7 +300,8 @@ export default function ChatPage() {
         setStreaming(false)
         streamingRef.current = false
       },
-      selectedProjectId || undefined
+      selectedProjectId || undefined,
+      imageData || undefined
     )
   }
 
@@ -428,6 +461,14 @@ export default function ChatPage() {
               <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>
+              {msg.imageUrl && (
+                <img
+                  src={msg.imageUrl}
+                  alt="Attached"
+                  className="max-w-xs rounded-lg mt-2 cursor-pointer"
+                  onClick={() => window.open(msg.imageUrl, '_blank')}
+                />
+              )}
             </div>
           </div>
         ))}
@@ -448,32 +489,73 @@ export default function ChatPage() {
       </div>
 
       {/* Input area */}
-      <div className="flex gap-3 items-end">
-        <div className="flex-1 relative">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={streaming ? 'Synthia is responding...' : 'Message Synthia...'}
+      <div className="flex flex-col">
+        {pendingImage && (
+          <div className="flex items-center gap-2 mb-2 p-2 bg-gray-800 border border-gray-700 rounded-lg">
+            <img src={pendingImage} alt="Preview" className="h-16 w-auto rounded" />
+            <span className="text-xs text-gray-400 truncate flex-1">{pendingImageName}</span>
+            <button
+              onClick={() => { setPendingImage(null); setPendingImageName(null) }}
+              className="p-1 text-gray-500 hover:text-red-400"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        <div className="flex gap-3 items-end">
+          <div className="flex-1 relative">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={streaming ? 'Synthia is responding...' : 'Message Synthia...'}
+              disabled={streaming}
+              rows={1}
+              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
+              style={{ minHeight: '48px', maxHeight: '120px' }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement
+                target.style.height = '48px'
+                target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+              }}
+            />
+          </div>
+          <button
+            onClick={() => imageInputRef.current?.click()}
             disabled={streaming}
-            rows={1}
-            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
-            style={{ minHeight: '48px', maxHeight: '120px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement
-              target.style.height = '48px'
-              target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+            className="flex-shrink-0 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-3 transition-colors"
+            title="Attach image"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              if (file.size > 5 * 1024 * 1024) return
+              const reader = new FileReader()
+              reader.onload = () => {
+                setPendingImage(reader.result as string)
+                setPendingImageName(file.name)
+              }
+              reader.readAsDataURL(file)
+              e.target.value = ''
             }}
           />
+          <button
+            onClick={handleSend}
+            disabled={(!input.trim() && !pendingImage) || streaming}
+            className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
+          >
+            <Send className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || streaming}
-          className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
-        >
-          <Send className="w-5 h-5" />
-        </button>
       </div>
     </div>
   )

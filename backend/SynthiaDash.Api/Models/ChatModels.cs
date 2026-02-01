@@ -14,6 +14,7 @@ public class SendChatRequest
 {
     public string Message { get; set; } = "";
     public int? ProjectId { get; set; }
+    public string? ImageDataUrl { get; set; }
 }
 
 public class ChatHistoryResponse

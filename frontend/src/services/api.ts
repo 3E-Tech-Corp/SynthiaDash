@@ -291,17 +291,22 @@ export const api = {
     onChunk: (text: string) => void,
     onDone: () => void,
     onError?: (error: string) => void,
-    projectId?: number
+    projectId?: number,
+    imageDataUrl?: string
   ) => {
     const token = localStorage.getItem('token');
     try {
+      const body: Record<string, unknown> = { message };
+      if (projectId) body.projectId = projectId;
+      if (imageDataUrl) body.imageDataUrl = imageDataUrl;
+
       const response = await fetch(`${API_BASE}/chat/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message, projectId }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {

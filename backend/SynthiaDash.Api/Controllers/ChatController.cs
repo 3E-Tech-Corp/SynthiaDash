@@ -151,8 +151,11 @@ public class ChatController : ControllerBase
         var sessionKey = _chatService.BuildSessionKey(userId.Value, projectSlug);
         var systemPrompt = _chatService.BuildSystemPrompt(chatAccess, projectName, repoFullName, projectBrief);
 
-        // Save user message
-        await _chatService.SaveMessage(userId.Value, sessionKey, "user", request.Message);
+        // Save user message (text only — no base64 images in DB)
+        var messageToSave = request.Message;
+        if (!string.IsNullOrEmpty(request.ImageDataUrl))
+            messageToSave = string.IsNullOrEmpty(request.Message) ? "[Image]" : request.Message + "\n[Image attached]";
+        await _chatService.SaveMessage(userId.Value, sessionKey, "user", messageToSave);
 
         // Load recent history for context
         var history = await _chatService.GetHistory(userId.Value, sessionKey, 20);
@@ -163,9 +166,26 @@ public class ChatController : ControllerBase
             new { role = "system", content = systemPrompt }
         };
 
-        foreach (var msg in history)
+        // Add history messages (text-only, last message is the current one)
+        foreach (var msg in history.Take(history.Count - 1))
         {
             messages.Add(new { role = msg.Role, content = msg.Content });
+        }
+
+        // Add the current user message — with optional image in OpenAI vision format
+        if (!string.IsNullOrEmpty(request.ImageDataUrl))
+        {
+            var contentParts = new List<object>();
+            if (!string.IsNullOrEmpty(request.Message))
+            {
+                contentParts.Add(new { type = "text", text = request.Message });
+            }
+            contentParts.Add(new { type = "image_url", image_url = new { url = request.ImageDataUrl } });
+            messages.Add(new { role = "user", content = contentParts });
+        }
+        else
+        {
+            messages.Add(new { role = "user", content = request.Message });
         }
 
         // Set up SSE response

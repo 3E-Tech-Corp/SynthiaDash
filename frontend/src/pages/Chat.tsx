@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock } from 'lucide-react'
 import { api } from '../services/api'
@@ -11,7 +12,7 @@ const TIER_INFO: Record<string, { icon: typeof Zap; label: string; emoji: string
 
 function renderMarkdown(text: string) {
   // Simple markdown renderer
-  const parts: (string | JSX.Element)[] = []
+  const parts: (string | ReactNode)[] = []
   let key = 0
 
   // Split by code blocks first
@@ -49,7 +50,7 @@ function renderMarkdown(text: string) {
         let line = lines[i]
 
         // Inline code
-        const inlineParts: (string | JSX.Element)[] = []
+        const inlineParts: (string | ReactNode)[] = []
         const inlineCodeRegex = /`([^`]+)`/g
         let inlineLastIndex = 0
         let inlineMatch
@@ -85,8 +86,8 @@ function renderMarkdown(text: string) {
   return parts
 }
 
-function renderInlineText(text: string, baseKey: number): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = []
+function renderInlineText(text: string, baseKey: number): (string | ReactNode)[] {
+  const parts: (string | ReactNode)[] = []
   let key = baseKey
 
   // Bold

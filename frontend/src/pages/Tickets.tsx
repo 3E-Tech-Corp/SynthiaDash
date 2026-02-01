@@ -147,7 +147,7 @@ function StatusTimeline({ status }: { status: string }) {
 }
 
 /** Comment/Activity feed */
-function CommentsSection({ ticketId, isAdmin }: { ticketId: number; isAdmin: boolean }) {
+function CommentsSection({ ticketId, isAdmin: _isAdmin }: { ticketId: number; isAdmin: boolean }) {
   const [comments, setComments] = useState<TicketComment[]>([])
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
@@ -681,7 +681,7 @@ function SubmissionToast({ onDismiss }: { onDismiss: () => void }) {
 // ── Main Page ──────────────────────────────────────────────
 
 export default function TicketsPage() {
-  const { isAdmin, user } = useAuth()
+  const { isAdmin } = useAuth()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [bugAccess, setBugAccess] = useState<string>('none')

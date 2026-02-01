@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "signIn": "Sign In",
+    "getStarted": "Get Started",
+    "language": "Language"
+  },
+  "hero": {
+    "title": "Meet Synthia ⚡",
+    "subtitle": "Your AI-Powered Development Assistant",
+    "description": "Synthia builds, deploys, and manages your projects — so you can focus on what matters. From code generation to CI/CD pipelines, she's got your back.",
+    "cta": "Get Started",
+    "secondaryCta": "Sign In"
+  },
+  "features": {
+    "sectionTitle": "Everything You Need",
+    "sectionSubtitle": "Synthia brings powerful AI capabilities to your entire development workflow.",
+    "codeAgent": {
+      "title": "AI Code Agent",
+      "description": "Submit tasks in plain English. Synthia writes the code, opens PRs, and iterates on feedback — autonomously."
+    },
+    "cicd": {
+      "title": "CI/CD Management",
+      "description": "Monitor builds, trigger deployments, and manage your pipelines across all repositories from one place."
+    },
+    "tickets": {
+      "title": "Ticket System",
+      "description": "Report bugs and request features. Synthia triages, prioritizes, and can even fix issues automatically."
+    },
+    "multiRepo": {
+      "title": "Multi-Repo Management",
+      "description": "Manage dozens of repositories at once. Track status, coordinate changes, and keep everything in sync."
+    },
+    "collaboration": {
+      "title": "Team Collaboration",
+      "description": "Role-based access, shared dashboards, and real-time visibility into what Synthia is working on."
+    },
+    "notifications": {
+      "title": "Real-Time Notifications",
+      "description": "Stay in the loop with instant updates on builds, deployments, PR reviews, and task completions."
+    }
+  },
+  "howItWorks": {
+    "sectionTitle": "How It Works",
+    "sectionSubtitle": "Three simple steps to supercharge your development workflow.",
+    "step1": {
+      "number": "1",
+      "title": "Connect Your Repos",
+      "description": "Link your GitHub repositories and Synthia automatically maps your projects, dependencies, and workflows."
+    },
+    "step2": {
+      "number": "2",
+      "title": "Submit Requests",
+      "description": "Describe what you need — bug fixes, new features, refactors, deployments — in plain language."
+    },
+    "step3": {
+      "number": "3",
+      "title": "Synthia Delivers",
+      "description": "She writes code, opens pull requests, runs tests, and deploys. You review and approve."
+    }
+  },
+  "cta": {
+    "title": "Ready to Build Faster?",
+    "description": "Join the teams using Synthia to ship code at lightning speed.",
+    "button": "Get Started Now"
+  },
+  "footer": {
+    "poweredBy": "Powered by Clawdbot",
+    "rights": "© {{year}} SynthiaDash. All rights reserved."
+  }
+}

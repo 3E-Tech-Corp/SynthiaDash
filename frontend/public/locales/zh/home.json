@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "signIn": "登录",
+    "getStarted": "开始使用",
+    "language": "语言"
+  },
+  "hero": {
+    "title": "认识 Synthia ⚡",
+    "subtitle": "你的 AI 智能开发助手",
+    "description": "Synthia 帮你构建、部署和管理项目——让你专注于真正重要的事情。从代码生成到 CI/CD 流水线，她全部搞定。",
+    "cta": "开始使用",
+    "secondaryCta": "登录"
+  },
+  "features": {
+    "sectionTitle": "一站式解决方案",
+    "sectionSubtitle": "Synthia 将强大的 AI 能力融入你的整个开发流程。",
+    "codeAgent": {
+      "title": "AI 代码助手",
+      "description": "用自然语言提交任务，Synthia 自动编写代码、创建 PR 并根据反馈持续迭代。"
+    },
+    "cicd": {
+      "title": "CI/CD 管理",
+      "description": "在一个平台上监控构建、触发部署、管理所有仓库的流水线。"
+    },
+    "tickets": {
+      "title": "工单系统",
+      "description": "提交 Bug 和功能请求。Synthia 会自动分类、排优先级，甚至能自动修复问题。"
+    },
+    "multiRepo": {
+      "title": "多仓库管理",
+      "description": "同时管理数十个仓库，追踪状态、协调变更，保持一切井然有序。"
+    },
+    "collaboration": {
+      "title": "团队协作",
+      "description": "基于角色的权限控制、共享看板，实时了解 Synthia 的工作进展。"
+    },
+    "notifications": {
+      "title": "实时通知",
+      "description": "构建、部署、PR 审查和任务完成——所有动态即时推送，不错过任何更新。"
+    }
+  },
+  "howItWorks": {
+    "sectionTitle": "如何使用",
+    "sectionSubtitle": "三个简单步骤，让你的开发效率飞速提升。",
+    "step1": {
+      "number": "1",
+      "title": "连接你的仓库",
+      "description": "关联 GitHub 仓库后，Synthia 会自动梳理你的项目结构、依赖关系和工作流。"
+    },
+    "step2": {
+      "number": "2",
+      "title": "提交需求",
+      "description": "用自然语言描述你的需求——修复 Bug、开发新功能、重构代码、执行部署。"
+    },
+    "step3": {
+      "number": "3",
+      "title": "Synthia 交付",
+      "description": "她编写代码、创建 Pull Request、运行测试并完成部署。你只需审查和批准。"
+    }
+  },
+  "cta": {
+    "title": "准备好加速开发了吗？",
+    "description": "加入正在使用 Synthia 高效交付代码的团队。",
+    "button": "立即开始"
+  },
+  "footer": {
+    "poweredBy": "由 Clawdbot 驱动",
+    "rights": "© {{year}} SynthiaDash. 保留所有权利。"
+  }
+}

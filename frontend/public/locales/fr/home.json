@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "signIn": "Se Connecter",
+    "getStarted": "Commencer",
+    "language": "Langue"
+  },
+  "hero": {
+    "title": "Découvrez Synthia ⚡",
+    "subtitle": "Votre Assistante de Développement Propulsée par l'IA",
+    "description": "Synthia conçoit, déploie et gère vos projets — pour que vous puissiez vous concentrer sur l'essentiel. De la génération de code aux pipelines CI/CD, elle s'occupe de tout.",
+    "cta": "Commencer",
+    "secondaryCta": "Se Connecter"
+  },
+  "features": {
+    "sectionTitle": "Tout Ce Dont Vous Avez Besoin",
+    "sectionSubtitle": "Synthia apporte de puissantes capacités d'IA à l'ensemble de votre flux de développement.",
+    "codeAgent": {
+      "title": "Agent de Code IA",
+      "description": "Soumettez des tâches en langage naturel. Synthia écrit le code, ouvre des PRs et itère sur les retours — de manière autonome."
+    },
+    "cicd": {
+      "title": "Gestion CI/CD",
+      "description": "Surveillez les builds, déclenchez les déploiements et gérez vos pipelines sur tous les dépôts depuis un seul endroit."
+    },
+    "tickets": {
+      "title": "Système de Tickets",
+      "description": "Signalez des bugs et demandez des fonctionnalités. Synthia trie, priorise et peut même corriger les problèmes automatiquement."
+    },
+    "multiRepo": {
+      "title": "Gestion Multi-Dépôts",
+      "description": "Gérez des dizaines de dépôts simultanément. Suivez les statuts, coordonnez les changements et gardez tout synchronisé."
+    },
+    "collaboration": {
+      "title": "Collaboration d'Équipe",
+      "description": "Accès par rôles, tableaux de bord partagés et visibilité en temps réel sur le travail de Synthia."
+    },
+    "notifications": {
+      "title": "Notifications en Temps Réel",
+      "description": "Restez informé avec des mises à jour instantanées sur les builds, déploiements, revues de PRs et tâches terminées."
+    }
+  },
+  "howItWorks": {
+    "sectionTitle": "Comment Ça Marche",
+    "sectionSubtitle": "Trois étapes simples pour dynamiser votre flux de développement.",
+    "step1": {
+      "number": "1",
+      "title": "Connectez Vos Dépôts",
+      "description": "Liez vos dépôts GitHub et Synthia cartographie automatiquement vos projets, dépendances et workflows."
+    },
+    "step2": {
+      "number": "2",
+      "title": "Soumettez Vos Demandes",
+      "description": "Décrivez ce dont vous avez besoin — corrections de bugs, nouvelles fonctionnalités, refactorisations, déploiements — en langage naturel."
+    },
+    "step3": {
+      "number": "3",
+      "title": "Synthia Livre",
+      "description": "Elle écrit le code, ouvre des pull requests, lance les tests et déploie. Vous relisez et approuvez."
+    }
+  },
+  "cta": {
+    "title": "Prêt à Construire Plus Vite ?",
+    "description": "Rejoignez les équipes qui utilisent Synthia pour livrer du code à la vitesse de l'éclair.",
+    "button": "Commencer Maintenant"
+  },
+  "footer": {
+    "poweredBy": "Propulsé par Clawdbot",
+    "rights": "© {{year}} SynthiaDash. Tous droits réservés."
+  }
+}

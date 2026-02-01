@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
+import Home from './pages/Home'
 import Repos from './pages/Repos'
 import RepoDetail from './pages/RepoDetail'
 import Tasks from './pages/Tasks'
@@ -22,10 +23,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/" replace />
   }
 
   return <>{children}</>
+}
+
+function RootRoute() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Home />
+  }
+
+  // Authenticated: render Layout with nested routes
+  return (
+    <ProtectedRoute>
+      <Layout />
+    </ProtectedRoute>
+  )
 }
 
 function AppRoutes() {
@@ -34,14 +58,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route path="/" element={<RootRoute />}>
         <Route index element={<Dashboard />} />
         <Route path="repos" element={<Repos />} />
         <Route path="repos/:owner/:repo" element={<RepoDetail />} />

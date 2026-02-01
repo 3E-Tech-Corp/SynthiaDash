@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "signIn": "Iniciar Sesión",
+    "getStarted": "Comenzar",
+    "language": "Idioma"
+  },
+  "hero": {
+    "title": "Conoce a Synthia ⚡",
+    "subtitle": "Tu Asistente de Desarrollo con IA",
+    "description": "Synthia construye, despliega y gestiona tus proyectos — para que te concentres en lo que importa. Desde generación de código hasta pipelines de CI/CD, ella se encarga.",
+    "cta": "Comenzar",
+    "secondaryCta": "Iniciar Sesión"
+  },
+  "features": {
+    "sectionTitle": "Todo Lo Que Necesitas",
+    "sectionSubtitle": "Synthia lleva capacidades avanzadas de IA a todo tu flujo de desarrollo.",
+    "codeAgent": {
+      "title": "Agente de Código IA",
+      "description": "Envía tareas en lenguaje natural. Synthia escribe el código, abre PRs e itera sobre los comentarios — de forma autónoma."
+    },
+    "cicd": {
+      "title": "Gestión de CI/CD",
+      "description": "Monitorea builds, lanza despliegues y gestiona tus pipelines en todos los repositorios desde un solo lugar."
+    },
+    "tickets": {
+      "title": "Sistema de Tickets",
+      "description": "Reporta errores y solicita funcionalidades. Synthia clasifica, prioriza y hasta puede arreglar problemas automáticamente."
+    },
+    "multiRepo": {
+      "title": "Gestión Multi-Repositorio",
+      "description": "Administra docenas de repositorios a la vez. Rastrea estados, coordina cambios y mantén todo sincronizado."
+    },
+    "collaboration": {
+      "title": "Colaboración en Equipo",
+      "description": "Acceso por roles, dashboards compartidos y visibilidad en tiempo real de lo que Synthia está haciendo."
+    },
+    "notifications": {
+      "title": "Notificaciones en Tiempo Real",
+      "description": "Mantente al día con actualizaciones instantáneas sobre builds, despliegues, revisiones de PRs y tareas completadas."
+    }
+  },
+  "howItWorks": {
+    "sectionTitle": "Cómo Funciona",
+    "sectionSubtitle": "Tres pasos simples para potenciar tu flujo de desarrollo.",
+    "step1": {
+      "number": "1",
+      "title": "Conecta Tus Repos",
+      "description": "Vincula tus repositorios de GitHub y Synthia mapea automáticamente tus proyectos, dependencias y flujos de trabajo."
+    },
+    "step2": {
+      "number": "2",
+      "title": "Envía Solicitudes",
+      "description": "Describe lo que necesitas — corrección de errores, nuevas funcionalidades, refactorizaciones, despliegues — en lenguaje natural."
+    },
+    "step3": {
+      "number": "3",
+      "title": "Synthia Entrega",
+      "description": "Ella escribe código, abre pull requests, ejecuta tests y despliega. Tú revisas y apruebas."
+    }
+  },
+  "cta": {
+    "title": "¿Listo Para Construir Más Rápido?",
+    "description": "Únete a los equipos que usan Synthia para entregar código a la velocidad de la luz.",
+    "button": "Comenzar Ahora"
+  },
+  "footer": {
+    "poweredBy": "Impulsado por Clawdbot",
+    "rights": "© {{year}} SynthiaDash. Todos los derechos reservados."
+  }
+}

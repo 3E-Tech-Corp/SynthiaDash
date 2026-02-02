@@ -1,0 +1,92 @@
+name: IIS Manage
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action: status, start, stop, restart'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - start
+          - stop
+          - restart
+      site_name:
+        description: 'IIS Site Name'
+        required: true
+
+jobs:
+  manage:
+    name: IIS ${{ github.event.inputs.action }} - ${{ github.event.inputs.site_name }}
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Manage IIS Site
+        shell: powershell
+        run: |
+          Import-Module WebAdministration -ErrorAction SilentlyContinue
+          $siteName = "${{ github.event.inputs.site_name }}"
+          $action = "${{ github.event.inputs.action }}"
+
+          Write-Host "=== IIS Site: $siteName ==="
+
+          # Check site exists
+          $site = Get-Website -Name $siteName -ErrorAction SilentlyContinue
+          if (-not $site) {
+            Write-Error "Site '$siteName' not found!"
+            Write-Host "`nAvailable sites:"
+            Get-Website | Format-Table Name, State, PhysicalPath -AutoSize
+            exit 1
+          }
+
+          # Show current status
+          Write-Host "State: $($site.State)"
+          Write-Host "Path: $($site.PhysicalPath)"
+          Write-Host "App Pool: $($site.ApplicationPool)"
+
+          # Check app pool
+          $pool = Get-WebAppPoolState -Name $site.ApplicationPool -ErrorAction SilentlyContinue
+          Write-Host "App Pool State: $($pool.Value)"
+
+          # Check bindings
+          Write-Host "`nBindings:"
+          Get-WebBinding -Name $siteName | Format-Table protocol, bindingInformation -AutoSize
+
+          switch ($action) {
+            "start" {
+              if ($pool.Value -ne "Started") {
+                Start-WebAppPool -Name $site.ApplicationPool
+                Write-Host "`nApp Pool started."
+              }
+              if ($site.State -ne "Started") {
+                Start-Website -Name $siteName
+                Write-Host "Site started."
+              } else {
+                Write-Host "`nSite is already running."
+              }
+            }
+            "stop" {
+              Stop-Website -Name $siteName -ErrorAction SilentlyContinue
+              Stop-WebAppPool -Name $site.ApplicationPool -ErrorAction SilentlyContinue
+              Write-Host "`nSite and app pool stopped."
+            }
+            "restart" {
+              Stop-Website -Name $siteName -ErrorAction SilentlyContinue
+              Stop-WebAppPool -Name $site.ApplicationPool -ErrorAction SilentlyContinue
+              Start-Sleep -Seconds 2
+              Start-WebAppPool -Name $site.ApplicationPool
+              Start-Website -Name $siteName
+              Write-Host "`nSite and app pool restarted."
+            }
+            "status" {
+              Write-Host "`nStatus check complete."
+            }
+          }
+
+          # Final state
+          $siteAfter = Get-Website -Name $siteName
+          $poolAfter = Get-WebAppPoolState -Name $siteAfter.ApplicationPool
+          Write-Host "`n=== Final State ==="
+          Write-Host "Site: $($siteAfter.State)"
+          Write-Host "App Pool: $($poolAfter.Value)"

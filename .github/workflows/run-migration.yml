@@ -1,0 +1,30 @@
+name: Run Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: 'Migration SQL file (e.g., 006-add-max-projects-and-description.sql)'
+        required: true
+        default: '006-add-max-projects-and-description.sql'
+
+jobs:
+  migrate:
+    name: Run SQL Migration
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run migration
+        shell: powershell
+        run: |
+          $file = "database/${{ github.event.inputs.migration_file }}"
+          if (-not (Test-Path $file)) {
+            Write-Error "Migration file not found: $file"
+            exit 1
+          }
+          Write-Host "Running migration: $file"
+          $sql = Get-Content $file -Raw
+          Invoke-Sqlcmd -ServerInstance "localhost\SQLEXPRESS" -Database "Synthia" -Query $sql -Verbose
+          Write-Host "Migration completed successfully."

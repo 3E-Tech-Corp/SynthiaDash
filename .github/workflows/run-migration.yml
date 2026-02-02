@@ -26,5 +26,5 @@ jobs:
           }
           Write-Host "Running migration: $file"
           $sql = Get-Content $file -Raw
-          Invoke-Sqlcmd -ServerInstance "localhost\SQLEXPRESS" -Database "Synthia" -Query $sql -Verbose
+          Invoke-Sqlcmd -ServerInstance "localhost" -Database "Synthia" -Query $sql -Verbose
           Write-Host "Migration completed successfully."

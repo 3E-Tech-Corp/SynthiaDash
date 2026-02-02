@@ -71,6 +71,7 @@ export interface User {
   bugAccess: string // none, submit, execute
   featureAccess: string // none, submit, execute
   chatAccess: string // none, guide, bug, developer
+  maxProjects: number
   isActive: boolean
   createdAt: string
   lastLoginAt?: string
@@ -117,6 +118,7 @@ export interface Project {
   status: string // pending, provisioning, ready, failed
   statusDetail?: string
   error?: string
+  description?: string
   createdByUserId: number
   createdByEmail?: string
   createdAt: string
@@ -169,7 +171,7 @@ export const api = {
       body: JSON.stringify({ email, displayName, password, role }),
     }),
 
-  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string }) =>
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string; maxProjects?: number }) =>
     fetchApi<{ message: string }>(`/auth/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -262,11 +264,14 @@ export const api = {
 
   getProject: (id: number) => fetchApi<Project>(`/projects/${id}`),
 
-  createProject: (data: { name: string; slug: string; domain: string }) =>
+  createProject: (data: { name: string; slug: string; domain: string; description?: string }) =>
     fetchApi<Project>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getProjectSlots: () =>
+    fetchApi<{ used: number; max: number; remaining: number }>('/projects/slots'),
 
   // Chat
   getChatProjects: () =>

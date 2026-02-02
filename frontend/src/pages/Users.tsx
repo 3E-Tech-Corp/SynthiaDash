@@ -50,6 +50,7 @@ interface EditState {
   bugAccess: string
   featureAccess: string
   chatAccess: string
+  maxProjects: number
   isActive: boolean
 }
 
@@ -62,6 +63,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
     bugAccess: user.bugAccess || 'none',
     featureAccess: user.featureAccess || 'none',
     chatAccess: user.chatAccess || 'none',
+    maxProjects: user.maxProjects ?? 1,
     isActive: user.isActive,
   })
 
@@ -74,6 +76,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         bugAccess: edit.bugAccess,
         featureAccess: edit.featureAccess,
         chatAccess: edit.chatAccess,
+        maxProjects: edit.maxProjects,
         isActive: edit.isActive,
       })
       setEditing(false)
@@ -86,7 +89,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', maxProjects: user.maxProjects ?? 1, isActive: user.isActive })
     setEditing(false)
   }
 
@@ -257,6 +260,20 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
+          {/* Max Projects */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">🚀 Max Projects</label>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={edit.maxProjects}
+              onChange={e => setEdit({ ...edit, maxProjects: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
+              className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+            />
+            <span className="text-xs text-gray-600 ml-2">project slots for this user</span>
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -293,6 +310,8 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
               user.chatAccess === 'bug' ? 'text-amber-400' :
               user.chatAccess === 'guide' ? 'text-blue-400' : 'text-gray-500'
             }>{user.chatAccess || 'none'}</span>
+            {' · '}
+            🚀 <span className="text-emerald-400">{user.maxProjects ?? 1}</span> project{(user.maxProjects ?? 1) !== 1 ? 's' : ''}
           </span>
           <span>Joined {timeAgo(user.createdAt)}</span>
           <span>Last login {timeAgo(user.lastLoginAt)}</span>

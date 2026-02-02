@@ -77,17 +77,17 @@ export default function Layout() {
             <TicketIcon className="w-4 h-4" />
             Tickets
           </NavLink>
+          {user && (
+            <NavLink to="/projects" className={linkClass} onClick={handleNavClick}>
+              <Rocket className="w-4 h-4" />
+              Projects
+            </NavLink>
+          )}
           {user?.role === 'admin' && (
-            <>
-              <NavLink to="/projects" className={linkClass} onClick={handleNavClick}>
-                <Rocket className="w-4 h-4" />
-                Projects
-              </NavLink>
-              <NavLink to="/users" className={linkClass} onClick={handleNavClick}>
-                <Users className="w-4 h-4" />
-                Users
-              </NavLink>
-            </>
+            <NavLink to="/users" className={linkClass} onClick={handleNavClick}>
+              <Users className="w-4 h-4" />
+              Users
+            </NavLink>
           )}
         </nav>
 

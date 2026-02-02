@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Rocket, Plus, X, Loader2, CheckCircle, XCircle, Clock,
-  Globe, Database, FolderGit2, ExternalLink, RefreshCw
+  Rocket, Plus, Loader2, CheckCircle, XCircle, Clock,
+  Globe, Database, FolderGit2, ExternalLink, RefreshCw,
+  ArrowLeft, Upload, Info
 } from 'lucide-react'
 import { api } from '../services/api'
 import type { Project } from '../services/api'
@@ -37,8 +38,8 @@ function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () =
       project.status === 'provisioning' ? 'border-blue-900/50' :
       'border-gray-800'
     }`}>
-      <div className="flex items-start justify-between mb-4">
-        <div>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
             {project.name}
             <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
@@ -47,16 +48,29 @@ function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () =
             </span>
           </h3>
           <p className="text-sm text-gray-500 mt-0.5">{project.slug}</p>
+          {project.description && (
+            <p className="text-sm text-gray-400 mt-1.5">{project.description}</p>
+          )}
         </div>
-        {project.status === 'provisioning' && (
+        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
           <button
-            onClick={onRefresh}
-            className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-            title="Refresh status"
+            disabled
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-gray-500 cursor-not-allowed"
+            title="No pending updates"
           >
-            <RefreshCw className="w-4 h-4" />
+            <Upload className="w-3 h-3" />
+            Deploy
           </button>
-        )}
+          {project.status === 'provisioning' && (
+            <button
+              onClick={onRefresh}
+              className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              title="Refresh status"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -113,22 +127,28 @@ function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () =
   )
 }
 
+type CreateStep = 'form' | 'confirm'
+
 export default function ProjectsPage() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [createStep, setCreateStep] = useState<CreateStep>('form')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [slots, setSlots] = useState<{ used: number; max: number; remaining: number } | null>(null)
+  const [viewTab, setViewTab] = useState<'mine' | 'all'>('mine')
   const [form, setForm] = useState({
     name: '',
     slug: '',
-    domain: '',
+    description: '',
     baseDomain: 'synthia.bot',
   })
 
   useEffect(() => {
     fetchProjects()
+    fetchSlots()
   }, [])
 
   // Auto-refresh provisioning projects
@@ -151,35 +171,28 @@ export default function ProjectsPage() {
     }
   }
 
-  // Auto-generate slug and domain from name
+  const fetchSlots = async () => {
+    try {
+      const data = await api.getProjectSlots()
+      setSlots(data)
+    } catch {
+      // ignore
+    }
+  }
+
+  // Auto-generate slug from name
   const handleNameChange = (name: string) => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    setForm({
-      ...form,
-      name,
-      slug,
-      domain: slug ? `${slug}.${form.baseDomain}` : '',
-    })
+    setForm({ ...form, name, slug })
   }
 
   const handleSlugChange = (slug: string) => {
-    setForm({
-      ...form,
-      slug,
-      domain: slug ? `${slug}.${form.baseDomain}` : '',
-    })
+    setForm({ ...form, slug })
   }
 
-  const handleBaseDomainChange = (baseDomain: string) => {
-    setForm({
-      ...form,
-      baseDomain,
-      domain: form.slug ? `${form.slug}.${baseDomain}` : '',
-    })
-  }
+  const domain = form.slug ? `${form.slug}.${form.baseDomain}` : ''
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleCreate = async () => {
     setCreateError(null)
     setCreating(true)
 
@@ -187,11 +200,14 @@ export default function ProjectsPage() {
       await api.createProject({
         name: form.name || form.slug,
         slug: form.slug,
-        domain: form.domain,
+        domain,
+        description: form.description || undefined,
       })
       setShowCreate(false)
-      setForm({ name: '', slug: '', domain: '', baseDomain: 'synthia.bot' })
+      setCreateStep('form')
+      setForm({ name: '', slug: '', description: '', baseDomain: 'synthia.bot' })
       fetchProjects()
+      fetchSlots()
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create project')
     } finally {
@@ -199,141 +215,264 @@ export default function ProjectsPage() {
     }
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="max-w-4xl">
-        <div className="bg-red-900/30 border border-red-800 rounded-lg p-6 text-red-300">
-          Admin access required.
-        </div>
-      </div>
-    )
+  const handleCancelCreate = () => {
+    setShowCreate(false)
+    setCreateStep('form')
+    setCreateError(null)
+    setForm({ name: '', slug: '', description: '', baseDomain: 'synthia.bot' })
   }
+
+  const isUnlimited = isAdmin || (slots && slots.max >= 999)
+  const canCreate = isUnlimited || (slots && slots.remaining > 0)
+
+  // Filter projects for admin view tabs
+  const myProjects = projects.filter(p => p.createdByUserId === user?.id)
+  const displayProjects = isAdmin && viewTab === 'all' ? projects : (isAdmin ? myProjects : projects)
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Rocket className="w-8 h-8 text-emerald-400" />
             Projects
-            <span className="text-sm font-normal text-gray-500 ml-2">({projects.length})</span>
+            <span className="text-sm font-normal text-gray-500 ml-2">({displayProjects.length})</span>
           </h1>
-          <p className="text-gray-500 text-sm mt-1">One-click project provisioning</p>
+          <p className="text-gray-500 text-sm mt-1">Create and manage your projects</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" /> New Project
-        </button>
+        {!showCreate && (
+          <button
+            onClick={() => setShowCreate(true)}
+            disabled={!canCreate}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+          >
+            <Plus className="w-4 h-4" /> New Project
+          </button>
+        )}
       </div>
 
-      {/* Create Project Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Rocket className="w-5 h-5 text-emerald-400" />
-                New Project
-              </h2>
-              <button onClick={() => setShowCreate(false)} className="text-gray-500 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
+      {/* Slots info */}
+      {slots && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-900/30 flex items-center justify-center">
+              <Rocket className="w-5 h-5 text-emerald-400" />
             </div>
+            <div>
+              <p className="text-sm text-gray-300">
+                {isUnlimited ? (
+                  <>You have <span className="text-emerald-400 font-semibold">unlimited</span> project slots</>
+                ) : (
+                  <>You have <span className="text-emerald-400 font-semibold">{slots.remaining}</span> of <span className="text-white font-semibold">{slots.max}</span> project slots remaining</>
+                )}
+              </p>
+              <p className="text-xs text-gray-600 mt-0.5">{slots.used} project{slots.used !== 1 ? 's' : ''} created</p>
+            </div>
+          </div>
+          {!canCreate && (
+            <span className="text-xs text-amber-400 bg-amber-900/20 px-3 py-1.5 rounded-lg">Limit reached</span>
+          )}
+        </div>
+      )}
 
-            <form onSubmit={handleCreate} className="space-y-4">
+      {/* Admin view tabs */}
+      {isAdmin && !showCreate && (
+        <div className="flex gap-1 mb-6 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setViewTab('mine')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewTab === 'mine' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            My Projects
+          </button>
+          <button
+            onClick={() => setViewTab('all')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewTab === 'all' ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            All Projects ({projects.length})
+          </button>
+        </div>
+      )}
+
+      {/* Create Project Wizard */}
+      {showCreate && (
+        <div className="bg-gray-900 border border-emerald-900/50 rounded-2xl p-6 mb-6 shadow-lg">
+          {createStep === 'form' ? (
+            <>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Rocket className="w-5 h-5 text-emerald-400" />
+                  Create New Project
+                </h2>
+                <button
+                  onClick={handleCancelCreate}
+                  className="text-gray-500 hover:text-white text-sm px-3 py-1 rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+
               {createError && (
-                <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm">{createError}</div>
+                <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">{createError}</div>
               )}
 
-              {/* Project name */}
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Project Name</label>
-                <input
-                  value={form.name}
-                  onChange={e => handleNameChange(e.target.value)}
-                  placeholder="e.g., Demo App"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500"
-                  required
-                  autoFocus
-                />
-              </div>
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Project Title <span className="text-red-400">*</span></label>
+                  <input
+                    value={form.name}
+                    onChange={e => handleNameChange(e.target.value)}
+                    placeholder="e.g., My Awesome App"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500"
+                    required
+                    autoFocus
+                  />
+                </div>
 
-              {/* Slug */}
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                  Slug <span className="text-gray-600">(repo name + subdomain)</span>
-                </label>
-                <input
-                  value={form.slug}
-                  onChange={e => handleSlugChange(e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, ''))}
-                  placeholder="e.g., demo-app"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-emerald-500"
-                  required
-                  pattern="^[a-z0-9][a-z0-9\-]*[a-z0-9]$"
-                />
-              </div>
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Description <span className="text-gray-600">(optional but encouraged)</span></label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    placeholder="Describe what your project does..."
+                    rows={3}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500 resize-none"
+                  />
+                </div>
 
-              {/* Base domain */}
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Base Domain</label>
-                <select
-                  value={form.baseDomain}
-                  onChange={e => handleBaseDomainChange(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="synthia.bot">synthia.bot</option>
-                  <option value="pickleball.community">pickleball.community</option>
-                  <option value="3eweb.com">3eweb.com</option>
-                  <option value="funtimepb.com">funtimepb.com</option>
-                </select>
-              </div>
-
-              {/* Preview */}
-              {form.slug && (
-                <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 space-y-2">
-                  <h4 className="text-xs font-medium text-gray-500 uppercase">Will Create</h4>
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex items-center gap-2">
-                      <FolderGit2 className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-300">Repo: <span className="text-white font-mono">3E-Tech-Corp/{form.slug}</span></span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-300">URL: <span className="text-emerald-400">{form.domain}</span></span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Database className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-300">DB: <span className="text-white font-mono">{form.slug}_DB</span></span>
-                    </div>
+                {/* Desired URL */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                    Desired URL
+                  </label>
+                  <div className="flex items-center gap-0">
+                    <input
+                      value={form.slug}
+                      onChange={e => handleSlugChange(e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, ''))}
+                      placeholder="my-app"
+                      className="flex-1 bg-gray-800 border border-gray-700 rounded-l-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-emerald-500"
+                      required
+                      pattern="^[a-z0-9][a-z0-9\-]*[a-z0-9]$"
+                    />
+                    <span className="bg-gray-700 border border-gray-700 rounded-r-lg px-4 py-2.5 text-gray-400 text-sm font-mono">
+                      .{form.baseDomain}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {/* Submit */}
-              <div className="flex gap-3 pt-2">
+                {/* Info banner */}
+                <div className="bg-indigo-900/20 border border-indigo-800/50 rounded-lg p-4 flex items-start gap-3">
+                  <Info className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-indigo-300">
+                    💡 Once your project is built, you can use <span className="font-semibold text-indigo-200">Chat</span> to edit code, report bugs, or request features. Deploy your changes with one click when ready.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-5">
                 <button
                   type="button"
-                  onClick={() => setShowCreate(false)}
+                  onClick={handleCancelCreate}
                   className="flex-1 text-sm text-gray-500 hover:text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => {
+                    if (form.name && form.slug) {
+                      setCreateError(null)
+                      setCreateStep('confirm')
+                    }
+                  }}
+                  disabled={!form.name || !form.slug}
+                  className="flex-1 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Rocket className="w-5 h-5 text-emerald-400" />
+                  Confirm Project
+                </h2>
+                <button
+                  onClick={handleCancelCreate}
+                  className="text-gray-500 hover:text-white text-sm px-3 py-1 rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {createError && (
+                <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">{createError}</div>
+              )}
+
+              <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-5 space-y-3">
+                <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider">This will be created as:</h4>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0 pt-0.5">Title</span>
+                    <span className="text-white font-medium">{form.name}</span>
+                  </div>
+                  {form.description && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs text-gray-500 w-20 flex-shrink-0 pt-0.5">Description</span>
+                      <span className="text-gray-300">{form.description}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">URL</span>
+                    <span className="text-emerald-400 font-mono">{domain}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">Repo</span>
+                    <span className="text-white font-mono flex items-center gap-1.5">
+                      <FolderGit2 className="w-3.5 h-3.5 text-gray-500" />
+                      3E-Tech-Corp/{form.slug}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">Database</span>
+                    <span className="text-gray-400 font-mono text-sm flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-gray-500" />
+                      Auto-assigned after creation
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setCreateStep('form')}
+                  className="flex-1 text-sm text-gray-400 hover:text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
                   disabled={creating}
                   className="flex-1 text-sm bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {creating ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
                   ) : (
-                    <><Rocket className="w-4 h-4" /> Create & Provision</>
+                    <>🚀 Create Project</>
                   )}
                 </button>
               </div>
-            </form>
-          </div>
+            </>
+          )}
         </div>
       )}
 
@@ -347,20 +486,22 @@ export default function ProjectsPage() {
             </div>
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : displayProjects.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-12 text-center">
           <Rocket className="w-12 h-12 text-gray-700 mx-auto mb-3" />
           <p className="text-gray-500">No projects yet.</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="mt-4 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
-          >
-            Create your first project →
-          </button>
+          {!showCreate && canCreate && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-4 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              Create your first project →
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
-          {projects.map(project => (
+          {displayProjects.map(project => (
             <ProjectCard key={project.id} project={project} onRefresh={fetchProjects} />
           ))}
         </div>

@@ -18,6 +18,7 @@ public class Project
     public DateTime? ReadyAt { get; set; }
     public string? ProjectBrief { get; set; }
     public DateTime? ProjectBriefSetAt { get; set; }
+    public string? Description { get; set; }
 }
 
 public class CreateProjectRequest
@@ -26,4 +27,5 @@ public class CreateProjectRequest
     public string Slug { get; set; } = string.Empty; // URL-safe identifier
     public string Domain { get; set; } = string.Empty; // Full domain
     public string? BaseDomain { get; set; } // e.g., "pickleball.community" for subdomain creation
+    public string? Description { get; set; }
 }

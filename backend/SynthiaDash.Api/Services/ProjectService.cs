@@ -11,6 +11,8 @@ public interface IProjectService
     Task<Project> CreateProjectAsync(CreateProjectRequest request, int userId, string email);
     Task<Project?> GetProjectAsync(int id);
     Task<List<Project>> GetProjectsAsync();
+    Task<List<Project>> GetProjectsForUserAsync(int userId);
+    Task<int> GetProjectCountForUserAsync(int userId);
     Task<Project?> UpdateProjectStatusAsync(int id, string status, string? detail = null, string? error = null);
     Task ProvisionProjectAsync(Project project);
     Task<Project?> GetProjectForUserAsync(int userId, string? repoFullName = null);
@@ -40,28 +42,64 @@ public class ProjectService : IProjectService
         _logger = logger;
     }
 
+    public async Task<int> GetProjectCountForUserAsync(int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        return await db.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM Projects WHERE CreatedByUserId = @UserId",
+            new { UserId = userId });
+    }
+
+    public async Task<List<Project>> GetProjectsForUserAsync(int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var projects = await db.QueryAsync<Project>(
+            @"SELECT p.*, u.Email AS CreatedByEmail
+              FROM Projects p
+              LEFT JOIN Users u ON p.CreatedByUserId = u.Id
+              WHERE p.CreatedByUserId = @UserId
+              ORDER BY p.CreatedAt DESC",
+            new { UserId = userId });
+        return projects.ToList();
+    }
+
     public async Task<Project> CreateProjectAsync(CreateProjectRequest request, int userId, string email)
     {
         using var db = new SqlConnection(_connectionString);
 
-        var repoFullName = $"{_configuration["GitHub:Org"] ?? "3E-Tech-Corp"}/{request.Slug}";
-        var dbName = $"{request.Slug}_DB";
-        var iisSiteName = request.Domain;
+        var org = _configuration["GitHub:Org"] ?? "3E-Tech-Corp";
+        var repoFullName = $"{org}/{request.Slug}";
 
+        // First insert with placeholder names to get the identity Id
         var id = await db.QuerySingleAsync<int>(
-            @"INSERT INTO Projects (Name, Slug, Domain, RepoFullName, DatabaseName, IisSiteName, CreatedByUserId)
+            @"INSERT INTO Projects (Name, Slug, Domain, RepoFullName, DatabaseName, IisSiteName, CreatedByUserId, Description)
               OUTPUT INSERTED.Id
-              VALUES (@Name, @Slug, @Domain, @RepoFullName, @DatabaseName, @IisSiteName, @UserId)",
+              VALUES (@Name, @Slug, @Domain, @RepoFullName, '_pending', '_pending', @UserId, @Description)",
             new
             {
                 request.Name,
                 request.Slug,
                 request.Domain,
                 RepoFullName = repoFullName,
-                DatabaseName = dbName,
-                IisSiteName = iisSiteName,
-                UserId = userId
+                UserId = userId,
+                request.Description
             });
+
+        // Build convention-based names: Demo_{Id}_{Title}
+        // Title = PascalCase from project name (e.g. "Dress App" -> "DressApp")
+        var titlePart = string.Concat(request.Name
+            .Split(' ', '-', '_')
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Select(w => char.ToUpper(w[0]) + w[1..].ToLower()));
+        var conventionName = $"Demo_{id}_{titlePart}";
+
+        var dbName = conventionName;
+        var iisSiteName = conventionName;
+
+        // Update with the real convention-based names
+        await db.ExecuteAsync(
+            @"UPDATE Projects SET DatabaseName = @DbName, IisSiteName = @IisSiteName WHERE Id = @Id",
+            new { DbName = dbName, IisSiteName = iisSiteName, Id = id });
 
         var project = (await GetProjectAsync(id))!;
         return project;

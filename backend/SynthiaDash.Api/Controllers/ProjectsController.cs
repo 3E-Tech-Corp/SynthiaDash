@@ -8,41 +8,74 @@ namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-[Authorize(Roles = "admin")]
+[Authorize]
 public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projectService;
+    private readonly IAuthService _authService;
     private readonly ILogger<ProjectsController> _logger;
 
-    public ProjectsController(IProjectService projectService, ILogger<ProjectsController> logger)
+    public ProjectsController(IProjectService projectService, IAuthService authService, ILogger<ProjectsController> logger)
     {
         _projectService = projectService;
+        _authService = authService;
         _logger = logger;
     }
 
     /// <summary>
-    /// List all projects
+    /// List projects — admin sees all, others see only their own
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetProjects()
     {
-        var projects = await _projectService.GetProjectsAsync();
-        return Ok(projects);
+        if (IsAdmin())
+        {
+            var projects = await _projectService.GetProjectsAsync();
+            return Ok(projects);
+        }
+        else
+        {
+            var userId = GetUserId();
+            var projects = await _projectService.GetProjectsForUserAsync(userId);
+            return Ok(projects);
+        }
     }
 
     /// <summary>
-    /// Get a specific project
+    /// Get a specific project — admin can see any, others only their own
     /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProject(int id)
     {
         var project = await _projectService.GetProjectAsync(id);
         if (project == null) return NotFound();
+
+        if (!IsAdmin() && project.CreatedByUserId != GetUserId())
+            return NotFound();
+
         return Ok(project);
     }
 
     /// <summary>
-    /// Create and provision a new project
+    /// Get project slots for current user
+    /// </summary>
+    [HttpGet("slots")]
+    public async Task<IActionResult> GetProjectSlots()
+    {
+        var userId = GetUserId();
+        var email = User.FindFirst("email")?.Value ?? "";
+        var userDto = await _authService.GetUserByEmailAsync(email);
+
+        if (userDto == null) return Unauthorized();
+
+        var used = await _projectService.GetProjectCountForUserAsync(userId);
+        var max = userDto.Role == "admin" ? 999 : userDto.MaxProjects;
+
+        return Ok(new { used, max, remaining = max - used });
+    }
+
+    /// <summary>
+    /// Create and provision a new project — any authenticated user, subject to MaxProjects limit
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request)
@@ -59,6 +92,18 @@ public class ProjectsController : ControllerBase
 
         var userId = GetUserId();
         var email = User.FindFirst("email")?.Value ?? "";
+
+        // Check project limit (admin is unlimited)
+        if (!IsAdmin())
+        {
+            var userDto = await _authService.GetUserByEmailAsync(email);
+            if (userDto != null)
+            {
+                var currentCount = await _projectService.GetProjectCountForUserAsync(userId);
+                if (currentCount >= userDto.MaxProjects)
+                    return BadRequest(new { error = $"Project limit reached. You can have up to {userDto.MaxProjects} projects." });
+            }
+        }
 
         var project = await _projectService.CreateProjectAsync(request, userId, email);
 
@@ -96,6 +141,11 @@ public class ProjectsController : ControllerBase
     {
         var userIdStr = User.FindFirst("userId")?.Value;
         return int.TryParse(userIdStr, out var id) ? id : 0;
+    }
+
+    private bool IsAdmin()
+    {
+        return User.IsInRole("admin");
     }
 }
 

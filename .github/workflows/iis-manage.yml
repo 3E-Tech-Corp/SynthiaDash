@@ -53,31 +53,27 @@ jobs:
           Write-Host "`nBindings:"
           Get-WebBinding -Name $siteName | Format-Table protocol, bindingInformation -AutoSize
 
+          # Use appcmd for more reliable control
+          $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
+
           switch ($action) {
             "start" {
-              if ($pool.Value -ne "Started") {
-                Start-WebAppPool -Name $site.ApplicationPool
-                Write-Host "`nApp Pool started."
-              }
-              if ($site.State -ne "Started") {
-                Start-Website -Name $siteName
-                Write-Host "Site started."
-              } else {
-                Write-Host "`nSite is already running."
-              }
+              & $appcmd start apppool /apppool.name:"$($site.ApplicationPool)" 2>&1
+              & $appcmd start site /site.name:"$siteName" 2>&1
+              Write-Host "`nStart commands issued."
             }
             "stop" {
-              Stop-Website -Name $siteName -ErrorAction SilentlyContinue
-              Stop-WebAppPool -Name $site.ApplicationPool -ErrorAction SilentlyContinue
-              Write-Host "`nSite and app pool stopped."
+              & $appcmd stop site /site.name:"$siteName" 2>&1
+              & $appcmd stop apppool /apppool.name:"$($site.ApplicationPool)" 2>&1
+              Write-Host "`nStop commands issued."
             }
             "restart" {
-              Stop-Website -Name $siteName -ErrorAction SilentlyContinue
-              Stop-WebAppPool -Name $site.ApplicationPool -ErrorAction SilentlyContinue
+              & $appcmd stop site /site.name:"$siteName" 2>&1
+              & $appcmd stop apppool /apppool.name:"$($site.ApplicationPool)" 2>&1
               Start-Sleep -Seconds 2
-              Start-WebAppPool -Name $site.ApplicationPool
-              Start-Website -Name $siteName
-              Write-Host "`nSite and app pool restarted."
+              & $appcmd start apppool /apppool.name:"$($site.ApplicationPool)" 2>&1
+              & $appcmd start site /site.name:"$siteName" 2>&1
+              Write-Host "`nRestart commands issued."
             }
             "status" {
               Write-Host "`nStatus check complete."

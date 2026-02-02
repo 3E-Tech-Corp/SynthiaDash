@@ -18,6 +18,8 @@ jobs:
 
       - name: Run migration
         shell: powershell
+        env:
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
         run: |
           $file = "database/${{ github.event.inputs.migration_file }}"
           if (-not (Test-Path $file)) {
@@ -26,5 +28,5 @@ jobs:
           }
           Write-Host "Running migration: $file"
           $sql = Get-Content $file -Raw
-          Invoke-Sqlcmd -ServerInstance "localhost" -Database "Synthia" -Query $sql -Verbose
+          Invoke-Sqlcmd -ServerInstance "localhost" -Database "Synthia" -Username "ftsql" -Password $env:SQL_PASSWORD -Query $sql -Verbose
           Write-Host "Migration completed successfully."

@@ -1,0 +1,74 @@
+name: IIS Fix Site
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_name:
+        description: 'IIS Site Name'
+        required: true
+      domain:
+        description: 'Domain hostname'
+        required: true
+      physical_path:
+        description: 'Physical path to site files'
+        required: true
+
+jobs:
+  fix:
+    name: Fix IIS Site - ${{ github.event.inputs.site_name }}
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Recreate IIS Site
+        shell: powershell
+        run: |
+          Import-Module WebAdministration -ErrorAction SilentlyContinue
+          $siteName = "${{ github.event.inputs.site_name }}"
+          $domain = "${{ github.event.inputs.domain }}"
+          $physPath = "${{ github.event.inputs.physical_path }}"
+          $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
+
+          Write-Host "=== Fixing IIS Site: $siteName ==="
+          Write-Host "Domain: $domain"
+          Write-Host "Path: $physPath"
+
+          # Delete the corrupted site (ignore errors)
+          Write-Host "`nDeleting old site..."
+          & $appcmd delete site /site.name:"$siteName" 2>&1
+          Write-Host "Done."
+
+          # Ensure app pool exists
+          $poolExists = & $appcmd list apppool /name:"$siteName" 2>&1
+          if ($poolExists -like "*ERROR*" -or -not $poolExists) {
+            Write-Host "`nCreating app pool: $siteName"
+            & $appcmd add apppool /name:"$siteName" /managedRuntimeVersion:"" /processModel.identityType:"ApplicationPoolIdentity"
+          } else {
+            Write-Host "`nApp pool already exists."
+            # Make sure it's started
+            & $appcmd start apppool /apppool.name:"$siteName" 2>&1
+          }
+
+          # Create the site with HTTP binding
+          Write-Host "`nCreating site: $siteName"
+          & $appcmd add site /name:"$siteName" /physicalPath:"$physPath" /bindings:"http/*:80:$domain" /applicationDefaults.applicationPool:"$siteName"
+
+          # Add HTTPS binding
+          Write-Host "`nAdding HTTPS binding..."
+          $cert = Get-ChildItem Cert:\LocalMachine\WebHosting | Where-Object { $_.Subject -like "*synthia.bot*" } | Select-Object -First 1
+          if ($cert) {
+            & $appcmd set site /site.name:"$siteName" /+"bindings.[protocol='https',bindingInformation='*:443:$domain',sslFlags='1']"
+            # Bind cert via netsh
+            netsh http add sslcert hostnameport="${domain}:443" certhash=$($cert.Thumbprint) certstorename=WebHosting appid='{4dc3e181-e14b-4a21-b022-59fc669b0914}'
+            Write-Host "HTTPS binding added with cert $($cert.Thumbprint)"
+          } else {
+            Write-Host "WARNING: No synthia.bot cert found"
+          }
+
+          # Start the site
+          & $appcmd start site /site.name:"$siteName"
+
+          # Verify
+          Write-Host "`n=== Final State ==="
+          & $appcmd list site /site.name:"$siteName"
+          & $appcmd list apppool /apppool.name:"$siteName"
+
+          Write-Host "`nDone! Site should be live at https://$domain"

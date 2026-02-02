@@ -30,6 +30,25 @@ function timeAgo(dateStr?: string): string {
 function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefresh: () => void; isAdmin: boolean }) {
   const config = STATUS_CONFIG[project.status] || STATUS_CONFIG.pending
   const StatusIcon = config.icon
+  const [deploying, setDeploying] = useState(false)
+  const [deployConfirm, setDeployConfirm] = useState(false)
+  const [deployError, setDeployError] = useState<string | null>(null)
+
+  const hasDeployed = project.statusDetail?.includes('deployed')
+
+  const handleDeploy = async () => {
+    setDeploying(true)
+    setDeployError(null)
+    try {
+      await api.deployPlaceholder(project.id)
+      setDeployConfirm(false)
+      onRefresh()
+    } catch (err: any) {
+      setDeployError(err.message || 'Deployment failed')
+    } finally {
+      setDeploying(false)
+    }
+  }
 
   return (
     <div className={`bg-gray-900 border rounded-xl p-5 ${
@@ -40,7 +59,7 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
     }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 flex-wrap">
             {project.name}
             <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
               <StatusIcon className={`w-3 h-3 ${project.status === 'provisioning' ? 'animate-spin' : ''}`} />
@@ -53,14 +72,39 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
           )}
         </div>
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-          <button
-            disabled
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/50 text-gray-500 cursor-not-allowed"
-            title="No pending updates"
-          >
-            <Upload className="w-3 h-3" />
-            Deploy
-          </button>
+          {project.status === 'ready' && !deployConfirm && (
+            <button
+              onClick={() => setDeployConfirm(true)}
+              disabled={deploying}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                hasDeployed
+                  ? 'border-gray-700 bg-gray-800/50 text-gray-500 hover:text-gray-300 hover:border-gray-600'
+                  : 'border-emerald-700 bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
+              }`}
+              title={hasDeployed ? 'Redeploy Coming Soon page' : 'Deploy Coming Soon page'}
+            >
+              <Upload className="w-3 h-3" />
+              {hasDeployed ? 'Redeploy' : 'Deploy'}
+            </button>
+          )}
+          {deployConfirm && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">Deploy Coming Soon?</span>
+              <button
+                onClick={handleDeploy}
+                disabled={deploying}
+                className="text-xs px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50"
+              >
+                {deploying ? '...' : 'Yes'}
+              </button>
+              <button
+                onClick={() => { setDeployConfirm(false); setDeployError(null) }}
+                className="text-xs px-2 py-1 rounded text-gray-500 hover:text-white hover:bg-gray-800"
+              >
+                No
+              </button>
+            </div>
+          )}
           {project.status === 'provisioning' && (
             <button
               onClick={onRefresh}
@@ -119,6 +163,12 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
       {project.error && (
         <div className="mt-3 text-xs p-2.5 rounded-lg bg-red-900/20 text-red-400">
           ❌ {project.error}
+        </div>
+      )}
+
+      {deployError && (
+        <div className="mt-3 text-xs p-2.5 rounded-lg bg-red-900/20 text-red-400">
+          ❌ Deploy failed: {deployError}
         </div>
       )}
 
@@ -437,20 +487,24 @@ export default function ProjectsPage() {
                     <span className="text-xs text-gray-500 w-20 flex-shrink-0">URL</span>
                     <span className="text-emerald-400 font-mono">{domain}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">Repo</span>
-                    <span className="text-white font-mono flex items-center gap-1.5">
-                      <FolderGit2 className="w-3.5 h-3.5 text-gray-500" />
-                      3E-Tech-Corp/{form.slug}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 w-20 flex-shrink-0">Database</span>
-                    <span className="text-gray-400 font-mono text-sm flex items-center gap-1.5">
-                      <Database className="w-3.5 h-3.5 text-gray-500" />
-                      Auto-assigned after creation
-                    </span>
-                  </div>
+                  {isAdmin && (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500 w-20 flex-shrink-0">Repo</span>
+                        <span className="text-white font-mono flex items-center gap-1.5">
+                          <FolderGit2 className="w-3.5 h-3.5 text-gray-500" />
+                          3E-Tech-Corp/{form.slug}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500 w-20 flex-shrink-0">Database</span>
+                        <span className="text-gray-400 font-mono text-sm flex items-center gap-1.5">
+                          <Database className="w-3.5 h-3.5 text-gray-500" />
+                          Auto-assigned after creation
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

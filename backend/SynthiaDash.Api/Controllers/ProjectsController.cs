@@ -13,12 +13,21 @@ public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projectService;
     private readonly IAuthService _authService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<ProjectsController> _logger;
 
-    public ProjectsController(IProjectService projectService, IAuthService authService, ILogger<ProjectsController> logger)
+    public ProjectsController(
+        IProjectService projectService,
+        IAuthService authService,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        ILogger<ProjectsController> logger)
     {
         _projectService = projectService;
         _authService = authService;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -123,6 +132,73 @@ public class ProjectsController : ControllerBase
         });
 
         return Ok(project);
+    }
+
+    /// <summary>
+    /// Deploy a "Coming Soon" placeholder page for the project
+    /// </summary>
+    [HttpPost("{id}/deploy-placeholder")]
+    public async Task<IActionResult> DeployPlaceholder(int id)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        // Must own the project or be admin
+        if (!IsAdmin() && project.CreatedByUserId != GetUserId())
+            return NotFound();
+
+        if (project.Status != "ready")
+            return BadRequest(new { error = "Project must be in 'ready' status to deploy" });
+
+        _logger.LogInformation("Deploying placeholder for project {Id} ({Name})", project.Id, project.Name);
+
+        // Trigger the deploy-placeholder workflow via GitHub API
+        try
+        {
+            var githubToken = _configuration["GitHub:Token"] ?? "";
+            var client = _httpClientFactory.CreateClient("GitHub");
+
+            var payload = new
+            {
+                @ref = "main",
+                inputs = new
+                {
+                    site_name = project.IisSiteName,
+                    title = project.Name,
+                    description = project.Description ?? "",
+                    domain = project.Domain,
+                    project_id = project.Id.ToString()
+                }
+            };
+
+            var content = new System.Net.Http.StringContent(
+                System.Text.Json.JsonSerializer.Serialize(payload),
+                System.Text.Encoding.UTF8, "application/json");
+
+            // Trigger workflow on SynthiaDash repo (where deploy-placeholder.yml lives)
+            var org = _configuration["GitHub:Org"] ?? "3E-Tech-Corp";
+            var resp = await client.PostAsync(
+                $"repos/{org}/SynthiaDash/actions/workflows/deploy-placeholder.yml/dispatches",
+                content);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to trigger deploy-placeholder: {Status} {Body}", resp.StatusCode, body);
+                return StatusCode(500, new { error = "Failed to trigger deployment" });
+            }
+
+            // Update project status
+            await _projectService.UpdateProjectStatusAsync(project.Id, "ready",
+                "Coming Soon page deployed to " + project.Domain);
+
+            return Ok(new { message = "Placeholder deployment triggered", domain = project.Domain });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Deploy placeholder failed for project {Id}", id);
+            return StatusCode(500, new { error = "Deployment failed: " + ex.Message });
+        }
     }
 
     /// <summary>

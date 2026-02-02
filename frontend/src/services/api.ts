@@ -270,6 +270,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deployPlaceholder: (id: number) =>
+    fetchApi<{ message: string; domain: string }>(`/projects/${id}/deploy-placeholder`, {
+      method: 'POST',
+    }),
+
   getProjectSlots: () =>
     fetchApi<{ used: number; max: number; remaining: number }>('/projects/slots'),
 

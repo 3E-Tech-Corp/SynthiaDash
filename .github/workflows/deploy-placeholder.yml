@@ -1,0 +1,179 @@
+name: Deploy Placeholder
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_name:
+        description: 'IIS Site Name'
+        required: true
+      title:
+        description: 'Project title'
+        required: true
+      description:
+        description: 'Project description'
+        required: false
+        default: ''
+      domain:
+        description: 'Domain (e.g., myapp.synthia.bot)'
+        required: true
+      project_id:
+        description: 'Project ID for callback'
+        required: false
+        default: ''
+
+jobs:
+  deploy:
+    name: Deploy Coming Soon Page
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Create site folder and deploy
+        shell: powershell
+        run: |
+          $siteName = "${{ github.event.inputs.site_name }}"
+          $title = "${{ github.event.inputs.title }}"
+          $description = "${{ github.event.inputs.description }}"
+          $domain = "${{ github.event.inputs.domain }}"
+          $basePath = "F:\New_WWW\$siteName"
+          $wwwPath = "$basePath\WWW"
+
+          # Create directories
+          if (-not (Test-Path $wwwPath)) {
+            New-Item -ItemType Directory -Path $wwwPath -Force | Out-Null
+            Write-Host "Created directory: $wwwPath"
+          }
+
+          # Generate Coming Soon HTML
+          $html = @"
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>$title - Coming Soon</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+                color: #e2e8f0;
+                padding: 2rem;
+              }
+              .container {
+                max-width: 600px;
+                text-align: center;
+              }
+              .badge {
+                display: inline-block;
+                background: rgba(139, 92, 246, 0.15);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                color: #a78bfa;
+                padding: 0.375rem 1rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                margin-bottom: 2rem;
+              }
+              h1 {
+                font-size: 3rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 1.25rem;
+                line-height: 1.1;
+              }
+              .description {
+                font-size: 1.125rem;
+                color: #94a3b8;
+                line-height: 1.6;
+                margin-bottom: 2.5rem;
+              }
+              .divider {
+                width: 60px;
+                height: 3px;
+                background: linear-gradient(90deg, #8b5cf6, #6366f1);
+                border-radius: 2px;
+                margin: 0 auto 2rem;
+              }
+              .footer {
+                font-size: 0.8rem;
+                color: #475569;
+              }
+              .footer a {
+                color: #8b5cf6;
+                text-decoration: none;
+              }
+              .pulse {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                background: #8b5cf6;
+                border-radius: 50%;
+                margin-right: 0.5rem;
+                animation: pulse 2s infinite;
+              }
+              @keyframes pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.5; transform: scale(1.2); }
+              }
+              @media (max-width: 640px) {
+                h1 { font-size: 2rem; }
+                .description { font-size: 1rem; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="badge"><span class="pulse"></span>Coming Soon</div>
+              <h1>$title</h1>
+              <div class="divider"></div>
+              <p class="description">$description</p>
+              <p class="footer">Powered by <a href="https://synthia.bot">Synthia</a></p>
+            </div>
+          </body>
+          </html>
+          "@
+
+          Set-Content -Path "$wwwPath\index.html" -Value $html -Encoding UTF8
+          Write-Host "Deployed coming soon page to $wwwPath\index.html"
+
+          # Check if IIS site exists, create if not
+          Import-Module WebAdministration -ErrorAction SilentlyContinue
+
+          $site = Get-Website -Name $siteName -ErrorAction SilentlyContinue
+          if (-not $site) {
+            Write-Host "Creating IIS site: $siteName"
+
+            # Create app pool
+            if (-not (Test-Path "IIS:\AppPools\$siteName")) {
+              New-WebAppPool -Name $siteName | Out-Null
+              Set-ItemProperty "IIS:\AppPools\$siteName" -Name "managedRuntimeVersion" -Value ""
+              Write-Host "Created app pool: $siteName"
+            }
+
+            # Create site with HTTP binding
+            New-Website -Name $siteName -PhysicalPath $wwwPath -ApplicationPool $siteName -HostHeader $domain -Port 80 | Out-Null
+            Write-Host "Created IIS site: $siteName bound to $domain"
+
+            # Add HTTPS binding with synthia.bot cert
+            $cert = Get-ChildItem Cert:\LocalMachine\WebHosting | Where-Object { $_.Subject -like "*synthia.bot*" } | Select-Object -First 1
+            if ($cert) {
+              New-WebBinding -Name $siteName -Protocol "https" -Port 443 -HostHeader $domain -SslFlags 1
+              $binding = Get-WebBinding -Name $siteName -Protocol "https" -Port 443 -HostHeader $domain
+              $binding.AddSslCertificate($cert.Thumbprint, "WebHosting")
+              Write-Host "Added HTTPS binding with synthia.bot cert"
+            } else {
+              Write-Host "WARNING: No synthia.bot cert found - HTTPS binding skipped"
+            }
+          } else {
+            Write-Host "IIS site '$siteName' already exists"
+          }
+
+          Write-Host "Done! Site should be live at https://$domain"

@@ -27,7 +27,7 @@ function timeAgo(dateStr?: string): string {
   return `${days}d ago`
 }
 
-function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
+function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefresh: () => void; isAdmin: boolean }) {
   const config = STATUS_CONFIG[project.status] || STATUS_CONFIG.pending
   const StatusIcon = config.icon
 
@@ -89,21 +89,25 @@ function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () =
             <span className="text-gray-400">{project.domain}</span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <FolderGit2 className="w-4 h-4 text-gray-600" />
-          <a
-            href={`https://github.com/${project.repoFullName}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-          >
-            {project.repoFullName} <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Database className="w-4 h-4 text-gray-600" />
-          <span className="text-gray-400 font-mono text-xs">{project.databaseName}</span>
-        </div>
+        {isAdmin && (
+          <>
+            <div className="flex items-center gap-2 text-sm">
+              <FolderGit2 className="w-4 h-4 text-gray-600" />
+              <a
+                href={`https://github.com/${project.repoFullName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+              >
+                {project.repoFullName} <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Database className="w-4 h-4 text-gray-600" />
+              <span className="text-gray-400 font-mono text-xs">{project.databaseName}</span>
+            </div>
+          </>
+        )}
       </div>
 
       {project.statusDetail && (
@@ -121,7 +125,7 @@ function ProjectCard({ project, onRefresh }: { project: Project; onRefresh: () =
       <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
         <span>Created {timeAgo(project.createdAt)}</span>
         {project.readyAt && <span>Ready {timeAgo(project.readyAt)}</span>}
-        {project.createdByEmail && <span>by {project.createdByEmail}</span>}
+        {isAdmin && project.createdByEmail && <span>by {project.createdByEmail}</span>}
       </div>
     </div>
   )
@@ -502,7 +506,7 @@ export default function ProjectsPage() {
       ) : (
         <div className="space-y-4">
           {displayProjects.map(project => (
-            <ProjectCard key={project.id} project={project} onRefresh={fetchProjects} />
+            <ProjectCard key={project.id} project={project} onRefresh={fetchProjects} isAdmin={isAdmin} />
           ))}
         </div>
       )}

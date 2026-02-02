@@ -157,10 +157,26 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
+          {/* Max Projects */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">🚀 Max Projects</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={edit.maxProjects}
+                onChange={e => setEdit({ ...edit, maxProjects: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
+                className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+              />
+              <span className="text-xs text-gray-600">project slots for this user</span>
+            </div>
+          </div>
+
           {/* Repo access */}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">
-              Repo Access <span className="text-gray-600">(admin sees all regardless)</span>
+              📂 Assigned Repos <span className="text-gray-600">(links user to projects)</span>
             </label>
             <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1.5">
               {allRepos.length === 0 ? (
@@ -191,7 +207,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
                         className="rounded border-gray-600 bg-gray-700 text-violet-500 focus:ring-violet-500 focus:ring-offset-0"
                       />
                       <FolderGit2 className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
-                      <span className="text-gray-300 truncate">{repo.fullName}</span>
+                      <span className="text-gray-300 truncate">{repo.name}</span>
                       {repo.private && <span className="text-[10px] text-gray-600 bg-gray-800 px-1.5 rounded">private</span>}
                     </label>
                   )
@@ -260,20 +276,6 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
-          {/* Max Projects */}
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">🚀 Max Projects</label>
-            <input
-              type="number"
-              min={1}
-              max={99}
-              value={edit.maxProjects}
-              onChange={e => setEdit({ ...edit, maxProjects: Math.max(1, Math.min(99, parseInt(e.target.value) || 1)) })}
-              className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
-            />
-            <span className="text-xs text-gray-600 ml-2">project slots for this user</span>
-          </div>
-
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -291,9 +293,15 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         </div>
       ) : (
         <div className="flex items-center gap-4 text-xs text-gray-600 mt-2 flex-wrap">
-          {user.repos && (
-            <span>Repos: <span className="text-gray-400 font-mono">{user.repos}</span></span>
-          )}
+          {user.repos && (() => {
+            try {
+              const repos: string[] = JSON.parse(user.repos)
+              const names = repos.map(r => r.split('/').pop()).filter(Boolean)
+              return <span>📂 <span className="text-gray-400">{names.join(', ')}</span></span>
+            } catch {
+              return <span>📂 <span className="text-gray-400">{user.repos}</span></span>
+            }
+          })()}
           <span>
             🐛 <span className={
               user.bugAccess === 'execute' ? 'text-violet-400' :

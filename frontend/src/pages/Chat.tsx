@@ -362,7 +362,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 8rem)' }}>
+    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100vh-8rem)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -508,8 +508,8 @@ export default function ChatPage() {
             </button>
           </div>
         )}
-        <div className="flex gap-3 items-end">
-          <div className="flex-1 relative">
+        <div className="flex gap-2 items-end w-full min-w-0">
+          <div className="flex-1 min-w-0 relative">
             <textarea
               ref={inputRef}
               value={input}
@@ -519,7 +519,7 @@ export default function ChatPage() {
               placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : 'Message Synthia...'}
               disabled={streaming || noProject}
               rows={1}
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
+              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
               style={{ minHeight: '48px', maxHeight: '120px' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement
@@ -527,15 +527,15 @@ export default function ChatPage() {
                 target.style.height = Math.min(target.scrollHeight, 120) + 'px'
               }}
             />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={streaming}
+              className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
+              title="Attach image"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => imageInputRef.current?.click()}
-            disabled={streaming}
-            className="flex-shrink-0 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-3 transition-colors"
-            title="Attach image"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
           <input
             ref={imageInputRef}
             type="file"

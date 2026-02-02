@@ -57,37 +57,39 @@ export default function Layout() {
         </div>
 
         <nav className="flex flex-col gap-1">
-          <NavLink to="/" end className={linkClass} onClick={handleNavClick}>
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </NavLink>
-          <NavLink to="/chat" className={linkClass} onClick={handleNavClick}>
-            <MessageCircle className="w-4 h-4" />
-            Chat
-          </NavLink>
-          <NavLink to="/repos" className={linkClass} onClick={handleNavClick}>
-            <FolderGit2 className="w-4 h-4" />
-            Repos
-          </NavLink>
-          <NavLink to="/tasks" className={linkClass} onClick={handleNavClick}>
-            <Bot className="w-4 h-4" />
-            Tasks
-          </NavLink>
-          <NavLink to="/tickets" className={linkClass} onClick={handleNavClick}>
-            <TicketIcon className="w-4 h-4" />
-            Tickets
-          </NavLink>
           {user && (
             <NavLink to="/projects" className={linkClass} onClick={handleNavClick}>
               <Rocket className="w-4 h-4" />
               Projects
             </NavLink>
           )}
+          <NavLink to="/chat" className={linkClass} onClick={handleNavClick}>
+            <MessageCircle className="w-4 h-4" />
+            Chat
+          </NavLink>
+          <NavLink to="/" end className={linkClass} onClick={handleNavClick}>
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
+          </NavLink>
+          <NavLink to="/tickets" className={linkClass} onClick={handleNavClick}>
+            <TicketIcon className="w-4 h-4" />
+            Tickets
+          </NavLink>
           {user?.role === 'admin' && (
-            <NavLink to="/users" className={linkClass} onClick={handleNavClick}>
-              <Users className="w-4 h-4" />
-              Users
-            </NavLink>
+            <>
+              <NavLink to="/repos" className={linkClass} onClick={handleNavClick}>
+                <FolderGit2 className="w-4 h-4" />
+                Repos
+              </NavLink>
+              <NavLink to="/tasks" className={linkClass} onClick={handleNavClick}>
+                <Bot className="w-4 h-4" />
+                Tasks
+              </NavLink>
+              <NavLink to="/users" className={linkClass} onClick={handleNavClick}>
+                <Users className="w-4 h-4" />
+                Users
+              </NavLink>
+            </>
           )}
         </nav>
 

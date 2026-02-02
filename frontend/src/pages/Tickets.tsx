@@ -6,7 +6,7 @@ import {
   ArrowLeft, Search, AlertCircle, Info, ClipboardList
 } from 'lucide-react'
 import { api } from '../services/api'
-import type { Ticket, RepoStatus, TicketComment } from '../services/api'
+import type { Ticket, RepoStatus, TicketComment, Project } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
 // ── Constants ──────────────────────────────────────────────
@@ -745,6 +745,7 @@ export default function TicketsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [repos, setRepos] = useState<RepoStatus[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [detailTicket, setDetailTicket] = useState<Ticket | null>(null)
   const [showToast, setShowToast] = useState(false)
   const [projectBrief, setProjectBrief] = useState<{ hasBrief: boolean; brief: string | null; setAt: string | null }>({
@@ -757,6 +758,7 @@ export default function TicketsPage() {
     title: '',
     description: '',
     repoFullName: '',
+    projectId: '' as string,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -771,6 +773,7 @@ export default function TicketsPage() {
     fetchTickets()
     fetchAccess()
     fetchRepos()
+    fetchProjects()
     fetchProjectBrief()
   }, [])
 
@@ -804,6 +807,15 @@ export default function TicketsPage() {
     try {
       const data = await api.getRepos()
       setRepos(data)
+    } catch {
+      // ignore
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const data = await api.getProjects()
+      setProjects(data)
     } catch {
       // ignore
     }
@@ -898,7 +910,7 @@ export default function TicketsPage() {
 
       await api.createTicket(formData)
       setShowCreate(false)
-      setCreateForm({ type: 'bug', title: '', description: '', repoFullName: '' })
+      setCreateForm({ type: 'bug', title: '', description: '', repoFullName: '', projectId: '' })
       clearImage()
       setShowToast(true)
       fetchTickets()
@@ -1174,22 +1186,51 @@ export default function TicketsPage() {
                 </div>
               )}
 
-              {/* Repo selector */}
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                  Repository <span className="text-gray-600">(optional)</span>
-                </label>
-                <select
-                  value={createForm.repoFullName}
-                  onChange={e => setCreateForm({ ...createForm, repoFullName: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500"
-                >
-                  <option value="">No specific repo</option>
-                  {repos.map(r => (
-                    <option key={r.fullName} value={r.fullName}>{r.fullName}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Project selector (for regular users) */}
+              {!isAdmin && projects.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                    Project
+                  </label>
+                  <select
+                    value={createForm.projectId}
+                    onChange={e => {
+                      const pid = e.target.value
+                      const proj = projects.find(p => String(p.id) === pid)
+                      setCreateForm({
+                        ...createForm,
+                        projectId: pid,
+                        repoFullName: proj?.repoFullName || '',
+                      })
+                    }}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                  >
+                    <option value="">Select a project</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={String(p.id)}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Repo selector (admin only) */}
+              {isAdmin && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                    Repository <span className="text-gray-600">(optional)</span>
+                  </label>
+                  <select
+                    value={createForm.repoFullName}
+                    onChange={e => setCreateForm({ ...createForm, repoFullName: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500"
+                  >
+                    <option value="">No specific repo</option>
+                    {repos.map(r => (
+                      <option key={r.fullName} value={r.fullName}>{r.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Image upload */}
               <div>

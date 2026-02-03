@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { Zap, LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Layout() {

@@ -58,7 +58,7 @@ function ShinyTitle({ text, interval = 8000 }: { text: string; interval?: number
             <img
               src="/images/synthia-logo.png?v=2"
               alt="S"
-              className="inline-block h-[0.75em] align-baseline relative -top-[0.02em] mx-[-0.02em]"
+              className="inline-block h-[1.1em] align-baseline relative -top-[0.05em] mx-[-0.02em]"
             />
             {after}
           </>
@@ -113,8 +113,6 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <AnimatedLogo className="h-[100px] mx-auto mb-6" interval={8000} />
-
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
             <Sparkles className="w-4 h-4" />
             synthia.bot

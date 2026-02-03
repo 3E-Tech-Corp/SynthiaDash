@@ -166,7 +166,7 @@ function FeaturedExamples() {
                   <div className="aspect-video bg-gray-800 relative overflow-hidden">
                     {project.thumbnailPath ? (
                       <img
-                        src={`/api${project.thumbnailPath}`}
+                        src={`/api/featuredprojects/${project.id}/thumbnail`}
                         alt={project.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

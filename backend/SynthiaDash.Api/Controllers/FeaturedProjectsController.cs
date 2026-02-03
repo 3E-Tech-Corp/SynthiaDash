@@ -90,6 +90,32 @@ public class FeaturedProjectsController : ControllerBase
     }
 
     /// <summary>
+    /// Public: serve thumbnail image for a featured project.
+    /// Explicit endpoint avoids relying on StaticFiles middleware through /api virtual app.
+    /// </summary>
+    [HttpGet("{id}/thumbnail")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetThumbnail(int id)
+    {
+        var project = await _featuredProjectService.GetByIdAsync(id);
+        if (project?.ThumbnailPath == null) return NotFound();
+
+        var basePath = AppContext.BaseDirectory;
+        var fullPath = Path.Combine(basePath, "wwwroot", project.ThumbnailPath.TrimStart('/'));
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        var contentType = Path.GetExtension(fullPath).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "image/jpeg"
+        };
+
+        return PhysicalFile(fullPath, contentType);
+    }
+
+    /// <summary>
     /// Admin: upload thumbnail image for a featured project.
     /// Accepts base64-encoded image in JSON body to avoid Cloudflare WAF blocking multipart uploads.
     /// </summary>

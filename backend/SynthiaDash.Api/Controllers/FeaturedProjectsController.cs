@@ -107,8 +107,9 @@ public class FeaturedProjectsController : ControllerBase
         var project = await _featuredProjectService.GetByIdAsync(id);
 
         // If it has an asset ID, redirect to the asset endpoint
+        // Use Request.PathBase so the redirect works under IIS virtual app (/api)
         if (project?.ThumbnailAssetId != null)
-            return Redirect($"/asset/{project.ThumbnailAssetId}");
+            return Redirect($"{Request.PathBase}/asset/{project.ThumbnailAssetId}");
 
         if (project?.ThumbnailPath == null) return NotFound();
 

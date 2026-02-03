@@ -640,9 +640,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100vh-8rem)]">
+    <div className="max-w-4xl mx-auto flex flex-col h-[calc(100dvh-2rem)] md:h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-3">
           <Zap className="w-7 h-7 text-violet-400" />
           <h1 className="text-2xl font-bold">Chat with Synthia</h1>
@@ -701,7 +701,7 @@ export default function ChatPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 bg-gray-900 border border-gray-800 rounded-xl overflow-y-auto p-4 space-y-4 mb-4">
+      <div className="flex-1 min-h-0 bg-gray-900 border border-gray-800 rounded-xl overflow-y-auto p-4 space-y-4 mb-4">
         {projects.length === 0 && !loading && !projectName && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Zap className="w-10 h-10 text-gray-600 mb-3" />
@@ -772,8 +772,8 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
-      <div className="flex flex-col">
+      {/* Input area — always pinned at bottom */}
+      <div className="flex flex-col flex-shrink-0">
         {/* Voice mode indicator */}
         {voiceMode && !isRecording && !isSpeaking && !streaming && (
           <div className="flex items-center gap-2 mb-2 px-1">

@@ -96,6 +96,38 @@ public class FeaturedProjectsController : ControllerBase
     }
 
     /// <summary>
+    /// Legacy: serve thumbnail from old ThumbnailPath (wwwroot file).
+    /// Kept for backward compatibility until all thumbnails are re-uploaded as assets.
+    /// New thumbnails go through GET /asset/{id} instead.
+    /// </summary>
+    [HttpGet("{id}/thumbnail")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetThumbnailLegacy(int id)
+    {
+        var project = await _featuredProjectService.GetByIdAsync(id);
+
+        // If it has an asset ID, redirect to the asset endpoint
+        if (project?.ThumbnailAssetId != null)
+            return Redirect($"/asset/{project.ThumbnailAssetId}");
+
+        if (project?.ThumbnailPath == null) return NotFound();
+
+        var basePath = AppContext.BaseDirectory;
+        var fullPath = Path.Combine(basePath, "wwwroot", project.ThumbnailPath.TrimStart('/'));
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        var contentType = Path.GetExtension(fullPath).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "image/jpeg"
+        };
+
+        return PhysicalFile(fullPath, contentType);
+    }
+
+    /// <summary>
     /// Admin: upload thumbnail for a featured project using the asset system.
     /// Accepts base64-encoded image in JSON body (Cloudflare WAF safe).
     /// Creates an asset, links it to the featured project via ThumbnailAssetId.

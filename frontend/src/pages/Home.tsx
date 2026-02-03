@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Zap, Bot, GitBranch, TicketCheck, FolderGit2,
+  Bot, GitBranch, TicketCheck, FolderGit2,
   Users, Bell, ArrowRight, LogIn, Sparkles,
 } from 'lucide-react'
 import LanguageSwitcher from '../components/LanguageSwitcher'
@@ -27,7 +27,7 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
           <div className="flex items-center gap-2">
-            <Zap className="w-7 h-7 text-violet-400" />
+            <img src="/images/synthia-logo.png" alt="Synthia" className="h-8" />
             <span className="text-lg font-bold tracking-tight">SynthiaDash</span>
           </div>
           <div className="flex items-center gap-2">
@@ -45,11 +45,15 @@ export default function Home() {
 
       {/* ── Hero ───────────────────────────────────────── */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 px-4 sm:px-6 overflow-hidden">
-        {/* Gradient orbs */}
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-violet-600/15 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-40 left-1/4 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+        {/* Hero background image */}
+        <div className="absolute inset-0 z-0">
+          <img src="/images/dashboard-hero.png" alt="" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-950/60 via-gray-950/80 to-gray-950" />
+        </div>
 
-        <div className="relative max-w-4xl mx-auto text-center">
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <img src="/images/synthia-logo.png" alt="Synthia" className="h-[100px] mx-auto mb-6" />
+
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
             <Sparkles className="w-4 h-4" />
             synthia.bot
@@ -142,7 +146,7 @@ export default function Home() {
       <section className="py-20 sm:py-28 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <div className="bg-gradient-to-b from-violet-600/10 to-transparent border border-violet-500/20 rounded-3xl p-10 sm:p-14">
-            <Zap className="w-12 h-12 text-violet-400 mx-auto mb-6" />
+            <img src="/images/synthia-logo.png" alt="Synthia" className="h-16 mx-auto mb-6" />
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">{t('cta.title')}</h2>
             <p className="text-gray-400 text-lg mb-8 max-w-xl mx-auto">{t('cta.description')}</p>
             <button
@@ -160,7 +164,7 @@ export default function Home() {
       <footer className="border-t border-gray-800/50 py-8 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-violet-400" />
+            <img src="/images/synthia-logo.png" alt="" className="h-5" />
             <span>{t('footer.poweredBy')}</span>
           </div>
           <span>{t('footer.rights', { year: new Date().getFullYear() })}</span>

@@ -32,7 +32,7 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
-    /// List projects — admin sees all, others see only their own
+    /// List projects — admin sees all, others see only projects they're a member of
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetProjects()
@@ -51,7 +51,7 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
-    /// Get a specific project — admin can see any, others only their own
+    /// Get a specific project — admin can see any, others only if they're a member
     /// </summary>
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProject(int id)
@@ -59,10 +59,31 @@ public class ProjectsController : ControllerBase
         var project = await _projectService.GetProjectAsync(id);
         if (project == null) return NotFound();
 
-        if (!IsAdmin() && project.CreatedByUserId != GetUserId())
+        if (!IsAdmin() && !await CanAccessProject(id))
             return NotFound();
 
         return Ok(project);
+    }
+
+    /// <summary>
+    /// Update a project (name, description, repo link, domain)
+    /// </summary>
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateProject(int id, [FromBody] UpdateProjectRequest request)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        // Admin or project owner can update
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        // Only admin can link/change repos
+        if (request.RepoFullName != null && !IsAdmin())
+            return Forbid();
+
+        var updated = await _projectService.UpdateProjectAsync(id, request);
+        return Ok(updated);
     }
 
     /// <summary>
@@ -99,6 +120,10 @@ public class ProjectsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Domain))
             return BadRequest(new { error = "Domain is required" });
 
+        // Only admin can link existing repos
+        if (request.LinkExisting && !IsAdmin())
+            return Forbid();
+
         var userId = GetUserId();
         var email = User.FindFirst("email")?.Value ?? "";
 
@@ -116,23 +141,117 @@ public class ProjectsController : ControllerBase
 
         var project = await _projectService.CreateProjectAsync(request, userId, email);
 
-        _logger.LogInformation("Project {Name} ({Slug}) created by {Email}", project.Name, project.Slug, email);
+        _logger.LogInformation("Project {Name} ({Slug}) created by {Email} (linkExisting={Link})",
+            project.Name, project.Slug, email, request.LinkExisting);
 
-        // Provision in background
-        _ = Task.Run(async () =>
+        // Only provision if not linking existing repo
+        if (!request.LinkExisting)
         {
-            try
+            _ = Task.Run(async () =>
             {
-                await _projectService.ProvisionProjectAsync(project);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Background provisioning failed for project {Id}", project.Id);
-            }
-        });
+                try
+                {
+                    await _projectService.ProvisionProjectAsync(project);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Background provisioning failed for project {Id}", project.Id);
+                }
+            });
+        }
 
         return Ok(project);
     }
+
+    // ─── Project Members ────────────────────────────────────────
+
+    /// <summary>
+    /// List members of a project
+    /// </summary>
+    [HttpGet("{id}/members")]
+    public async Task<IActionResult> GetProjectMembers(int id)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await CanAccessProject(id))
+            return NotFound();
+
+        var members = await _projectService.GetProjectMembersAsync(id);
+        return Ok(members);
+    }
+
+    /// <summary>
+    /// Add a member to a project (admin or project owner)
+    /// </summary>
+    [HttpPost("{id}/members")]
+    public async Task<IActionResult> AddProjectMember(int id, [FromBody] AddProjectMemberRequest request)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        var member = await _projectService.AddProjectMemberAsync(id, request.UserId, request.Role, GetUserId());
+        if (member == null)
+            return BadRequest(new { error = "User is already a member or invalid role" });
+
+        _logger.LogInformation("Added user {UserId} as {Role} to project {ProjectId}", request.UserId, request.Role, id);
+        return Ok(member);
+    }
+
+    /// <summary>
+    /// Update a member's role (admin or project owner)
+    /// </summary>
+    [HttpPut("{id}/members/{userId}")]
+    public async Task<IActionResult> UpdateProjectMemberRole(int id, int userId, [FromBody] UpdateProjectMemberRequest request)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        var success = await _projectService.UpdateProjectMemberRoleAsync(id, userId, request.Role);
+        if (!success)
+            return NotFound(new { error = "Member not found or invalid role" });
+
+        _logger.LogInformation("Updated user {UserId} role to {Role} in project {ProjectId}", userId, request.Role, id);
+        return Ok(new { message = "Role updated" });
+    }
+
+    /// <summary>
+    /// Remove a member from a project (admin or project owner)
+    /// </summary>
+    [HttpDelete("{id}/members/{userId}")]
+    public async Task<IActionResult> RemoveProjectMember(int id, int userId)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        // Don't allow removing the last owner
+        var memberRole = await _projectService.GetMemberRoleAsync(id, userId);
+        if (memberRole == "owner")
+        {
+            var members = await _projectService.GetProjectMembersAsync(id);
+            var ownerCount = members.Count(m => m.Role == "owner");
+            if (ownerCount <= 1)
+                return BadRequest(new { error = "Cannot remove the last owner. Transfer ownership first." });
+        }
+
+        var success = await _projectService.RemoveProjectMemberAsync(id, userId);
+        if (!success)
+            return NotFound(new { error = "Member not found" });
+
+        _logger.LogInformation("Removed user {UserId} from project {ProjectId}", userId, id);
+        return Ok(new { message = "Member removed" });
+    }
+
+    // ─── Existing Endpoints ────────────────────────────────────────
 
     /// <summary>
     /// Deploy a "Coming Soon" placeholder page for the project
@@ -144,7 +263,7 @@ public class ProjectsController : ControllerBase
         if (project == null) return NotFound();
 
         // Must own the project or be admin
-        if (!IsAdmin() && project.CreatedByUserId != GetUserId())
+        if (!IsAdmin() && !await IsProjectOwner(id))
             return NotFound();
 
         if (project.Status != "ready")
@@ -213,6 +332,8 @@ public class ProjectsController : ControllerBase
         return Ok(project);
     }
 
+    // ─── Helpers ────────────────────────────────────────
+
     private int GetUserId()
     {
         var userIdStr = User.FindFirst("userId")?.Value;
@@ -222,6 +343,26 @@ public class ProjectsController : ControllerBase
     private bool IsAdmin()
     {
         return User.IsInRole("admin");
+    }
+
+    private async Task<bool> CanAccessProject(int projectId)
+    {
+        var userId = GetUserId();
+        // Check ProjectMembers first, fall back to CreatedByUserId
+        if (await _projectService.IsProjectMemberAsync(projectId, userId))
+            return true;
+        var project = await _projectService.GetProjectAsync(projectId);
+        return project?.CreatedByUserId == userId;
+    }
+
+    private async Task<bool> IsProjectOwner(int projectId)
+    {
+        var userId = GetUserId();
+        var role = await _projectService.GetMemberRoleAsync(projectId, userId);
+        if (role == "owner") return true;
+        // Fall back to CreatedByUserId for backwards compat
+        var project = await _projectService.GetProjectAsync(projectId);
+        return project?.CreatedByUserId == userId;
     }
 }
 

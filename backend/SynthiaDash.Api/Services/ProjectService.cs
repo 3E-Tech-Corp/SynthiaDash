@@ -14,10 +14,19 @@ public interface IProjectService
     Task<List<Project>> GetProjectsForUserAsync(int userId);
     Task<int> GetProjectCountForUserAsync(int userId);
     Task<Project?> UpdateProjectStatusAsync(int id, string status, string? detail = null, string? error = null);
+    Task<Project?> UpdateProjectAsync(int id, UpdateProjectRequest request);
     Task ProvisionProjectAsync(Project project);
     Task<Project?> GetProjectForUserAsync(int userId, string? repoFullName = null);
     Task SetProjectBriefAsync(int projectId, string brief);
     Task<(string? brief, DateTime? setAt)?> GetProjectBriefAsync(int projectId);
+
+    // Project members
+    Task<List<ProjectMember>> GetProjectMembersAsync(int projectId);
+    Task<ProjectMember?> AddProjectMemberAsync(int projectId, int userId, string role, int? addedBy);
+    Task<bool> RemoveProjectMemberAsync(int projectId, int userId);
+    Task<bool> UpdateProjectMemberRoleAsync(int projectId, int userId, string role);
+    Task<bool> IsProjectMemberAsync(int projectId, int userId);
+    Task<string?> GetMemberRoleAsync(int projectId, int userId);
 }
 
 public class ProjectService : IProjectService
@@ -45,19 +54,26 @@ public class ProjectService : IProjectService
     public async Task<int> GetProjectCountForUserAsync(int userId)
     {
         using var db = new SqlConnection(_connectionString);
+        // Count projects where user is the owner (via ProjectMembers)
+        // Fall back to CreatedByUserId for backwards compatibility
         return await db.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM Projects WHERE CreatedByUserId = @UserId",
+            @"SELECT COUNT(DISTINCT p.Id) FROM Projects p
+              LEFT JOIN ProjectMembers pm ON pm.ProjectId = p.Id AND pm.UserId = @UserId AND pm.Role = 'owner'
+              WHERE pm.Id IS NOT NULL OR p.CreatedByUserId = @UserId",
             new { UserId = userId });
     }
 
     public async Task<List<Project>> GetProjectsForUserAsync(int userId)
     {
         using var db = new SqlConnection(_connectionString);
+        // Return projects where user is a member (any role) via ProjectMembers
+        // Fall back to CreatedByUserId for backwards compatibility
         var projects = await db.QueryAsync<Project>(
-            @"SELECT p.*, u.Email AS CreatedByEmail
+            @"SELECT DISTINCT p.*, u.Email AS CreatedByEmail
               FROM Projects p
               LEFT JOIN Users u ON p.CreatedByUserId = u.Id
-              WHERE p.CreatedByUserId = @UserId
+              LEFT JOIN ProjectMembers pm ON pm.ProjectId = p.Id AND pm.UserId = @UserId
+              WHERE pm.Id IS NOT NULL OR p.CreatedByUserId = @UserId
               ORDER BY p.CreatedAt DESC",
             new { UserId = userId });
         return projects.ToList();
@@ -68,13 +84,18 @@ public class ProjectService : IProjectService
         using var db = new SqlConnection(_connectionString);
 
         var org = _configuration["GitHub:Org"] ?? "3E-Tech-Corp";
-        var repoFullName = $"{org}/{request.Slug}";
+        var repoFullName = request.LinkExisting && !string.IsNullOrWhiteSpace(request.RepoFullName)
+            ? request.RepoFullName
+            : $"{org}/{request.Slug}";
+
+        // For linked repos, set status to ready immediately
+        var initialStatus = request.LinkExisting ? "ready" : "pending";
 
         // First insert with placeholder names to get the identity Id
         var id = await db.QuerySingleAsync<int>(
-            @"INSERT INTO Projects (Name, Slug, Domain, RepoFullName, DatabaseName, IisSiteName, CreatedByUserId, Description)
+            @"INSERT INTO Projects (Name, Slug, Domain, RepoFullName, DatabaseName, IisSiteName, CreatedByUserId, Description, Status)
               OUTPUT INSERTED.Id
-              VALUES (@Name, @Slug, @Domain, @RepoFullName, '_pending', '_pending', @UserId, @Description)",
+              VALUES (@Name, @Slug, @Domain, @RepoFullName, '_pending', '_pending', @UserId, @Description, @Status)",
             new
             {
                 request.Name,
@@ -82,24 +103,41 @@ public class ProjectService : IProjectService
                 request.Domain,
                 RepoFullName = repoFullName,
                 UserId = userId,
-                request.Description
+                request.Description,
+                Status = initialStatus
             });
 
-        // Build convention-based names: Demo_{Id}_{Title}
-        // Title = PascalCase from project name (e.g. "Dress App" -> "DressApp")
-        var titlePart = string.Concat(request.Name
-            .Split(' ', '-', '_')
-            .Where(w => !string.IsNullOrWhiteSpace(w))
-            .Select(w => char.ToUpper(w[0]) + w[1..].ToLower()));
-        var conventionName = $"Demo_{id}_{titlePart}";
+        if (!request.LinkExisting)
+        {
+            // Build convention-based names: Demo_{Id}_{Title}
+            // Title = PascalCase from project name (e.g. "Dress App" -> "DressApp")
+            var titlePart = string.Concat(request.Name
+                .Split(' ', '-', '_')
+                .Where(w => !string.IsNullOrWhiteSpace(w))
+                .Select(w => char.ToUpper(w[0]) + w[1..].ToLower()));
+            var conventionName = $"Demo_{id}_{titlePart}";
 
-        var dbName = conventionName;
-        var iisSiteName = conventionName;
+            var dbName = conventionName;
+            var iisSiteName = conventionName;
 
-        // Update with the real convention-based names
+            // Update with the real convention-based names
+            await db.ExecuteAsync(
+                @"UPDATE Projects SET DatabaseName = @DbName, IisSiteName = @IisSiteName WHERE Id = @Id",
+                new { DbName = dbName, IisSiteName = iisSiteName, Id = id });
+        }
+        else
+        {
+            // For linked repos, use project name as IIS site name and no DB
+            await db.ExecuteAsync(
+                @"UPDATE Projects SET DatabaseName = '', IisSiteName = @IisSiteName, ReadyAt = GETUTCDATE() WHERE Id = @Id",
+                new { IisSiteName = request.Name, Id = id });
+        }
+
+        // Add creator as owner in ProjectMembers
         await db.ExecuteAsync(
-            @"UPDATE Projects SET DatabaseName = @DbName, IisSiteName = @IisSiteName WHERE Id = @Id",
-            new { DbName = dbName, IisSiteName = iisSiteName, Id = id });
+            @"INSERT INTO ProjectMembers (ProjectId, UserId, Role, AddedBy)
+              VALUES (@ProjectId, @UserId, 'owner', @UserId)",
+            new { ProjectId = id, UserId = userId });
 
         var project = (await GetProjectAsync(id))!;
         return project;
@@ -162,12 +200,14 @@ public class ProjectService : IProjectService
 
         if (!string.IsNullOrEmpty(repoFullName))
         {
-            // Try to match by repo first
+            // Try to match by repo first (check membership or ownership)
             var byRepo = await db.QueryFirstOrDefaultAsync<Project>(
                 @"SELECT p.*, u.Email AS CreatedByEmail
                   FROM Projects p
                   LEFT JOIN Users u ON p.CreatedByUserId = u.Id
-                  WHERE p.RepoFullName = @RepoFullName AND p.CreatedByUserId = @UserId",
+                  LEFT JOIN ProjectMembers pm ON pm.ProjectId = p.Id AND pm.UserId = @UserId
+                  WHERE p.RepoFullName = @RepoFullName
+                    AND (pm.Id IS NOT NULL OR p.CreatedByUserId = @UserId)",
                 new { RepoFullName = repoFullName, UserId = userId });
             if (byRepo != null) return byRepo;
         }
@@ -177,7 +217,8 @@ public class ProjectService : IProjectService
             @"SELECT TOP 1 p.*, u.Email AS CreatedByEmail
               FROM Projects p
               LEFT JOIN Users u ON p.CreatedByUserId = u.Id
-              WHERE p.CreatedByUserId = @UserId
+              LEFT JOIN ProjectMembers pm ON pm.ProjectId = p.Id AND pm.UserId = @UserId
+              WHERE pm.Id IS NOT NULL OR p.CreatedByUserId = @UserId
               ORDER BY p.CreatedAt DESC",
             new { UserId = userId });
     }
@@ -198,6 +239,127 @@ public class ProjectService : IProjectService
             new { Id = projectId });
         if (result == null) return null;
         return ((string?)result.ProjectBrief, (DateTime?)result.ProjectBriefSetAt);
+    }
+
+    public async Task<Project?> UpdateProjectAsync(int id, UpdateProjectRequest request)
+    {
+        using var db = new SqlConnection(_connectionString);
+
+        var updates = new List<string>();
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", id);
+
+        if (request.Name != null)
+        {
+            updates.Add("Name = @Name");
+            parameters.Add("Name", request.Name);
+        }
+        if (request.Description != null)
+        {
+            updates.Add("Description = @Description");
+            parameters.Add("Description", request.Description);
+        }
+        if (request.RepoFullName != null)
+        {
+            updates.Add("RepoFullName = @RepoFullName");
+            parameters.Add("RepoFullName", request.RepoFullName);
+        }
+        if (request.Domain != null)
+        {
+            updates.Add("Domain = @Domain");
+            parameters.Add("Domain", request.Domain);
+        }
+
+        if (updates.Count == 0)
+            return await GetProjectAsync(id);
+
+        var sql = $"UPDATE Projects SET {string.Join(", ", updates)} WHERE Id = @Id";
+        await db.ExecuteAsync(sql, parameters);
+
+        return await GetProjectAsync(id);
+    }
+
+    // ─── Project Members ────────────────────────────────────────
+
+    public async Task<List<ProjectMember>> GetProjectMembersAsync(int projectId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var members = await db.QueryAsync<ProjectMember>(
+            @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName
+              FROM ProjectMembers pm
+              INNER JOIN Users u ON pm.UserId = u.Id
+              WHERE pm.ProjectId = @ProjectId
+              ORDER BY CASE pm.Role WHEN 'owner' THEN 0 WHEN 'developer' THEN 1 WHEN 'viewer' THEN 2 ELSE 3 END, pm.AddedAt",
+            new { ProjectId = projectId });
+        return members.ToList();
+    }
+
+    public async Task<ProjectMember?> AddProjectMemberAsync(int projectId, int userId, string role, int? addedBy)
+    {
+        using var db = new SqlConnection(_connectionString);
+
+        // Validate role
+        var validRoles = new[] { "owner", "developer", "viewer" };
+        if (!validRoles.Contains(role.ToLower()))
+            return null;
+
+        try
+        {
+            var id = await db.QuerySingleAsync<int>(
+                @"INSERT INTO ProjectMembers (ProjectId, UserId, Role, AddedBy)
+                  OUTPUT INSERTED.Id
+                  VALUES (@ProjectId, @UserId, @Role, @AddedBy)",
+                new { ProjectId = projectId, UserId = userId, Role = role.ToLower(), AddedBy = addedBy });
+
+            return await db.QueryFirstOrDefaultAsync<ProjectMember>(
+                @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName
+                  FROM ProjectMembers pm
+                  INNER JOIN Users u ON pm.UserId = u.Id
+                  WHERE pm.Id = @Id",
+                new { Id = id });
+        }
+        catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // Unique constraint violation
+        {
+            return null; // Already a member
+        }
+    }
+
+    public async Task<bool> RemoveProjectMemberAsync(int projectId, int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var affected = await db.ExecuteAsync(
+            "DELETE FROM ProjectMembers WHERE ProjectId = @ProjectId AND UserId = @UserId",
+            new { ProjectId = projectId, UserId = userId });
+        return affected > 0;
+    }
+
+    public async Task<bool> UpdateProjectMemberRoleAsync(int projectId, int userId, string role)
+    {
+        var validRoles = new[] { "owner", "developer", "viewer" };
+        if (!validRoles.Contains(role.ToLower()))
+            return false;
+
+        using var db = new SqlConnection(_connectionString);
+        var affected = await db.ExecuteAsync(
+            "UPDATE ProjectMembers SET Role = @Role WHERE ProjectId = @ProjectId AND UserId = @UserId",
+            new { ProjectId = projectId, UserId = userId, Role = role.ToLower() });
+        return affected > 0;
+    }
+
+    public async Task<bool> IsProjectMemberAsync(int projectId, int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        return await db.ExecuteScalarAsync<bool>(
+            "SELECT CASE WHEN EXISTS (SELECT 1 FROM ProjectMembers WHERE ProjectId = @ProjectId AND UserId = @UserId) THEN 1 ELSE 0 END",
+            new { ProjectId = projectId, UserId = userId });
+    }
+
+    public async Task<string?> GetMemberRoleAsync(int projectId, int userId)
+    {
+        using var db = new SqlConnection(_connectionString);
+        return await db.ExecuteScalarAsync<string?>(
+            "SELECT Role FROM ProjectMembers WHERE ProjectId = @ProjectId AND UserId = @UserId",
+            new { ProjectId = projectId, UserId = userId });
     }
 
     /// <summary>

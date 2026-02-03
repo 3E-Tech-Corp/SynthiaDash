@@ -28,4 +28,39 @@ public class CreateProjectRequest
     public string Domain { get; set; } = string.Empty; // Full domain
     public string? BaseDomain { get; set; } // e.g., "pickleball.community" for subdomain creation
     public string? Description { get; set; }
+    public string? RepoFullName { get; set; } // If set, link to existing repo instead of provisioning
+    public bool LinkExisting { get; set; } = false; // true = link existing repo, skip provisioning
+}
+
+public class UpdateProjectRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? RepoFullName { get; set; } // Link/update to a different repo
+    public string? Domain { get; set; }
+}
+
+public class ProjectMember
+{
+    public int Id { get; set; }
+    public int ProjectId { get; set; }
+    public int UserId { get; set; }
+    public string Role { get; set; } = "developer"; // owner, developer, viewer
+    public DateTime AddedAt { get; set; }
+    public int? AddedBy { get; set; }
+
+    // Joined fields
+    public string? UserEmail { get; set; }
+    public string? UserDisplayName { get; set; }
+}
+
+public class AddProjectMemberRequest
+{
+    public int UserId { get; set; }
+    public string Role { get; set; } = "developer"; // owner, developer, viewer
+}
+
+public class UpdateProjectMemberRequest
+{
+    public string Role { get; set; } = "developer"; // owner, developer, viewer
 }

@@ -125,6 +125,17 @@ export interface Project {
   readyAt?: string
 }
 
+export interface ProjectMember {
+  id: number
+  projectId: number
+  userId: number
+  role: string // owner, developer, viewer
+  addedAt: string
+  addedBy?: number
+  userEmail?: string
+  userDisplayName?: string
+}
+
 export interface Ticket {
   id: number
   userId: number
@@ -283,9 +294,15 @@ export const api = {
 
   getProject: (id: number) => fetchApi<Project>(`/projects/${id}`),
 
-  createProject: (data: { name: string; slug: string; domain: string; description?: string }) =>
+  createProject: (data: { name: string; slug: string; domain: string; description?: string; repoFullName?: string; linkExisting?: boolean }) =>
     fetchApi<Project>('/projects', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateProject: (id: number, data: { name?: string; description?: string; repoFullName?: string; domain?: string }) =>
+    fetchApi<Project>(`/projects/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
 
@@ -296,6 +313,27 @@ export const api = {
 
   getProjectSlots: () =>
     fetchApi<{ used: number; max: number; remaining: number }>('/projects/slots'),
+
+  // Project Members
+  getProjectMembers: (projectId: number) =>
+    fetchApi<ProjectMember[]>(`/projects/${projectId}/members`),
+
+  addProjectMember: (projectId: number, userId: number, role: string) =>
+    fetchApi<ProjectMember>(`/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, role }),
+    }),
+
+  updateProjectMemberRole: (projectId: number, userId: number, role: string) =>
+    fetchApi<{ message: string }>(`/projects/${projectId}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+
+  removeProjectMember: (projectId: number, userId: number) =>
+    fetchApi<{ message: string }>(`/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+    }),
 
   // Chat
   getChatProjects: () =>

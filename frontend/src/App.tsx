@@ -10,6 +10,7 @@ import TicketsPage from './pages/Tickets'
 import ProjectsPage from './pages/Projects'
 import UsersPage from './pages/Users'
 import ChatPage from './pages/Chat'
+import FeaturedProjectsAdmin from './pages/FeaturedProjectsAdmin'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="tickets" element={<TicketsPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="admin/featured" element={<FeaturedProjectsAdmin />} />
       </Route>
     </Routes>
   )

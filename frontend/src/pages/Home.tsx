@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Bot, GitBranch, TicketCheck, FolderGit2,
   Users, Bell, ArrowRight, LogIn, Sparkles,
+  ChevronLeft, ChevronRight, ExternalLink,
 } from 'lucide-react'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import AnimatedLogo from '../components/AnimatedLogo'
+import { api } from '../services/api'
+import type { FeaturedProject } from '../services/api'
 
 const FEATURES = [
   { key: 'codeAgent', icon: Bot, color: 'text-violet-400', bg: 'bg-violet-500/10' },
@@ -71,6 +74,154 @@ function ShinyTitle({ text, interval = 8000 }: { text: string; interval?: number
         </span>
       )}
     </h1>
+  )
+}
+
+function FeaturedExamples() {
+  const [projects, setProjects] = useState<FeaturedProject[]>([])
+  const [scrollIndex, setScrollIndex] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+
+  useEffect(() => {
+    api.getFeaturedProjects()
+      .then(setProjects)
+      .catch(() => {}) // silently fail on public page
+  }, [])
+
+  // Auto-scroll every 5s
+  useEffect(() => {
+    if (projects.length <= 1) return
+    autoScrollRef.current = setInterval(() => {
+      setScrollIndex(prev => (prev + 1) % projects.length)
+    }, 5000)
+    return () => clearInterval(autoScrollRef.current)
+  }, [projects.length])
+
+  // Scroll to index
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const cardWidth = scrollRef.current.firstElementChild?.clientWidth ?? 0
+    const gap = 24 // gap-6 = 1.5rem = 24px
+    scrollRef.current.scrollTo({
+      left: scrollIndex * (cardWidth + gap),
+      behavior: 'smooth',
+    })
+  }, [scrollIndex])
+
+  const scrollPrev = () => {
+    clearInterval(autoScrollRef.current)
+    setScrollIndex(prev => Math.max(0, prev - 1))
+  }
+
+  const scrollNext = () => {
+    clearInterval(autoScrollRef.current)
+    setScrollIndex(prev => Math.min(projects.length - 1, prev + 1))
+  }
+
+  if (projects.length === 0) return null
+
+  return (
+    <section className="py-20 sm:py-28 px-4 sm:px-6 bg-gray-900/30">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Featured Examples</h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Real projects built and deployed with Synthia
+          </p>
+        </div>
+
+        <div className="relative">
+          {/* Arrow buttons */}
+          {projects.length > 1 && (
+            <>
+              <button
+                onClick={scrollPrev}
+                className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-700 flex items-center justify-center text-gray-300 hover:text-white transition-all backdrop-blur-sm"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={scrollNext}
+                className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-gray-800/80 hover:bg-gray-700 border border-gray-700 flex items-center justify-center text-gray-300 hover:text-white transition-all backdrop-blur-sm"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
+
+          {/* Carousel */}
+          <div
+            ref={scrollRef}
+            className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-4 scrollbar-hide"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex-shrink-0 snap-start w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] group"
+              >
+                <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300">
+                  {/* Thumbnail */}
+                  <div className="aspect-video bg-gray-800 relative overflow-hidden">
+                    {project.thumbnailPath ? (
+                      <img
+                        src={`/api${project.thumbnailPath}`}
+                        alt={project.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Sparkles className="w-10 h-10 text-gray-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold mb-2 group-hover:text-violet-300 transition-colors">
+                      {project.title}
+                    </h3>
+                    {project.description && (
+                      <p className="text-gray-400 text-sm leading-relaxed mb-4 line-clamp-2">
+                        {project.description}
+                      </p>
+                    )}
+                    <a
+                      href={project.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600/15 border border-violet-500/20 text-violet-300 text-sm font-medium hover:bg-violet-600/25 hover:text-violet-200 transition-colors"
+                    >
+                      View Project
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Dots indicator */}
+          {projects.length > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              {projects.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => { clearInterval(autoScrollRef.current); setScrollIndex(i) }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === scrollIndex
+                      ? 'bg-violet-500 w-6'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -167,6 +318,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── Featured Examples ──────────────────────────── */}
+      <FeaturedExamples />
 
       {/* ── How It Works ───────────────────────────────── */}
       <section className="py-20 sm:py-28 px-4 sm:px-6 bg-gray-900/30">

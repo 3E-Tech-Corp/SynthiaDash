@@ -153,6 +153,24 @@ export interface TicketComment {
   createdAt: string
 }
 
+export interface FeaturedProject {
+  id: number
+  title: string
+  description?: string
+  projectId?: number
+  url: string
+  thumbnailPath?: string
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface ReorderItem {
+  id: number
+  sortOrder: number
+}
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
@@ -380,4 +398,38 @@ export const api = {
       onDone();
     }
   },
+
+  // Featured Projects
+  getFeaturedProjects: () =>
+    fetchApi<FeaturedProject[]>('/featuredprojects'),
+
+  getFeaturedProjectsAdmin: () =>
+    fetchApi<FeaturedProject[]>('/featuredprojects/admin'),
+
+  createFeaturedProject: (data: Omit<FeaturedProject, 'id' | 'createdAt' | 'updatedAt' | 'thumbnailPath'>) =>
+    fetchApi<FeaturedProject>('/featuredprojects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateFeaturedProject: (id: number, data: Partial<FeaturedProject>) =>
+    fetchApi<FeaturedProject>(`/featuredprojects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteFeaturedProject: (id: number) =>
+    fetchApi<{ message: string }>(`/featuredprojects/${id}`, { method: 'DELETE' }),
+
+  uploadFeaturedThumbnail: (id: number, imageData: string) =>
+    fetchApi<{ thumbnailPath: string }>(`/featuredprojects/${id}/thumbnail`, {
+      method: 'POST',
+      body: JSON.stringify({ imageData }),
+    }),
+
+  reorderFeaturedProjects: (items: ReorderItem[]) =>
+    fetchApi<{ message: string }>('/featuredprojects/reorder', {
+      method: 'POST',
+      body: JSON.stringify(items),
+    }),
 };

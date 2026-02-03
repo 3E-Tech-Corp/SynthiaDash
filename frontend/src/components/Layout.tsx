@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
 
@@ -89,6 +89,10 @@ export default function Layout() {
               <NavLink to="/users" className={linkClass} onClick={handleNavClick}>
                 <Users className="w-4 h-4" />
                 Users
+              </NavLink>
+              <NavLink to="/admin/featured" className={linkClass} onClick={handleNavClick}>
+                <Star className="w-4 h-4" />
+                Featured
               </NavLink>
             </>
           )}

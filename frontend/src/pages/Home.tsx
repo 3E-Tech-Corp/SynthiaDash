@@ -164,9 +164,9 @@ function FeaturedExamples() {
                 <div className="bg-gray-900/80 border border-gray-800 rounded-2xl overflow-hidden hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-500/5 transition-all duration-300">
                   {/* Thumbnail */}
                   <div className="aspect-video bg-gray-800 relative overflow-hidden">
-                    {(project.thumbnailAssetId || project.thumbnailPath) ? (
+                    {project.thumbnailAssetId ? (
                       <img
-                        src={project.thumbnailAssetId ? `/api/asset/${project.thumbnailAssetId}` : `/api/featuredprojects/${project.id}/thumbnail`}
+                        src={`/api/asset/${project.thumbnailAssetId}`}
                         alt={project.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

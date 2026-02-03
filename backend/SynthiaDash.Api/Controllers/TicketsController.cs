@@ -15,6 +15,7 @@ public class TicketsController : ControllerBase
     private readonly INotificationService _notificationService;
     private readonly IProjectService _projectService;
     private readonly IUserScopeService _userScopeService;
+    private readonly IPermissionService _permissionService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TicketsController> _logger;
 
@@ -24,6 +25,7 @@ public class TicketsController : ControllerBase
         INotificationService notificationService,
         IProjectService projectService,
         IUserScopeService userScopeService,
+        IPermissionService permissionService,
         IConfiguration configuration,
         ILogger<TicketsController> logger)
     {
@@ -32,6 +34,7 @@ public class TicketsController : ControllerBase
         _notificationService = notificationService;
         _projectService = projectService;
         _userScopeService = userScopeService;
+        _permissionService = permissionService;
         _configuration = configuration;
         _logger = logger;
     }
@@ -90,6 +93,13 @@ public class TicketsController : ControllerBase
         var isAdmin = _userScopeService.IsAdmin(email);
 
         // Check per-type ticket access (admins always have execute)
+        // First try project-level override via repoFullName, fall back to global
+        int? projectId = null;
+        if (!string.IsNullOrEmpty(repoFullName))
+        {
+            projectId = await _projectService.GetProjectIdByRepoAsync(repoFullName);
+        }
+
         string access;
         if (isAdmin)
         {
@@ -97,8 +107,9 @@ public class TicketsController : ControllerBase
         }
         else
         {
-            var (bugAccess, featureAccess) = await _ticketService.GetUserTicketAccessSplitAsync(userId);
-            access = type == "bug" ? bugAccess : featureAccess;
+            access = type == "bug"
+                ? await _permissionService.GetEffectiveBugAccess(userId, projectId)
+                : await _permissionService.GetEffectiveFeatureAccess(userId, projectId);
         }
 
         if (access == "none")
@@ -406,10 +417,10 @@ public class TicketsController : ControllerBase
     }
 
     /// <summary>
-    /// Check current user's ticket access levels (per type)
+    /// Check current user's ticket access levels (per type), optionally project-scoped
     /// </summary>
     [HttpGet("access")]
-    public async Task<IActionResult> GetAccess()
+    public async Task<IActionResult> GetAccess([FromQuery] int? projectId = null)
     {
         var email = User.FindFirst("email")?.Value ?? "";
         var isAdmin = _userScopeService.IsAdmin(email);
@@ -417,7 +428,9 @@ public class TicketsController : ControllerBase
         if (isAdmin)
             return Ok(new { bugAccess = "execute", featureAccess = "execute" });
 
-        var (bugAccess, featureAccess) = await _ticketService.GetUserTicketAccessSplitAsync(GetUserId());
+        var userId = GetUserId();
+        var bugAccess = await _permissionService.GetEffectiveBugAccess(userId, projectId);
+        var featureAccess = await _permissionService.GetEffectiveFeatureAccess(userId, projectId);
         return Ok(new { bugAccess, featureAccess });
     }
 

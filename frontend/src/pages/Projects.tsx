@@ -3,7 +3,7 @@ import {
   Rocket, Plus, Loader2, CheckCircle, XCircle, Clock,
   Globe, Database, FolderGit2, ExternalLink, RefreshCw,
   ArrowLeft, Upload, Info, Users, UserPlus, Trash2,
-  Link, ChevronDown, ChevronUp, Edit3, Save, X
+  Link, ChevronDown, ChevronUp, Edit3, Save, X, Shield
 } from 'lucide-react'
 import { api } from '../services/api'
 import type { Project, ProjectMember, User } from '../services/api'
@@ -34,6 +34,55 @@ const ROLE_COLORS: Record<string, string> = {
   viewer: 'text-gray-400 bg-gray-800',
 }
 
+const INHERIT_LABEL = '(inherit)'
+
+function PermissionSelect({
+  label,
+  value,
+  globalValue,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string | null | undefined
+  globalValue: string | undefined
+  options: { value: string; label: string }[]
+  onChange: (val: string | null) => void
+}) {
+  const effective = value ?? globalValue ?? 'none'
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
+      <select
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
+        className="text-xs bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-gray-300 min-w-[120px]"
+      >
+        <option value="">{INHERIT_LABEL}: {globalValue || 'none'}</option>
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      {value == null && (
+        <span className="text-xs text-gray-600 italic">= {effective}</span>
+      )}
+    </div>
+  )
+}
+
+const TICKET_ACCESS_OPTIONS = [
+  { value: 'none', label: 'none' },
+  { value: 'submit', label: 'submit' },
+  { value: 'execute', label: 'execute' },
+]
+
+const CHAT_ACCESS_OPTIONS = [
+  { value: 'none', label: 'none' },
+  { value: 'guide', label: 'guide' },
+  { value: 'bug', label: 'bug' },
+  { value: 'developer', label: 'developer' },
+]
+
 function MemberManagement({ project, isAdmin }: { project: Project; isAdmin: boolean }) {
   const [members, setMembers] = useState<ProjectMember[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
@@ -42,6 +91,7 @@ function MemberManagement({ project, isAdmin }: { project: Project; isAdmin: boo
   const [addUserId, setAddUserId] = useState<number>(0)
   const [addRole, setAddRole] = useState('developer')
   const [addError, setAddError] = useState<string | null>(null)
+  const [expandedPerms, setExpandedPerms] = useState<number | null>(null)
 
   useEffect(() => {
     fetchMembers()
@@ -92,6 +142,20 @@ function MemberManagement({ project, isAdmin }: { project: Project; isAdmin: boo
     } catch { /* ignore */ }
   }
 
+  const handlePermissionChange = async (userId: number, field: 'bugAccess' | 'featureAccess' | 'chatAccess', value: string | null) => {
+    try {
+      const member = members.find(m => m.userId === userId)
+      if (!member) return
+      const perms = {
+        bugAccess: field === 'bugAccess' ? value : member.bugAccess,
+        featureAccess: field === 'featureAccess' ? value : member.featureAccess,
+        chatAccess: field === 'chatAccess' ? value : member.chatAccess,
+      }
+      await api.updateProjectMemberPermissions(project.id, userId, perms)
+      fetchMembers()
+    } catch { /* ignore */ }
+  }
+
   const nonMembers = allUsers.filter(u => !members.some(m => m.userId === u.id) && u.isActive)
 
   if (loading) return <div className="text-xs text-gray-600">Loading members...</div>
@@ -115,42 +179,82 @@ function MemberManagement({ project, isAdmin }: { project: Project; isAdmin: boo
       {/* Member list */}
       <div className="space-y-1.5">
         {members.map(m => (
-          <div key={m.id} className="flex items-center justify-between text-sm py-1 px-2 rounded-lg hover:bg-gray-800/50 group">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-300">{m.userDisplayName || m.userEmail}</span>
-              {m.userDisplayName && m.userEmail && (
-                <span className="text-xs text-gray-600">{m.userEmail}</span>
-              )}
+          <div key={m.id}>
+            <div className="flex items-center justify-between text-sm py-1 px-2 rounded-lg hover:bg-gray-800/50 group">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-300">{m.userDisplayName || m.userEmail}</span>
+                {m.userDisplayName && m.userEmail && (
+                  <span className="text-xs text-gray-600">{m.userEmail}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button
+                    onClick={() => setExpandedPerms(expandedPerms === m.userId ? null : m.userId)}
+                    className={`p-1 rounded transition-colors ${expandedPerms === m.userId ? 'text-violet-400 bg-violet-900/20' : 'text-gray-600 hover:text-gray-400'}`}
+                    title="Per-project permissions"
+                  >
+                    <Shield className="w-3 h-3" />
+                  </button>
+                )}
+                {isAdmin ? (
+                  <select
+                    value={m.role}
+                    onChange={e => handleRoleChange(m.userId, e.target.value)}
+                    className={`text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer ${ROLE_COLORS[m.role] || ROLE_COLORS.viewer}`}
+                    style={{ background: 'transparent' }}
+                  >
+                    <option value="owner">owner</option>
+                    <option value="developer">developer</option>
+                    <option value="viewer">viewer</option>
+                  </select>
+                ) : (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[m.role] || ROLE_COLORS.viewer}`}>
+                    {m.role}
+                  </span>
+                )}
+                {isAdmin && members.filter(x => x.role === 'owner').length > 1 || m.role !== 'owner' ? (
+                  <button
+                    onClick={() => handleRemove(m.userId)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-600 hover:text-red-400 transition-all"
+                    title="Remove member"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                ) : (
+                  <div className="w-5" /> // spacer
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {isAdmin ? (
-                <select
-                  value={m.role}
-                  onChange={e => handleRoleChange(m.userId, e.target.value)}
-                  className={`text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer ${ROLE_COLORS[m.role] || ROLE_COLORS.viewer}`}
-                  style={{ background: 'transparent' }}
-                >
-                  <option value="owner">owner</option>
-                  <option value="developer">developer</option>
-                  <option value="viewer">viewer</option>
-                </select>
-              ) : (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[m.role] || ROLE_COLORS.viewer}`}>
-                  {m.role}
-                </span>
-              )}
-              {isAdmin && members.filter(x => x.role === 'owner').length > 1 || m.role !== 'owner' ? (
-                <button
-                  onClick={() => handleRemove(m.userId)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-gray-600 hover:text-red-400 transition-all"
-                  title="Remove member"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              ) : (
-                <div className="w-5" /> // spacer
-              )}
-            </div>
+            {/* Per-project permissions panel */}
+            {isAdmin && expandedPerms === m.userId && (
+              <div className="ml-4 mt-1 mb-2 p-2.5 bg-gray-800/40 border border-gray-700/50 rounded-lg space-y-1.5">
+                <div className="text-xs text-gray-500 font-medium mb-1.5 flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Project permissions
+                </div>
+                <PermissionSelect
+                  label="Bug"
+                  value={m.bugAccess}
+                  globalValue={m.globalBugAccess}
+                  options={TICKET_ACCESS_OPTIONS}
+                  onChange={val => handlePermissionChange(m.userId, 'bugAccess', val)}
+                />
+                <PermissionSelect
+                  label="Feature"
+                  value={m.featureAccess}
+                  globalValue={m.globalFeatureAccess}
+                  options={TICKET_ACCESS_OPTIONS}
+                  onChange={val => handlePermissionChange(m.userId, 'featureAccess', val)}
+                />
+                <PermissionSelect
+                  label="Chat"
+                  value={m.chatAccess}
+                  globalValue={m.globalChatAccess}
+                  options={CHAT_ACCESS_OPTIONS}
+                  onChange={val => handlePermissionChange(m.userId, 'chatAccess', val)}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>

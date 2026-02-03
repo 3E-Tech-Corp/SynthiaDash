@@ -27,6 +27,8 @@ public interface IProjectService
     Task<bool> UpdateProjectMemberRoleAsync(int projectId, int userId, string role);
     Task<bool> IsProjectMemberAsync(int projectId, int userId);
     Task<string?> GetMemberRoleAsync(int projectId, int userId);
+    Task<bool> UpdateProjectMemberPermissionsAsync(int projectId, int userId, string? bugAccess, string? featureAccess, string? chatAccess);
+    Task<int?> GetProjectIdByRepoAsync(string repoFullName);
 }
 
 public class ProjectService : IProjectService
@@ -285,7 +287,8 @@ public class ProjectService : IProjectService
     {
         using var db = new SqlConnection(_connectionString);
         var members = await db.QueryAsync<ProjectMember>(
-            @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName
+            @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName,
+                     u.BugAccess AS GlobalBugAccess, u.FeatureAccess AS GlobalFeatureAccess, u.ChatAccess AS GlobalChatAccess
               FROM ProjectMembers pm
               INNER JOIN Users u ON pm.UserId = u.Id
               WHERE pm.ProjectId = @ProjectId
@@ -312,7 +315,8 @@ public class ProjectService : IProjectService
                 new { ProjectId = projectId, UserId = userId, Role = role.ToLower(), AddedBy = addedBy });
 
             return await db.QueryFirstOrDefaultAsync<ProjectMember>(
-                @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName
+                @"SELECT pm.*, u.Email AS UserEmail, u.DisplayName AS UserDisplayName,
+                         u.BugAccess AS GlobalBugAccess, u.FeatureAccess AS GlobalFeatureAccess, u.ChatAccess AS GlobalChatAccess
                   FROM ProjectMembers pm
                   INNER JOIN Users u ON pm.UserId = u.Id
                   WHERE pm.Id = @Id",
@@ -360,6 +364,43 @@ public class ProjectService : IProjectService
         return await db.ExecuteScalarAsync<string?>(
             "SELECT Role FROM ProjectMembers WHERE ProjectId = @ProjectId AND UserId = @UserId",
             new { ProjectId = projectId, UserId = userId });
+    }
+
+    public async Task<bool> UpdateProjectMemberPermissionsAsync(int projectId, int userId, string? bugAccess, string? featureAccess, string? chatAccess)
+    {
+        // Validate values
+        var validTicketAccess = new[] { "none", "submit", "execute" };
+        var validChatAccess = new[] { "none", "guide", "bug", "developer" };
+
+        if (bugAccess != null && !validTicketAccess.Contains(bugAccess.ToLower()))
+            return false;
+        if (featureAccess != null && !validTicketAccess.Contains(featureAccess.ToLower()))
+            return false;
+        if (chatAccess != null && !validChatAccess.Contains(chatAccess.ToLower()))
+            return false;
+
+        using var db = new SqlConnection(_connectionString);
+        var affected = await db.ExecuteAsync(
+            @"UPDATE ProjectMembers
+              SET BugAccess = @BugAccess, FeatureAccess = @FeatureAccess, ChatAccess = @ChatAccess
+              WHERE ProjectId = @ProjectId AND UserId = @UserId",
+            new
+            {
+                ProjectId = projectId,
+                UserId = userId,
+                BugAccess = bugAccess?.ToLower(),
+                FeatureAccess = featureAccess?.ToLower(),
+                ChatAccess = chatAccess?.ToLower()
+            });
+        return affected > 0;
+    }
+
+    public async Task<int?> GetProjectIdByRepoAsync(string repoFullName)
+    {
+        using var db = new SqlConnection(_connectionString);
+        return await db.QueryFirstOrDefaultAsync<int?>(
+            "SELECT Id FROM Projects WHERE RepoFullName = @RepoFullName",
+            new { RepoFullName = repoFullName });
     }
 
     /// <summary>

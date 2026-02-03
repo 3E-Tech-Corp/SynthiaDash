@@ -130,6 +130,12 @@ export interface ProjectMember {
   projectId: number
   userId: number
   role: string // owner, developer, viewer
+  bugAccess?: string | null     // null = inherit, or: none, submit, execute
+  featureAccess?: string | null // null = inherit, or: none, submit, execute
+  chatAccess?: string | null    // null = inherit, or: none, guide, bug, developer
+  globalBugAccess?: string      // user's global value (for display)
+  globalFeatureAccess?: string
+  globalChatAccess?: string
   addedAt: string
   addedBy?: number
   userEmail?: string
@@ -333,6 +339,12 @@ export const api = {
   removeProjectMember: (projectId: number, userId: number) =>
     fetchApi<{ message: string }>(`/projects/${projectId}/members/${userId}`, {
       method: 'DELETE',
+    }),
+
+  updateProjectMemberPermissions: (projectId: number, userId: number, permissions: { bugAccess?: string | null; featureAccess?: string | null; chatAccess?: string | null }) =>
+    fetchApi<{ message: string }>(`/projects/${projectId}/members/${userId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify(permissions),
     }),
 
   // Chat

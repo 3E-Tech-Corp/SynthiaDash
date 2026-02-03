@@ -251,6 +251,29 @@ public class ProjectsController : ControllerBase
         return Ok(new { message = "Member removed" });
     }
 
+    /// <summary>
+    /// Update a member's per-project permissions (admin or project owner)
+    /// </summary>
+    [HttpPatch("{id}/members/{userId}/permissions")]
+    public async Task<IActionResult> UpdateProjectMemberPermissions(int id, int userId, [FromBody] UpdateProjectMemberPermissionsRequest request)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        var success = await _projectService.UpdateProjectMemberPermissionsAsync(
+            id, userId, request.BugAccess, request.FeatureAccess, request.ChatAccess);
+
+        if (!success)
+            return NotFound(new { error = "Member not found or invalid permission value" });
+
+        _logger.LogInformation("Updated permissions for user {UserId} in project {ProjectId}: bug={Bug}, feature={Feature}, chat={Chat}",
+            userId, id, request.BugAccess, request.FeatureAccess, request.ChatAccess);
+        return Ok(new { message = "Permissions updated" });
+    }
+
     // ─── Existing Endpoints ────────────────────────────────────────
 
     /// <summary>

@@ -16,6 +16,7 @@ public class ChatController : ControllerBase
     private readonly IUserScopeService _scopeService;
     private readonly IChatService _chatService;
     private readonly IProjectService _projectService;
+    private readonly IPermissionService _permissionService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ChatController> _logger;
@@ -25,6 +26,7 @@ public class ChatController : ControllerBase
         IUserScopeService scopeService,
         IChatService chatService,
         IProjectService projectService,
+        IPermissionService permissionService,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         ILogger<ChatController> logger)
@@ -33,6 +35,7 @@ public class ChatController : ControllerBase
         _scopeService = scopeService;
         _chatService = chatService;
         _projectService = projectService;
+        _permissionService = permissionService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
@@ -47,8 +50,13 @@ public class ChatController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
-        if (chatAccess == "none") return Forbid();
+        // Check global chat access first (project-level checked per-project below)
+        var chatAccess = await _permissionService.GetEffectiveChatAccess(userId.Value, null);
+        if (chatAccess == "none")
+        {
+            // Even if global is "none", user might have project-level chat access
+            // Let them through — they'll only see projects where they have access
+        }
 
         // Get user's email for scope check
         var email = User.FindFirst("email")?.Value ?? "";
@@ -170,19 +178,19 @@ public class ChatController : ControllerBase
             return;
         }
 
-        // Check chat access
-        var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
+        // Get user's project — use specified projectId or fall back to default
+        var project = request.ProjectId.HasValue
+            ? await _projectService.GetProjectAsync(request.ProjectId.Value)
+            : await _projectService.GetProjectForUserAsync(userId.Value);
+
+        // Check chat access (project-scoped if available)
+        var chatAccess = await _permissionService.GetEffectiveChatAccess(userId.Value, project?.Id);
         if (chatAccess == "none")
         {
             Response.StatusCode = 403;
             await Response.WriteAsync(JsonSerializer.Serialize(new { error = "No chat access" }));
             return;
         }
-
-        // Get user's project — use specified projectId or fall back to default
-        var project = request.ProjectId.HasValue
-            ? await _projectService.GetProjectAsync(request.ProjectId.Value)
-            : await _projectService.GetProjectForUserAsync(userId.Value);
 
         // Require a project context — don't allow unscoped chat
         if (project == null)
@@ -370,11 +378,11 @@ public class ChatController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
-
         var project = projectId.HasValue
             ? await _projectService.GetProjectAsync(projectId.Value)
             : await _projectService.GetProjectForUserAsync(userId.Value);
+
+        var chatAccess = await _permissionService.GetEffectiveChatAccess(userId.Value, project?.Id);
 
         var sessionKey = _chatService.BuildSessionKey(userId.Value, project?.Slug);
 
@@ -414,13 +422,16 @@ public class ChatController : ControllerBase
     /// Get user's chat access level and project info
     /// </summary>
     [HttpGet("access")]
-    public async Task<IActionResult> GetAccess()
+    public async Task<IActionResult> GetAccess([FromQuery] int? projectId = null)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
 
-        var chatAccess = await _chatService.GetUserChatAccess(userId.Value);
-        var project = await _projectService.GetProjectForUserAsync(userId.Value);
+        var project = projectId.HasValue
+            ? await _projectService.GetProjectAsync(projectId.Value)
+            : await _projectService.GetProjectForUserAsync(userId.Value);
+
+        var chatAccess = await _permissionService.GetEffectiveChatAccess(userId.Value, project?.Id);
 
         return Ok(new
         {

@@ -118,6 +118,7 @@ builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IFeaturedProjectService, FeaturedProjectService>();
 
 // Asset management (pattern from funtime-shared)

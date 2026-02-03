@@ -49,9 +49,19 @@ public class ProjectMember
     public DateTime AddedAt { get; set; }
     public int? AddedBy { get; set; }
 
+    // Per-project permission overrides (null = inherit from user's global setting)
+    public string? BugAccess { get; set; }
+    public string? FeatureAccess { get; set; }
+    public string? ChatAccess { get; set; }
+
     // Joined fields
     public string? UserEmail { get; set; }
     public string? UserDisplayName { get; set; }
+
+    // Joined from Users table (for showing effective/inherited values)
+    public string? GlobalBugAccess { get; set; }
+    public string? GlobalFeatureAccess { get; set; }
+    public string? GlobalChatAccess { get; set; }
 }
 
 public class AddProjectMemberRequest
@@ -63,4 +73,11 @@ public class AddProjectMemberRequest
 public class UpdateProjectMemberRequest
 {
     public string Role { get; set; } = "developer"; // owner, developer, viewer
+}
+
+public class UpdateProjectMemberPermissionsRequest
+{
+    public string? BugAccess { get; set; }     // null, "none", "submit", "execute"
+    public string? FeatureAccess { get; set; } // null, "none", "submit", "execute"
+    public string? ChatAccess { get; set; }    // null, "none", "guide", "bug", "developer"
 }

@@ -65,7 +65,11 @@ export default function FeaturedProjectsAdmin() {
       sortOrder: item.sortOrder,
       isActive: item.isActive,
     })
-    setThumbnailPreview(item.thumbnailPath ? `/api/featuredprojects/${item.id}/thumbnail` : null)
+    setThumbnailPreview(
+      item.thumbnailAssetId ? `/api/asset/${item.thumbnailAssetId}`
+      : item.thumbnailPath ? `/api/featuredprojects/${item.id}/thumbnail`
+      : null
+    )
     setThumbnailFile(null)
     setShowModal(true)
   }
@@ -240,9 +244,9 @@ export default function FeaturedProjectsAdmin() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {item.thumbnailPath ? (
+                    {(item.thumbnailAssetId || item.thumbnailPath) ? (
                       <img
-                        src={`/api/featuredprojects/${item.id}/thumbnail`}
+                        src={item.thumbnailAssetId ? `/api/asset/${item.thumbnailAssetId}` : `/api/featuredprojects/${item.id}/thumbnail`}
                         alt={item.title}
                         className="w-12 h-12 rounded-lg object-cover border border-gray-700"
                       />

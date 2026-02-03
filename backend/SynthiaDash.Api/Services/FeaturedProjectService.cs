@@ -11,7 +11,7 @@ public interface IFeaturedProjectService
     Task<FeaturedProject> CreateAsync(CreateFeaturedProjectRequest request);
     Task<FeaturedProject?> UpdateAsync(int id, UpdateFeaturedProjectRequest request);
     Task<bool> DeleteAsync(int id);
-    Task<string> SaveThumbnailAsync(int id, Stream fileStream, string fileName, string contentType);
+    Task SetThumbnailAssetIdAsync(int id, int assetId);
     Task ReorderAsync(List<ReorderItem> items);
 }
 
@@ -120,65 +120,19 @@ public class FeaturedProjectService : IFeaturedProjectService
     public async Task<bool> DeleteAsync(int id)
     {
         using var db = new SqlConnection(_connectionString);
-
-        // Also delete thumbnail file if exists
-        var project = await GetByIdAsync(id);
-        if (project?.ThumbnailPath != null)
-        {
-            try
-            {
-                var basePath = AppContext.BaseDirectory;
-                var fullPath = Path.Combine(basePath, "wwwroot", project.ThumbnailPath.TrimStart('/'));
-                if (File.Exists(fullPath))
-                    File.Delete(fullPath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete thumbnail for featured project {Id}", id);
-            }
-        }
-
+        // Note: thumbnail asset cleanup should be handled by the caller (controller)
+        // since the AssetService owns file deletion
         var affected = await db.ExecuteAsync("DELETE FROM FeaturedProjects WHERE Id = @Id", new { Id = id });
         return affected > 0;
     }
 
-    public async Task<string> SaveThumbnailAsync(int id, Stream fileStream, string fileName, string contentType)
+    public async Task SetThumbnailAssetIdAsync(int id, int assetId)
     {
-        var basePath = AppContext.BaseDirectory;
-        var uploadsPath = Path.Combine(basePath, "wwwroot", "uploads", "featured");
-        Directory.CreateDirectory(uploadsPath);
-
-        var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = contentType?.ToLowerInvariant() switch
-            {
-                "image/jpeg" => ".jpg",
-                "image/png" => ".png",
-                "image/gif" => ".gif",
-                "image/webp" => ".webp",
-                _ => ".jpg"
-            };
-        }
-
-        var savedFileName = $"featured_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}{extension}";
-        var filePath = Path.Combine(uploadsPath, savedFileName);
-
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-        {
-            await fileStream.CopyToAsync(stream);
-        }
-
-        var relativePath = $"/uploads/featured/{savedFileName}";
-
-        // Update DB with thumbnail path
         using var db = new SqlConnection(_connectionString);
         await db.ExecuteAsync(
-            "UPDATE FeaturedProjects SET ThumbnailPath = @Path, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
-            new { Path = relativePath, Id = id });
-
-        _logger.LogInformation("Saved thumbnail for featured project {Id}: {Path}", id, relativePath);
-        return relativePath;
+            "UPDATE FeaturedProjects SET ThumbnailAssetId = @AssetId, UpdatedAt = GETUTCDATE() WHERE Id = @Id",
+            new { AssetId = assetId, Id = id });
+        _logger.LogInformation("Featured project {Id} linked to asset {AssetId}", id, assetId);
     }
 
     public async Task ReorderAsync(List<ReorderItem> items)

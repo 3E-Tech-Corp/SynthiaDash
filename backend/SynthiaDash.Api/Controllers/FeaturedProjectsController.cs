@@ -11,13 +11,19 @@ namespace SynthiaDash.Api.Controllers;
 public class FeaturedProjectsController : ControllerBase
 {
     private readonly IFeaturedProjectService _featuredProjectService;
+    private readonly IAssetService _assetService;
+    private readonly IFileStorageService _storageService;
     private readonly ILogger<FeaturedProjectsController> _logger;
 
     public FeaturedProjectsController(
         IFeaturedProjectService featuredProjectService,
+        IAssetService assetService,
+        IFileStorageService storageService,
         ILogger<FeaturedProjectsController> logger)
     {
         _featuredProjectService = featuredProjectService;
+        _assetService = assetService;
+        _storageService = storageService;
         _logger = logger;
     }
 
@@ -90,34 +96,10 @@ public class FeaturedProjectsController : ControllerBase
     }
 
     /// <summary>
-    /// Public: serve thumbnail image for a featured project.
-    /// Explicit endpoint avoids relying on StaticFiles middleware through /api virtual app.
-    /// </summary>
-    [HttpGet("{id}/thumbnail")]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetThumbnail(int id)
-    {
-        var project = await _featuredProjectService.GetByIdAsync(id);
-        if (project?.ThumbnailPath == null) return NotFound();
-
-        var basePath = AppContext.BaseDirectory;
-        var fullPath = Path.Combine(basePath, "wwwroot", project.ThumbnailPath.TrimStart('/'));
-        if (!System.IO.File.Exists(fullPath)) return NotFound();
-
-        var contentType = Path.GetExtension(fullPath).ToLowerInvariant() switch
-        {
-            ".png" => "image/png",
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            _ => "image/jpeg"
-        };
-
-        return PhysicalFile(fullPath, contentType);
-    }
-
-    /// <summary>
-    /// Admin: upload thumbnail image for a featured project.
-    /// Accepts base64-encoded image in JSON body to avoid Cloudflare WAF blocking multipart uploads.
+    /// Admin: upload thumbnail for a featured project using the asset system.
+    /// Accepts base64-encoded image in JSON body (Cloudflare WAF safe).
+    /// Creates an asset, links it to the featured project via ThumbnailAssetId.
+    /// Thumbnail is then served via GET /asset/{assetId}.
     /// </summary>
     [HttpPost("{id}/thumbnail")]
     public async Task<IActionResult> UploadThumbnail(int id, [FromBody] ThumbnailUploadRequest request)
@@ -132,10 +114,9 @@ public class FeaturedProjectsController : ControllerBase
 
         try
         {
-            // Parse data URL: "data:image/jpeg;base64,/9j/4AAQ..."
+            // Parse data URL
             string base64Data;
             string contentType = "image/jpeg";
-            string extension = ".jpg";
 
             if (request.ImageData.StartsWith("data:"))
             {
@@ -155,11 +136,10 @@ public class FeaturedProjectsController : ControllerBase
                 base64Data = request.ImageData;
             }
 
-            // Validate size (~5MB after base64 decode)
             if (base64Data.Length > 7_000_000)
                 return BadRequest(new { error = "Image too large (max 5MB)" });
 
-            extension = contentType switch
+            var extension = contentType switch
             {
                 "image/png" => ".png",
                 "image/gif" => ".gif",
@@ -168,12 +148,39 @@ public class FeaturedProjectsController : ControllerBase
             };
 
             var bytes = Convert.FromBase64String(base64Data);
+            var fileName = $"featured-{id}{extension}";
+
+            // Delete old asset if replacing
+            if (existing.ThumbnailAssetId.HasValue)
+            {
+                await _assetService.DeleteAsync(existing.ThumbnailAssetId.Value);
+            }
+
+            // Create asset record (insert first → get ID → upload with ID as filename)
+            var asset = new Asset
+            {
+                AssetType = AssetTypes.Image,
+                FileName = fileName,
+                ContentType = contentType,
+                FileSize = bytes.Length,
+                StorageUrl = string.Empty,
+                StorageType = _storageService.StorageType,
+                Category = "featured",
+                SiteKey = "synthia",
+                IsPublic = true
+            };
+            asset = await _assetService.CreateAsync(asset);
+
+            // Upload file
             using var stream = new MemoryStream(bytes);
+            var storageUrl = await _storageService.UploadFileAsync(stream, fileName, asset.Id, "synthia");
+            await _assetService.UpdateStorageUrlAsync(asset.Id, storageUrl);
 
-            var path = await _featuredProjectService.SaveThumbnailAsync(
-                id, stream, $"thumbnail{extension}", contentType);
+            // Link asset to featured project
+            await _featuredProjectService.SetThumbnailAssetIdAsync(id, asset.Id);
 
-            return Ok(new { thumbnailPath = path });
+            _logger.LogInformation("Featured project {Id} thumbnail uploaded as asset {AssetId}", id, asset.Id);
+            return Ok(new { assetId = asset.Id, url = $"/asset/{asset.Id}" });
         }
         catch (FormatException)
         {

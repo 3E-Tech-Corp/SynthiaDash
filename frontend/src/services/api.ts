@@ -159,7 +159,8 @@ export interface FeaturedProject {
   description?: string
   projectId?: number
   url: string
-  thumbnailPath?: string
+  thumbnailPath?: string       // Legacy field
+  thumbnailAssetId?: number    // New: FK to Assets table
   sortOrder: number
   isActive: boolean
   createdAt: string
@@ -425,7 +426,7 @@ export const api = {
     fetchApi<{ message: string }>(`/featuredprojects/${id}`, { method: 'DELETE' }),
 
   uploadFeaturedThumbnail: (id: number, imageData: string) =>
-    fetchApi<{ thumbnailPath: string }>(`/featuredprojects/${id}/thumbnail`, {
+    fetchApi<{ assetId: number; url: string }>(`/featuredprojects/${id}/thumbnail`, {
       method: 'POST',
       body: JSON.stringify({ imageData }),
     }),

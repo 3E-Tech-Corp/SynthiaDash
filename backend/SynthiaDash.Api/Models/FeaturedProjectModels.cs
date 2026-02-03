@@ -7,7 +7,8 @@ public class FeaturedProject
     public string? Description { get; set; }
     public int? ProjectId { get; set; }
     public string Url { get; set; } = string.Empty;
-    public string? ThumbnailPath { get; set; }
+    public string? ThumbnailPath { get; set; }  // Legacy — use ThumbnailAssetId instead
+    public int? ThumbnailAssetId { get; set; }  // FK to Assets table
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

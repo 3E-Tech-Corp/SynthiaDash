@@ -120,6 +120,10 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IFeaturedProjectService, FeaturedProjectService>();
 
+// Asset management (pattern from funtime-shared)
+builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<IAssetService, AssetService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

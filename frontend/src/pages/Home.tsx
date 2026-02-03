@@ -188,7 +188,7 @@ export default function Home() {
       <footer className="border-t border-gray-800/50 py-8 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
-            <img src="/images/synthia-logo.png" alt="" className="h-5" />
+            <img src="/images/synthia-logo.png?v=2" alt="" className="h-5" />
             <span>{t('footer.poweredBy')}</span>
           </div>
           <span>{t('footer.rights', { year: new Date().getFullYear() })}</span>

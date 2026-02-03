@@ -35,7 +35,7 @@ export default function AnimatedLogo({ className = 'h-10', interval = 8000 }: An
 
   return (
     <img
-      src="/images/synthia-logo.png"
+      src="/images/synthia-logo.png?v=2"
       alt="Synthia"
       className={`${className} ${animClass} cursor-pointer`}
       style={{ willChange: 'transform, filter' }}

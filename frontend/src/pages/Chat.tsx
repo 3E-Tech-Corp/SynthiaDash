@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square, Volume2 } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square, Volume2, Headphones } from 'lucide-react'
 import { api } from '../services/api'
 import type { ChatMessageDto, ChatProject } from '../services/api'
 
@@ -139,6 +139,7 @@ export default function ChatPage() {
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const [voiceMode, setVoiceMode] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -151,6 +152,7 @@ export default function ChatPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const voiceModeRef = useRef(false)
   const autoResumeRef = useRef(false)
+  const handleSendRef = useRef<(voiceText?: string) => Promise<void>>(async () => {})
 
   // Check if browser supports voice input
   const supportsVoice = typeof navigator !== 'undefined' &&
@@ -169,6 +171,7 @@ export default function ChatPage() {
     if (!text.trim()) return
     try {
       setIsSpeaking(true)
+      if (voiceModeRef.current) setVoiceModeStatus('speaking')
       const token = localStorage.getItem('token')
       const resp = await fetch('/api/chat/tts', {
         method: 'POST',
@@ -203,10 +206,19 @@ export default function ChatPage() {
         setIsSpeaking(false)
         URL.revokeObjectURL(url)
         audioRef.current = null
+        // Still try to resume in voice mode
+        if (voiceModeRef.current) {
+          setVoiceModeStatus('listening')
+          autoResumeRef.current = true
+        }
       }
       await audio.play()
     } catch {
       setIsSpeaking(false)
+      if (voiceModeRef.current) {
+        setVoiceModeStatus('listening')
+        autoResumeRef.current = true
+      }
     }
   }, [])
 
@@ -354,13 +366,14 @@ export default function ChatPage() {
     }
 
     mediaStreamRef.current = stream
-    finalTranscriptRef.current = input // preserve any existing text
+    finalTranscriptRef.current = voiceModeRef.current ? '' : input // preserve text only in manual mode
     setIsRecording(true)
     recordingRef.current = true
+    if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Open Deepgram WebSocket
+    // Open Deepgram WebSocket with tuned VAD parameters
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&vad_events=true'
+      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     const ws = new WebSocket(dgUrl, ['token', token])
     deepgramWsRef.current = ws
@@ -416,6 +429,32 @@ export default function ChatPage() {
             // Show interim text
             setInterimText(transcript)
           }
+        } else if (data.type === 'UtteranceEnd') {
+          // Auto-send when speaker pauses (voice mode continuous flow)
+          const finalText = finalTranscriptRef.current.trim()
+          if (finalText && voiceModeRef.current) {
+            // Check for voice commands to exit
+            const lower = finalText.toLowerCase()
+            if (lower === 'stop' || lower === 'exit voice mode' || lower === 'stop listening') {
+              setTimeout(() => {
+                voiceModeRef.current = false
+                setVoiceMode(false)
+                setVoiceModeStatus(null)
+                stopRecording()
+                setInput('')
+                finalTranscriptRef.current = ''
+              }, 0)
+              return
+            }
+            // Defer to avoid closing WebSocket inside onmessage handler
+            setTimeout(() => {
+              stopRecording()
+              setVoiceModeStatus('processing')
+              finalTranscriptRef.current = ''
+              setInput('')
+              handleSendRef.current(finalText)
+            }, 0)
+          }
         }
       } catch {
         // Ignore parse errors
@@ -426,12 +465,20 @@ export default function ChatPage() {
       if (recordingRef.current) {
         setVoiceError('Voice connection error')
         stopRecording()
+        // Auto-retry in voice mode after a delay
+        if (voiceModeRef.current) {
+          setTimeout(() => { autoResumeRef.current = true }, 2000)
+        }
       }
     }
 
     ws.onclose = () => {
       if (recordingRef.current) {
         stopRecording()
+        // Auto-resume in voice mode if not streaming
+        if (voiceModeRef.current && !streamingRef.current) {
+          setTimeout(() => { autoResumeRef.current = true }, 1000)
+        }
       }
     }
   }, [input, stopRecording])
@@ -441,6 +488,9 @@ export default function ChatPage() {
     const interval = setInterval(() => {
       if (autoResumeRef.current && !recordingRef.current && !streamingRef.current) {
         autoResumeRef.current = false
+        if (voiceModeRef.current) {
+          setVoiceModeStatus('listening')
+        }
         startRecording()
       }
     }, 300)
@@ -450,37 +500,48 @@ export default function ChatPage() {
   const exitVoiceMode = useCallback(() => {
     setVoiceMode(false)
     voiceModeRef.current = false
+    setVoiceModeStatus(null)
+    autoResumeRef.current = false
     stopRecording()
     stopSpeaking()
+    setInput('')
+    finalTranscriptRef.current = ''
   }, [stopRecording, stopSpeaking])
 
-  const toggleRecording = useCallback(() => {
-    if (isRecording) {
-      stopRecording()
-      // Auto-send if we have text
-      setTimeout(() => {
-        const finalText = finalTranscriptRef.current.trim()
-        if (finalText) {
-          // Enter voice mode (stays on until user exits)
-          if (!voiceModeRef.current) {
-            setVoiceMode(true)
-            voiceModeRef.current = true
-          }
-          setInput(finalText)
-          setTimeout(() => {
-            const sendBtn = document.querySelector('[data-voice-send]') as HTMLButtonElement
-            sendBtn?.click()
-          }, 50)
-        }
-      }, 100)
-    } else if (voiceModeRef.current && !isRecording) {
-      // Already in voice mode, tapping mic exits it
+  // Toggle voice mode on/off (dedicated button)
+  const toggleVoiceMode = useCallback(() => {
+    if (voiceModeRef.current) {
       exitVoiceMode()
     } else {
-      stopSpeaking() // stop any current TTS playback
+      stopSpeaking()
+      setVoiceMode(true)
+      voiceModeRef.current = true
+      setVoiceModeStatus('listening')
+      finalTranscriptRef.current = ''
+      setInput('')
       startRecording()
     }
-  }, [isRecording, startRecording, stopRecording, stopSpeaking, exitVoiceMode])
+  }, [exitVoiceMode, stopSpeaking, startRecording])
+
+  // Manual mic toggle (push-to-talk, only when NOT in voice mode)
+  const toggleRecording = useCallback(() => {
+    if (voiceModeRef.current) return // Don't use manual mic in voice mode
+    if (isRecording) {
+      // Manual stop — send if there's text
+      const finalText = finalTranscriptRef.current.trim()
+      stopRecording()
+      if (finalText) {
+        setTimeout(() => {
+          handleSendRef.current(finalText)
+          finalTranscriptRef.current = ''
+        }, 100)
+      }
+    } else {
+      // Start manual recording
+      stopSpeaking()
+      startRecording()
+    }
+  }, [isRecording, startRecording, stopRecording, stopSpeaking])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -522,9 +583,9 @@ export default function ChatPage() {
 
   const noProject = !selectedProjectId && projects.length === 0 && !projectName
 
-  const handleSend = async () => {
-    const msg = input.trim()
-    if ((!msg && !pendingImage) || streaming || noProject) return
+  const handleSend = async (voiceText?: string) => {
+    const msg = (voiceText ?? input).trim()
+    if ((!msg && !pendingImage) || streamingRef.current || noProject) return
 
     const imageData = pendingImage
 
@@ -541,6 +602,10 @@ export default function ChatPage() {
     setPendingImageName(null)
     setStreaming(true)
     streamingRef.current = true
+
+    if (voiceModeRef.current) {
+      setVoiceModeStatus('processing')
+    }
 
     // Create placeholder for assistant response
     const assistantId = `assistant-${Date.now()}`
@@ -566,9 +631,14 @@ export default function ChatPage() {
         setStreaming(false)
         streamingRef.current = false
         inputRef.current?.focus()
-        // Auto-play TTS if voice mode is active (voiceMode stays on for continuous conversation)
+        // Auto-play TTS if voice mode is active
         if (voiceModeRef.current && fullResponse.trim()) {
+          setVoiceModeStatus('speaking')
           speakText(fullResponse)
+        } else if (voiceModeRef.current) {
+          // Empty response — resume listening
+          setVoiceModeStatus('listening')
+          autoResumeRef.current = true
         }
       },
       (error) => {
@@ -581,13 +651,19 @@ export default function ChatPage() {
         )
         setStreaming(false)
         streamingRef.current = false
-        setVoiceMode(false)
-        voiceModeRef.current = false
+        // In voice mode, resume listening on error instead of exiting
+        if (voiceModeRef.current) {
+          setVoiceModeStatus('listening')
+          autoResumeRef.current = true
+        }
       },
       selectedProjectId || undefined,
       imageData || undefined
     )
   }
+
+  // Keep handleSendRef always pointing to the latest handleSend
+  handleSendRef.current = handleSend
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -701,7 +777,9 @@ export default function ChatPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 min-h-0 bg-gray-900 border border-gray-800 rounded-xl overflow-y-auto p-4 space-y-4 mb-4">
+      <div className={`flex-1 min-h-0 bg-gray-900 border rounded-xl overflow-y-auto p-4 space-y-4 mb-4 transition-colors ${
+        voiceMode ? 'border-violet-700/50 ring-1 ring-violet-600/20' : 'border-gray-800'
+      }`}>
         {projects.length === 0 && !loading && !projectName && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Zap className="w-10 h-10 text-gray-600 mb-3" />
@@ -774,15 +852,43 @@ export default function ChatPage() {
 
       {/* Input area — always pinned at bottom */}
       <div className="flex flex-col flex-shrink-0">
-        {/* Voice mode indicator */}
-        {voiceMode && !isRecording && !isSpeaking && !streaming && (
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
-            <span className="text-xs text-violet-400 font-medium">Voice mode — tap mic to exit</span>
+        {/* Voice Mode Banner */}
+        {voiceMode && (
+          <div className="flex items-center justify-between px-3 py-2 mb-2 bg-violet-950/50 border border-violet-800/50 rounded-xl">
+            <div className="flex items-center gap-2">
+              {voiceModeStatus === 'listening' && (
+                <>
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-green-400 font-medium">🎙️ Listening...</span>
+                </>
+              )}
+              {voiceModeStatus === 'processing' && (
+                <>
+                  <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-amber-400 font-medium">⏳ Processing...</span>
+                </>
+              )}
+              {voiceModeStatus === 'speaking' && (
+                <>
+                  <span className="w-2.5 h-2.5 bg-violet-500 rounded-full animate-pulse" />
+                  <span className="text-sm text-violet-400 font-medium">🔊 Synthia is speaking...</span>
+                </>
+              )}
+              {!voiceModeStatus && (
+                <>
+                  <span className="w-2.5 h-2.5 bg-violet-500 rounded-full" />
+                  <span className="text-sm text-violet-400 font-medium">🎙️ Voice Mode Active</span>
+                </>
+              )}
+              {interimText && voiceModeStatus === 'listening' && (
+                <span className="text-xs text-gray-500 italic truncate max-w-[200px]">{interimText}</span>
+              )}
+            </div>
+            <span className="text-xs text-gray-600">Say &quot;stop&quot; or tap 🎧 to exit</span>
           </div>
         )}
-        {/* Voice recording indicator */}
-        {isRecording && (
+        {/* Manual recording indicator (non-voice-mode only) */}
+        {!voiceMode && isRecording && (
           <div className="flex items-center gap-2 mb-2 px-1">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             <span className="text-xs text-red-400 font-medium">Listening...</span>
@@ -820,8 +926,8 @@ export default function ChatPage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : 'Message Synthia...'}
-              disabled={streaming || noProject}
+              placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : voiceMode ? 'Voice mode active — speak to chat...' : 'Message Synthia...'}
+              disabled={streaming || noProject || voiceMode}
               rows={1}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
               style={{ minHeight: '48px', maxHeight: '120px' }}
@@ -831,14 +937,16 @@ export default function ChatPage() {
                 target.style.height = Math.min(target.scrollHeight, 120) + 'px'
               }}
             />
-            <button
-              onClick={() => imageInputRef.current?.click()}
-              disabled={streaming}
-              className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
-              title="Attach image"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
+            {!voiceMode && (
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={streaming}
+                className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
+                title="Attach image"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <input
             ref={imageInputRef}
@@ -859,27 +967,58 @@ export default function ChatPage() {
             }}
           />
           {supportsVoice && (
-            <button
-              onClick={isSpeaking ? stopSpeaking : toggleRecording}
-              disabled={streaming || noProject}
-              className={`flex-shrink-0 p-3 rounded-xl transition-colors ${
-                isRecording
-                  ? 'mic-recording text-white'
-                  : isSpeaking
-                    ? 'bg-violet-600 hover:bg-violet-500 text-white'
-                    : voiceMode
-                      ? 'bg-violet-700 hover:bg-violet-600 text-violet-200 ring-2 ring-violet-500/50'
-                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
-              }`}
-              title={isRecording ? 'Stop recording & send' : isSpeaking ? 'Stop speaking' : voiceMode ? 'Exit voice mode' : 'Voice input'}
-            >
-              {isRecording ? <Square className="w-5 h-5" /> : isSpeaking ? <Volume2 className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
-            </button>
+            <>
+              {/* Voice mode toggle button */}
+              <button
+                onClick={toggleVoiceMode}
+                disabled={(streaming && !voiceMode) || noProject}
+                className={`flex-shrink-0 p-3 rounded-xl transition-all ${
+                  voiceMode
+                    ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/30'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
+                }`}
+                title={voiceMode ? 'Exit voice mode' : 'Enter hands-free voice mode'}
+              >
+                <Headphones className="w-5 h-5" />
+              </button>
+              {/* Manual mic button - only when NOT in voice mode */}
+              {!voiceMode && (
+                <button
+                  onClick={isSpeaking ? stopSpeaking : toggleRecording}
+                  disabled={streaming || noProject}
+                  className={`flex-shrink-0 p-3 rounded-xl transition-colors ${
+                    isRecording
+                      ? 'mic-recording text-white'
+                      : isSpeaking
+                        ? 'bg-violet-600 hover:bg-violet-500 text-white'
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
+                  }`}
+                  title={isRecording ? 'Stop recording & send' : isSpeaking ? 'Stop speaking' : 'Voice input'}
+                >
+                  {isRecording ? <Square className="w-5 h-5" /> : isSpeaking ? <Volume2 className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
+                </button>
+              )}
+              {/* Stop speaking button - in voice mode when TTS is playing */}
+              {voiceMode && isSpeaking && (
+                <button
+                  onClick={() => {
+                    stopSpeaking()
+                    if (voiceModeRef.current) {
+                      setVoiceModeStatus('listening')
+                      autoResumeRef.current = true
+                    }
+                  }}
+                  className="flex-shrink-0 p-3 rounded-xl transition-colors bg-violet-600 hover:bg-violet-500 text-white"
+                  title="Stop speaking & resume listening"
+                >
+                  <Volume2 className="w-5 h-5 animate-pulse" />
+                </button>
+              )}
+            </>
           )}
           <button
-            onClick={handleSend}
-            data-voice-send
-            disabled={(!input.trim() && !pendingImage) || streaming || noProject}
+            onClick={() => handleSend()}
+            disabled={(!input.trim() && !pendingImage) || streaming || noProject || voiceMode}
             className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
           >
             <Send className="w-5 h-5" />

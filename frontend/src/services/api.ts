@@ -1,5 +1,36 @@
 const API_BASE = '/api';
 
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return false;
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      return false;
+    }
+
+    const data = await response.json();
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return true;
+  } catch {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    return false;
+  }
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -8,6 +39,38 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   };
 
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  if (response.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
+    // Try to refresh the token
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = tryRefreshToken().finally(() => {
+        isRefreshing = false;
+        refreshPromise = null;
+      });
+    }
+
+    const refreshed = await (refreshPromise ?? tryRefreshToken());
+    if (refreshed) {
+      // Retry the original request with new token
+      const newToken = localStorage.getItem('token');
+      const retryHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+      };
+      const retryResponse = await fetch(`${API_BASE}${path}`, { ...options, headers: retryHeaders });
+      if (!retryResponse.ok) {
+        throw new Error(`API error: ${retryResponse.status}`);
+      }
+      return retryResponse.json();
+    } else {
+      // Refresh failed — redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
+  }
 
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
@@ -192,9 +255,21 @@ export interface ReorderItem {
 export const api = {
   // Auth
   login: (email: string, password: string) =>
-    fetchApi<{ token: string; user: User }>('/auth/login', {
+    fetchApi<{ token: string; refreshToken: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+
+  refreshToken: (refreshToken: string) =>
+    fetchApi<{ token: string; refreshToken: string; user: User }>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    }),
+
+  logout: (refreshToken: string) =>
+    fetchApi<{ message: string }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
     }),
 
   getMe: () => fetchApi<User>('/auth/me'),

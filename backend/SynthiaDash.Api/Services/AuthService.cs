@@ -20,12 +20,15 @@ public interface IAuthService
     Task<bool> UpdateLastLoginAsync(string email);
     Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     Task<bool> ResetPasswordAsync(int userId, string newPassword);
+    Task<AuthResult> RefreshAsync(string refreshToken);
+    Task<bool> RevokeRefreshTokenAsync(string token);
 }
 
 public class AuthResult
 {
     public bool Success { get; set; }
     public string? Token { get; set; }
+    public string? RefreshToken { get; set; }
     public string? Error { get; set; }
     public UserDto? User { get; set; }
 }
@@ -79,11 +82,14 @@ public class AuthService : IAuthService
             await UpdateLastLoginAsync(email);
 
             var token = GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken();
+            await SaveRefreshTokenAsync(user.Id, refreshToken, DateTime.UtcNow.AddDays(30));
 
             return new AuthResult
             {
                 Success = true,
                 Token = token,
+                RefreshToken = refreshToken,
                 User = MapToDto(user)
             };
         }
@@ -229,10 +235,86 @@ public class AuthService : IAuthService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static string GenerateRefreshToken()
+    {
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    private async Task SaveRefreshTokenAsync(int userId, string token, DateTime expiresAt)
+    {
+        using var db = new SqlConnection(_connectionString);
+        await db.ExecuteAsync(
+            @"INSERT INTO RefreshTokens (UserId, Token, ExpiresAt) 
+              VALUES (@UserId, @Token, @ExpiresAt)",
+            new { UserId = userId, Token = token, ExpiresAt = expiresAt });
+    }
+
+    public async Task<AuthResult> RefreshAsync(string refreshToken)
+    {
+        try
+        {
+            using var db = new SqlConnection(_connectionString);
+
+            var stored = await db.QueryFirstOrDefaultAsync<RefreshTokenRecord>(
+                @"SELECT rt.*, u.Email, u.DisplayName, u.Role, u.IsActive
+                  FROM RefreshTokens rt
+                  JOIN Users u ON u.Id = rt.UserId
+                  WHERE rt.Token = @Token AND rt.RevokedAt IS NULL",
+                new { Token = refreshToken });
+
+            if (stored == null)
+                return new AuthResult { Success = false, Error = "Invalid refresh token" };
+
+            if (stored.ExpiresAt < DateTime.UtcNow)
+                return new AuthResult { Success = false, Error = "Refresh token expired" };
+
+            if (!stored.IsActive)
+                return new AuthResult { Success = false, Error = "User account is inactive" };
+
+            // Generate new tokens
+            var user = await db.QueryFirstAsync<UserRecord>(
+                "SELECT * FROM Users WHERE Id = @Id", new { Id = stored.UserId });
+
+            var newJwt = GenerateJwtToken(user);
+            var newRefreshToken = GenerateRefreshToken();
+
+            // Revoke old token and save new one (rotation)
+            await db.ExecuteAsync(
+                @"UPDATE RefreshTokens SET RevokedAt = GETUTCDATE(), ReplacedByToken = @NewToken
+                  WHERE Token = @OldToken",
+                new { OldToken = refreshToken, NewToken = newRefreshToken });
+
+            await SaveRefreshTokenAsync(stored.UserId, newRefreshToken, DateTime.UtcNow.AddDays(30));
+
+            return new AuthResult
+            {
+                Success = true,
+                Token = newJwt,
+                RefreshToken = newRefreshToken,
+                User = MapToDto(user)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Token refresh failed");
+            return new AuthResult { Success = false, Error = "Token refresh failed" };
+        }
+    }
+
+    public async Task<bool> RevokeRefreshTokenAsync(string token)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var affected = await db.ExecuteAsync(
+            "UPDATE RefreshTokens SET RevokedAt = GETUTCDATE() WHERE Token = @Token AND RevokedAt IS NULL",
+            new { Token = token });
+        return affected > 0;
     }
 
     // Simple PBKDF2 password hashing (no BCrypt dependency needed)
@@ -291,5 +373,21 @@ public class AuthService : IAuthService
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+    }
+
+    private class RefreshTokenRecord
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string Token { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? RevokedAt { get; set; }
+        public string? ReplacedByToken { get; set; }
+        // Joined from Users
+        public string Email { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
     }
 }

@@ -9,10 +9,28 @@ namespace SynthiaDash.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IRateLimitService _rateLimitService;
 
-    public AuthController(IAuthService authService)
+    private static readonly TimeSpan RateLimitWindow = TimeSpan.FromMinutes(15);
+    private const int MaxAttemptsPerIpEmail = 5;
+    private const int MaxAttemptsPerIp = 20;
+
+    public AuthController(IAuthService authService, IRateLimitService rateLimitService)
     {
         _authService = authService;
+        _rateLimitService = rateLimitService;
+    }
+
+    private string GetClientIp()
+    {
+        // Check X-Forwarded-For first (behind IIS/Cloudflare)
+        var forwarded = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwarded))
+        {
+            // Take the first IP (original client)
+            return forwarded.Split(',')[0].Trim();
+        }
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
     [HttpPost("login")]
@@ -22,12 +40,57 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             return BadRequest(new { error = "Email and password required" });
 
+        var ip = GetClientIp();
+        var ipKey = $"ip:{ip}";
+        var ipEmailKey = $"ip:{ip}:email:{request.Email.ToLowerInvariant()}";
+
+        // Check rate limits
+        if (_rateLimitService.IsRateLimited(ipEmailKey, MaxAttemptsPerIpEmail, RateLimitWindow))
+            return StatusCode(429, new { error = "Too many login attempts. Please try again in 15 minutes." });
+
+        if (_rateLimitService.IsRateLimited(ipKey, MaxAttemptsPerIp, RateLimitWindow))
+            return StatusCode(429, new { error = "Too many login attempts. Please try again in 15 minutes." });
+
+        // Record attempt before checking credentials
+        _rateLimitService.RecordAttempt(ipKey);
+        _rateLimitService.RecordAttempt(ipEmailKey);
+
         var result = await _authService.LoginAsync(request.Email, request.Password);
 
         if (!result.Success)
             return Unauthorized(new { error = result.Error });
 
-        return Ok(new { token = result.Token, user = result.User });
+        // Reset per-email counter on success
+        _rateLimitService.Reset(ipEmailKey);
+
+        return Ok(new { token = result.Token, refreshToken = result.RefreshToken, user = result.User });
+    }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    {
+        if (string.IsNullOrEmpty(request.RefreshToken))
+            return BadRequest(new { error = "Refresh token required" });
+
+        var result = await _authService.RefreshAsync(request.RefreshToken);
+
+        if (!result.Success)
+            return Unauthorized(new { error = result.Error });
+
+        return Ok(new { token = result.Token, refreshToken = result.RefreshToken, user = result.User });
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+    {
+        if (!string.IsNullOrEmpty(request.RefreshToken))
+        {
+            await _authService.RevokeRefreshTokenAsync(request.RefreshToken);
+        }
+
+        return Ok(new { message = "Logged out" });
     }
 
     [HttpPost("register")]
@@ -185,4 +248,14 @@ public class UpdateUserRequest
     public string? FeatureAccess { get; set; }
     public string? ChatAccess { get; set; }
     public int? MaxProjects { get; set; }
+}
+
+public class RefreshRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
+public class LogoutRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
 }

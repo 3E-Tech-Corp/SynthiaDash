@@ -1,0 +1,61 @@
+name: Update Config
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: 'JSON path key (e.g., Deepgram:ApiKey)'
+        required: true
+      value:
+        description: 'Value to set'
+        required: true
+
+jobs:
+  update:
+    name: Update Production Config
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Update appsettings.Production.json
+        shell: powershell
+        run: |
+          $configPath = "F:\New_WWW\synthia.bot\API\appsettings.Production.json"
+
+          if (Test-Path $configPath) {
+            $json = Get-Content $configPath -Raw | ConvertFrom-Json
+          } else {
+            $json = [PSCustomObject]@{}
+          }
+
+          $key = "${{ github.event.inputs.key }}"
+          $value = "${{ github.event.inputs.value }}"
+
+          # Support nested keys like "Deepgram:ApiKey"
+          $parts = $key -split ":"
+          $current = $json
+
+          for ($i = 0; $i -lt $parts.Length - 1; $i++) {
+            $part = $parts[$i]
+            if (-not ($current.PSObject.Properties.Name -contains $part)) {
+              $current | Add-Member -NotePropertyName $part -NotePropertyValue ([PSCustomObject]@{})
+            }
+            $current = $current.$part
+          }
+
+          $leafKey = $parts[$parts.Length - 1]
+          if ($current.PSObject.Properties.Name -contains $leafKey) {
+            $current.$leafKey = $value
+          } else {
+            $current | Add-Member -NotePropertyName $leafKey -NotePropertyValue $value
+          }
+
+          $json | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+          Write-Host "Updated $key in $configPath"
+
+      - name: Restart App Pool
+        shell: powershell
+        run: |
+          $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
+          & $appcmd stop apppool "synthia.bot" 2>&1 | ForEach-Object { Write-Host $_ }
+          Start-Sleep -Seconds 2
+          & $appcmd start apppool "synthia.bot" 2>&1 | ForEach-Object { Write-Host $_ }
+          Write-Host "App pool restarted"

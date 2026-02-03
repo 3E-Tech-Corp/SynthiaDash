@@ -165,13 +165,25 @@ public class FXNotificationClient : IFXNotificationClient
         try
         {
             var client = CreateClient();
-            var response = await client.GetAsync($"{_baseUrl}/api/tasks");
+            // Use /api/health (no auth required) for connectivity check
+            var response = await client.GetAsync($"{_baseUrl}/api/health");
+            var isHealthy = response.IsSuccessStatusCode;
+
+            // Also verify API key works by hitting an authenticated endpoint
+            bool apiKeyValid = false;
+            if (isHealthy && !string.IsNullOrEmpty(_apiKey))
+            {
+                var authResponse = await client.GetAsync($"{_baseUrl}/api/tasks");
+                apiKeyValid = authResponse.IsSuccessStatusCode;
+            }
+
             return new FXHealthResult
             {
-                IsHealthy = response.IsSuccessStatusCode,
+                IsHealthy = isHealthy && apiKeyValid,
                 BaseUrl = _baseUrl,
                 HasApiKey = !string.IsNullOrEmpty(_apiKey),
-                Error = response.IsSuccessStatusCode ? null : $"HTTP {(int)response.StatusCode}"
+                ApiKeyValid = apiKeyValid,
+                Error = !isHealthy ? $"HTTP {(int)response.StatusCode}" : !apiKeyValid ? "API key rejected" : null
             };
         }
         catch (Exception ex)
@@ -231,5 +243,6 @@ public class FXHealthResult
     public bool IsHealthy { get; set; }
     public string? BaseUrl { get; set; }
     public bool HasApiKey { get; set; }
+    public bool ApiKeyValid { get; set; }
     public string? Error { get; set; }
 }

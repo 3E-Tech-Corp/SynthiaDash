@@ -55,11 +55,7 @@ function ShinyTitle({ text, interval = 8000 }: { text: string; interval?: number
         {synthiaIdx >= 0 ? (
           <>
             {before}
-            <img
-              src="/images/synthia-logo.png?v=2"
-              alt="S"
-              className="inline-block h-[80px] align-baseline relative top-[5px] ml-[-0.02em] mr-[6px]"
-            />
+            <AnimatedLogo className="inline-block h-[80px] align-baseline relative top-[5px] ml-[-0.02em] mr-[6px]" interval={8000} />
             {after}
           </>
         ) : text}

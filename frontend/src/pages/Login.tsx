@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import AnimatedLogo from '../components/AnimatedLogo'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -36,7 +37,7 @@ export default function Login() {
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-4">
-            <img src="/images/synthia-logo.png?v=2" alt="S" className="inline-block h-[40px] align-baseline relative top-[3px] mr-[4px]" />
+            <AnimatedLogo className="inline-block h-[40px] align-baseline relative top-[3px] mr-[4px]" interval={10000} />
             ynthia.bot
           </h1>
           <p className="text-gray-400">Mission Control — Sign in to continue</p>

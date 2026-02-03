@@ -324,6 +324,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deleteProject: (id: number) =>
+    fetchApi<{ message: string }>(`/projects/${id}`, { method: 'DELETE' }),
+
   deployPlaceholder: (id: number) =>
     fetchApi<{ message: string; domain: string }>(`/projects/${id}/deploy-placeholder`, {
       method: 'POST',

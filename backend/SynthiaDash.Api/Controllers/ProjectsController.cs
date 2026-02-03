@@ -274,6 +274,24 @@ public class ProjectsController : ControllerBase
         return Ok(new { message = "Permissions updated" });
     }
 
+    /// <summary>
+    /// Delete a project (admin or project owner only)
+    /// </summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteProject(int id)
+    {
+        var project = await _projectService.GetProjectAsync(id);
+        if (project == null) return NotFound();
+
+        if (!IsAdmin() && !await IsProjectOwner(id))
+            return Forbid();
+
+        await _projectService.DeleteProjectAsync(id);
+
+        _logger.LogInformation("Project {Id} ({Name}) deleted by user {UserId}", id, project.Name, GetUserId());
+        return Ok(new { message = "Project deleted" });
+    }
+
     // ─── Existing Endpoints ────────────────────────────────────────
 
     /// <summary>

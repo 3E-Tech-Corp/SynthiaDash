@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   Rocket, Plus, Loader2, CheckCircle, XCircle, Clock,
   Globe, Database, FolderGit2, ExternalLink, RefreshCw,
   ArrowLeft, Upload, Info, Users, UserPlus, Trash2,
-  Link, ChevronDown, ChevronUp, Edit3, Save, X, Shield
+  Link, ChevronDown, ChevronUp, Save, X, Shield,
+  Pencil, Search, AlertTriangle
 } from 'lucide-react'
 import { api } from '../services/api'
-import type { Project, ProjectMember, User } from '../services/api'
+import type { Project, ProjectMember, User, RepoStatus } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const STATUS_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
@@ -303,16 +304,305 @@ function MemberManagement({ project, isAdmin }: { project: Project; isAdmin: boo
   )
 }
 
-function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefresh: () => void; isAdmin: boolean }) {
+function RepoSearchInput({
+  value,
+  onChange,
+  repos,
+  loadingRepos,
+}: {
+  value: string
+  onChange: (val: string) => void
+  repos: RepoStatus[]
+  loadingRepos: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = repos.filter(r =>
+    r.fullName.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="flex items-center gap-2">
+        <input
+          value={value}
+          onChange={e => { onChange(e.target.value); setSearch(e.target.value) }}
+          onFocus={() => setOpen(true)}
+          placeholder="org/repo — type or select below"
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
+          title="Browse repositories"
+        >
+          {loadingRepos ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+        </button>
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+          {loadingRepos ? (
+            <div className="p-3 text-sm text-gray-500 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading repos...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-3 text-sm text-gray-500">No repos found</div>
+          ) : (
+            filtered.map(r => (
+              <button
+                key={r.fullName}
+                type="button"
+                onClick={() => { onChange(r.fullName); setOpen(false) }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-700 transition-colors flex items-center justify-between ${
+                  value === r.fullName ? 'bg-violet-900/30 text-violet-300' : 'text-gray-300'
+                }`}
+              >
+                <span className="font-mono">{r.fullName}</span>
+                {r.private && <span className="text-xs text-gray-600 ml-2">private</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EditProjectModal({
+  project,
+  onClose,
+  onSaved,
+  repos,
+  loadingRepos,
+}: {
+  project: Project
+  onClose: () => void
+  onSaved: () => void
+  repos: RepoStatus[]
+  loadingRepos: boolean
+}) {
+  const [form, setForm] = useState({
+    name: project.name,
+    description: project.description || '',
+    repoFullName: project.repoFullName,
+    domain: project.domain,
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!form.name.trim()) {
+      setError('Name is required')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await api.updateProject(project.id, {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        repoFullName: form.repoFullName.trim(),
+        domain: form.domain.trim(),
+      })
+      onSaved()
+    } catch (err: any) {
+      setError(err.message || 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Pencil className="w-5 h-5 text-violet-400" />
+            Edit Project
+          </h2>
+          <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">{error}</div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Name <span className="text-red-400">*</span></label>
+            <input
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
+            <textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Describe what this project does..."
+              rows={3}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              <span className="flex items-center gap-1.5"><FolderGit2 className="w-3.5 h-3.5" /> Repository</span>
+            </label>
+            <RepoSearchInput
+              value={form.repoFullName}
+              onChange={val => setForm({ ...form, repoFullName: val })}
+              repos={repos}
+              loadingRepos={loadingRepos}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Domain</span>
+            </label>
+            <input
+              value={form.domain}
+              onChange={e => setForm({ ...form, domain: e.target.value })}
+              placeholder="myapp.synthia.bot"
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-5">
+          <button
+            onClick={onClose}
+            className="flex-1 text-sm text-gray-400 hover:text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.name.trim()}
+            className="flex-1 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : <><Save className="w-4 h-4" /> Save Changes</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeleteConfirmDialog({
+  project,
+  onClose,
+  onDeleted,
+}: {
+  project: Project
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmText, setConfirmText] = useState('')
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+    try {
+      await api.deleteProject(project.id)
+      onDeleted()
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const confirmed = confirmText === project.slug
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-gray-950 border border-red-900/50 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-900/30 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Delete Project</h2>
+            <p className="text-sm text-gray-500">This action cannot be undone</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">{error}</div>
+        )}
+
+        <p className="text-sm text-gray-400 mb-4">
+          This will permanently delete <span className="font-semibold text-white">{project.name}</span> and all associated members. The GitHub repository and IIS site will <span className="text-yellow-400">not</span> be removed.
+        </p>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            Type <span className="font-mono text-red-400">{project.slug}</span> to confirm
+          </label>
+          <input
+            value={confirmText}
+            onChange={e => setConfirmText(e.target.value)}
+            placeholder={project.slug}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-red-500"
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 text-sm text-gray-400 hover:text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting || !confirmed}
+            className="flex-1 text-sm bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            {deleting ? <><Loader2 className="w-4 h-4 animate-spin" /> Deleting...</> : <><Trash2 className="w-4 h-4" /> Delete Project</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectCard({ project, onRefresh, isAdmin, repos, loadingRepos }: { project: Project; onRefresh: () => void; isAdmin: boolean; repos: RepoStatus[]; loadingRepos: boolean }) {
   const config = STATUS_CONFIG[project.status] || STATUS_CONFIG.pending
   const StatusIcon = config.icon
   const [deploying, setDeploying] = useState(false)
   const [deployConfirm, setDeployConfirm] = useState(false)
   const [deployError, setDeployError] = useState<string | null>(null)
   const [showMembers, setShowMembers] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editRepo, setEditRepo] = useState(project.repoFullName)
-  const [saving, setSaving] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const hasDeployed = project.statusDetail?.includes('deployed')
 
@@ -330,17 +620,6 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
     }
   }
 
-  const handleSaveRepo = async () => {
-    setSaving(true)
-    try {
-      await api.updateProject(project.id, { repoFullName: editRepo })
-      setEditing(false)
-      onRefresh()
-    } catch { /* ignore */ } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className={`bg-gray-900 border rounded-xl p-5 ${
       project.status === 'failed' ? 'border-red-900/50' :
@@ -348,6 +627,26 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
       project.status === 'provisioning' ? 'border-blue-900/50' :
       'border-gray-800'
     }`}>
+      {/* Edit Project Modal */}
+      {showEditModal && (
+        <EditProjectModal
+          project={project}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => { setShowEditModal(false); onRefresh() }}
+          repos={repos}
+          loadingRepos={loadingRepos}
+        />
+      )}
+
+      {/* Delete Confirm Dialog */}
+      {showDeleteDialog && (
+        <DeleteConfirmDialog
+          project={project}
+          onClose={() => setShowDeleteDialog(false)}
+          onDeleted={() => { setShowDeleteDialog(false); onRefresh() }}
+        />
+      )}
+
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2 flex-wrap">
@@ -363,6 +662,24 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
           )}
         </div>
         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="p-1.5 text-gray-500 hover:text-violet-400 hover:bg-violet-900/20 rounded-lg transition-colors"
+                title="Edit project"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                title="Delete project"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
           <button
             onClick={() => setShowMembers(!showMembers)}
             className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-colors"
@@ -436,36 +753,14 @@ function ProjectCard({ project, onRefresh, isAdmin }: { project: Project; onRefr
           <>
             <div className="flex items-center gap-2 text-sm">
               <FolderGit2 className="w-4 h-4 text-gray-600" />
-              {editing ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <input
-                    value={editRepo}
-                    onChange={e => setEditRepo(e.target.value)}
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white font-mono"
-                    placeholder="owner/repo"
-                  />
-                  <button onClick={handleSaveRepo} disabled={saving} className="p-1 text-emerald-400 hover:text-emerald-300">
-                    <Save className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => { setEditing(false); setEditRepo(project.repoFullName) }} className="p-1 text-gray-500 hover:text-white">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <a
-                    href={`https://github.com/${project.repoFullName}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                  >
-                    {project.repoFullName} <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <button onClick={() => setEditing(true)} className="p-1 text-gray-600 hover:text-gray-400" title="Edit repo link">
-                    <Edit3 className="w-3 h-3" />
-                  </button>
-                </>
-              )}
+              <a
+                href={`https://github.com/${project.repoFullName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+              >
+                {project.repoFullName} <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Database className="w-4 h-4 text-gray-600" />
@@ -516,6 +811,8 @@ export default function ProjectsPage() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [slots, setSlots] = useState<{ used: number; max: number; remaining: number } | null>(null)
   const [viewTab, setViewTab] = useState<'mine' | 'all'>('mine')
+  const [repos, setRepos] = useState<RepoStatus[]>([])
+  const [loadingRepos, setLoadingRepos] = useState(false)
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -528,6 +825,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     fetchProjects()
     fetchSlots()
+    if (isAdmin) fetchRepos()
   }, [])
 
   // Auto-refresh provisioning projects
@@ -556,6 +854,18 @@ export default function ProjectsPage() {
       setSlots(data)
     } catch {
       // ignore
+    }
+  }
+
+  const fetchRepos = async () => {
+    setLoadingRepos(true)
+    try {
+      const data = await api.getRepos()
+      setRepos(data)
+    } catch {
+      // ignore
+    } finally {
+      setLoadingRepos(false)
     }
   }
 
@@ -766,11 +1076,11 @@ export default function ProjectsPage() {
                     {form.linkExisting && (
                       <div>
                         <label className="block text-xs font-medium text-gray-400 mb-1.5">Repository Full Name</label>
-                        <input
+                        <RepoSearchInput
                           value={form.repoFullName}
-                          onChange={e => setForm({ ...form, repoFullName: e.target.value })}
-                          placeholder="e.g., 3E-Tech-Corp/existing-repo"
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                          onChange={val => setForm({ ...form, repoFullName: val })}
+                          repos={repos}
+                          loadingRepos={loadingRepos}
                         />
                       </div>
                     )}
@@ -930,7 +1240,7 @@ export default function ProjectsPage() {
       ) : (
         <div className="space-y-4">
           {displayProjects.map(project => (
-            <ProjectCard key={project.id} project={project} onRefresh={fetchProjects} isAdmin={isAdmin} />
+            <ProjectCard key={project.id} project={project} onRefresh={fetchProjects} isAdmin={isAdmin} repos={repos} loadingRepos={loadingRepos} />
           ))}
         </div>
       )}

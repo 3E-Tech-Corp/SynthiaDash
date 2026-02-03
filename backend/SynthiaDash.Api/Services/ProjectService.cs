@@ -29,6 +29,7 @@ public interface IProjectService
     Task<string?> GetMemberRoleAsync(int projectId, int userId);
     Task<bool> UpdateProjectMemberPermissionsAsync(int projectId, int userId, string? bugAccess, string? featureAccess, string? chatAccess);
     Task<int?> GetProjectIdByRepoAsync(string repoFullName);
+    Task DeleteProjectAsync(int id);
 }
 
 public class ProjectService : IProjectService
@@ -401,6 +402,14 @@ public class ProjectService : IProjectService
         return await db.QueryFirstOrDefaultAsync<int?>(
             "SELECT Id FROM Projects WHERE RepoFullName = @RepoFullName",
             new { RepoFullName = repoFullName });
+    }
+
+    public async Task DeleteProjectAsync(int id)
+    {
+        using var db = new SqlConnection(_connectionString);
+        // Remove members first (FK), then the project
+        await db.ExecuteAsync("DELETE FROM ProjectMembers WHERE ProjectId = @Id", new { Id = id });
+        await db.ExecuteAsync("DELETE FROM Projects WHERE Id = @Id", new { Id = id });
     }
 
     /// <summary>

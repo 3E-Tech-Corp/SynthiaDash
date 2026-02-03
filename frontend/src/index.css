@@ -37,3 +37,32 @@
 .logo-animate-wiggle { animation: logo-wiggle 0.6s ease-in-out; }
 .logo-animate-bounce-spin { animation: logo-bounce-spin 0.9s ease-in-out; }
 .logo-animate-glitch { animation: logo-glitch 0.4s ease-in-out; }
+
+/* ── Text Shine / Light Sweep ───────────────────── */
+
+@keyframes text-shine {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shine {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0) 35%,
+    rgba(255,255,255,0.8) 50%,
+    rgba(255,255,255,0) 65%,
+    rgba(255,255,255,0) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: text-shine 1.5s ease-in-out;
+}
+
+.text-shine-base {
+  background: linear-gradient(to right, white, #c4b5fd, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

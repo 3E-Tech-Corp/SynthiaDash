@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -17,6 +18,30 @@ const FEATURES = [
 ] as const
 
 const STEPS = ['step1', 'step2', 'step3'] as const
+
+function ShinyTitle({ text, interval = 6000 }: { text: string; interval?: number }) {
+  const [shining, setShining] = useState(false)
+
+  const triggerShine = useCallback(() => {
+    setShining(true)
+    setTimeout(() => setShining(false), 1600)
+  }, [])
+
+  useEffect(() => {
+    const init = setTimeout(triggerShine, 3000)
+    const timer = setInterval(triggerShine, interval)
+    return () => { clearTimeout(init); clearInterval(timer) }
+  }, [triggerShine, interval])
+
+  return (
+    <h1
+      className={`text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-shine-base ${shining ? 'text-shine' : ''}`}
+      style={{ position: 'relative', display: 'inline-block' }}
+    >
+      {text}
+    </h1>
+  )
+}
 
 export default function Home() {
   const { t } = useTranslation('home')
@@ -60,9 +85,7 @@ export default function Home() {
             synthia.bot
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-white via-violet-200 to-violet-400 bg-clip-text text-transparent">
-            {t('hero.title')}
-          </h1>
+          <ShinyTitle text={t('hero.title')} />
 
           <p className="text-lg sm:text-xl text-violet-300 font-medium mb-4">
             {t('hero.subtitle')}

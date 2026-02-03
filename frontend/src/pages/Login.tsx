@@ -38,7 +38,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <AnimatedLogo className="h-12" interval={10000} />
-            <h1 className="text-3xl font-bold text-white">SynthiaDash</h1>
+            <h1 className="text-3xl font-bold text-white">Synthia.bot</h1>
           </div>
           <p className="text-gray-400">Mission Control — Sign in to continue</p>
         </div>

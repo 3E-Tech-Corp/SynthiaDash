@@ -89,7 +89,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
           <div className="flex items-center gap-2">
             <AnimatedLogo className="h-8" interval={12000} />
-            <span className="text-lg font-bold tracking-tight">SynthiaDash</span>
+            <span className="text-lg font-bold tracking-tight">Synthia.bot</span>
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />

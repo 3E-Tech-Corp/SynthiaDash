@@ -28,7 +28,7 @@ export default function Layout() {
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <AnimatedLogo className="h-6" interval={15000} />
-        <span className="text-lg font-bold">SynthiaDash</span>
+        <span className="text-lg font-bold">Synthia.bot</span>
       </div>
 
       {/* Overlay for mobile */}
@@ -48,7 +48,7 @@ export default function Layout() {
       `}>
         <div className="flex items-center gap-2 px-2">
           <AnimatedLogo className="h-7" interval={15000} />
-          <span className="text-xl font-bold">SynthiaDash</span>
+          <span className="text-xl font-bold">Synthia.bot</span>
           <button
             onClick={() => setSidebarOpen(false)}
             className="ml-auto text-gray-500 hover:text-white md:hidden"

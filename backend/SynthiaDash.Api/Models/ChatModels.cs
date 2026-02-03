@@ -17,6 +17,12 @@ public class SendChatRequest
     public string? ImageDataUrl { get; set; }
 }
 
+public class TtsRequest
+{
+    public string Text { get; set; } = "";
+    public string? Voice { get; set; } // default: aura-asteria-en (female)
+}
+
 public class ChatHistoryResponse
 {
     public List<ChatMessage> Messages { get; set; } = new();

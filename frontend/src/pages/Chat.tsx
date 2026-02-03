@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square, Volume2 } from 'lucide-react'
 import { api } from '../services/api'
 import type { ChatMessageDto, ChatProject } from '../services/api'
 
@@ -137,6 +137,8 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [interimText, setInterimText] = useState('')
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [, setVoiceMode] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -146,6 +148,8 @@ export default function ChatPage() {
   const deepgramWsRef = useRef<WebSocket | null>(null)
   const finalTranscriptRef = useRef('')
   const recordingRef = useRef(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const voiceModeRef = useRef(false)
 
   // Check if browser supports voice input
   const supportsVoice = typeof navigator !== 'undefined' &&
@@ -158,6 +162,57 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
+
+  // TTS: speak text via Deepgram Aura
+  const speakText = useCallback(async (text: string) => {
+    if (!text.trim()) return
+    try {
+      setIsSpeaking(true)
+      const token = localStorage.getItem('token')
+      const resp = await fetch('/api/chat/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text: text.slice(0, 4000) }), // limit to ~4K chars
+      })
+      if (!resp.ok) throw new Error('TTS failed')
+      const blob = await resp.blob()
+      const url = URL.createObjectURL(blob)
+
+      // Stop any current playback
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => {
+        setIsSpeaking(false)
+        URL.revokeObjectURL(url)
+        audioRef.current = null
+      }
+      audio.onerror = () => {
+        setIsSpeaking(false)
+        URL.revokeObjectURL(url)
+        audioRef.current = null
+      }
+      await audio.play()
+    } catch {
+      setIsSpeaking(false)
+    }
+  }, [])
+
+  // Stop TTS playback
+  const stopSpeaking = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    setIsSpeaking(false)
+  }, [])
 
   // Load projects list and auto-select first project
   useEffect(() => {
@@ -380,13 +435,12 @@ export default function ChatPage() {
     if (isRecording) {
       stopRecording()
       // Auto-send if we have text
-      // Use a timeout so the state updates first
       setTimeout(() => {
         const finalText = finalTranscriptRef.current.trim()
         if (finalText) {
-          // Trigger send
+          setVoiceMode(true)
+          voiceModeRef.current = true
           setInput(finalText)
-          // We need to manually trigger send after state settles
           setTimeout(() => {
             const sendBtn = document.querySelector('[data-voice-send]') as HTMLButtonElement
             sendBtn?.click()
@@ -394,9 +448,10 @@ export default function ChatPage() {
         }
       }, 100)
     } else {
+      stopSpeaking() // stop any current TTS playback
       startRecording()
     }
-  }, [isRecording, startRecording, stopRecording])
+  }, [isRecording, startRecording, stopRecording, stopSpeaking])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -467,9 +522,11 @@ export default function ChatPage() {
     }
     setMessages(prev => [...prev, assistantMsg])
 
+    let fullResponse = ''
     await api.chatStream(
       msg,
       (chunk) => {
+        fullResponse += chunk
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId ? { ...m, content: m.content + chunk } : m
@@ -480,6 +537,12 @@ export default function ChatPage() {
         setStreaming(false)
         streamingRef.current = false
         inputRef.current?.focus()
+        // Auto-play TTS if voice mode is active
+        if (voiceModeRef.current && fullResponse.trim()) {
+          speakText(fullResponse)
+          setVoiceMode(false)
+          voiceModeRef.current = false
+        }
       },
       (error) => {
         setMessages(prev =>
@@ -491,6 +554,8 @@ export default function ChatPage() {
         )
         setStreaming(false)
         streamingRef.current = false
+        setVoiceMode(false)
+        voiceModeRef.current = false
       },
       selectedProjectId || undefined,
       imageData || undefined
@@ -761,16 +826,18 @@ export default function ChatPage() {
           />
           {supportsVoice && (
             <button
-              onClick={toggleRecording}
+              onClick={isSpeaking ? stopSpeaking : toggleRecording}
               disabled={streaming || noProject}
               className={`flex-shrink-0 p-3 rounded-xl transition-colors ${
                 isRecording
                   ? 'mic-recording text-white'
-                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
+                  : isSpeaking
+                    ? 'bg-violet-600 hover:bg-violet-500 text-white'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
               }`}
-              title={isRecording ? 'Stop recording & send' : 'Voice input'}
+              title={isRecording ? 'Stop recording & send' : isSpeaking ? 'Stop speaking' : 'Voice input'}
             >
-              {isRecording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {isRecording ? <Square className="w-5 h-5" /> : isSpeaking ? <Volume2 className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
             </button>
           )}
           <button

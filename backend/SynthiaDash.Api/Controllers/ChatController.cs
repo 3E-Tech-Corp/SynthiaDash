@@ -98,6 +98,45 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
+    /// Text-to-speech via Deepgram Aura. Returns audio/mpeg stream.
+    /// </summary>
+    [HttpPost("tts")]
+    public async Task<IActionResult> TextToSpeech([FromBody] TtsRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { error = "Text is required" });
+
+        var apiKey = _configuration["Deepgram:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+            return StatusCode(503, new { error = "TTS not configured" });
+
+        var model = request.Voice ?? "aura-asteria-en"; // asteria = female voice
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("Authorization", $"Token {apiKey}");
+
+        var payload = new StringContent(
+            System.Text.Json.JsonSerializer.Serialize(new { text = request.Text }),
+            System.Text.Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(
+            $"https://api.deepgram.com/v1/speak?model={model}&encoding=mp3",
+            payload);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogError("Deepgram TTS failed: {Status} {Body}", response.StatusCode, body);
+            return StatusCode(502, new { error = "TTS failed" });
+        }
+
+        var audioStream = await response.Content.ReadAsStreamAsync();
+        return File(audioStream, "audio/mpeg");
+    }
+
+    /// <summary>
     /// Legacy: Send a message to Synthia, scoped to the user's repos (non-streaming)
     /// </summary>
     [HttpPost]

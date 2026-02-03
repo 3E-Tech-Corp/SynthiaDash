@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
 
@@ -108,12 +108,21 @@ export default function Layout() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 capitalize">{user.role}</span>
-                <button
-                  onClick={logout}
-                  className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors"
-                >
-                  <LogOut className="w-3 h-3" /> Sign out
-                </button>
+                <div className="flex items-center gap-2">
+                  <NavLink
+                    to="/settings"
+                    onClick={handleNavClick}
+                    className="text-xs text-gray-500 hover:text-violet-400 flex items-center gap-1 transition-colors"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </NavLink>
+                  <button
+                    onClick={logout}
+                    className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors"
+                  >
+                    <LogOut className="w-3 h-3" /> Sign out
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2 } from 'lucide-react'
+import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2, KeyRound } from 'lucide-react'
 import { api } from '../services/api'
 import type { User, RepoStatus } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -54,9 +54,79 @@ interface EditState {
   isActive: boolean
 }
 
+function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
+  const [newPassword, setNewPassword] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await api.resetPassword(user.id, newPassword)
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-gray-100 mb-1">Reset Password</h3>
+        <p className="text-sm text-gray-400 mb-4">
+          Set a new password for <span className="text-violet-400">{user.displayName}</span>
+        </p>
+        {error && (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg p-2 text-red-300 text-sm mb-3">{error}</div>
+        )}
+        <form onSubmit={handleReset} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+              required
+              minLength={6}
+              autoFocus
+            />
+            <p className="text-xs text-gray-600 mt-1">Minimum 6 characters</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm text-gray-500 hover:text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              {saving ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => void; allRepos: RepoStatus[] }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showResetPassword, setShowResetPassword] = useState(false)
   const [edit, setEdit] = useState<EditState>({
     role: user.role,
     repos: user.repos || '',
@@ -109,12 +179,21 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
           <p className="text-sm text-gray-500 mt-0.5">{user.email}</p>
         </div>
         {!editing ? (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs text-gray-500 hover:text-violet-400 transition-colors px-3 py-1 rounded-lg hover:bg-gray-800"
-          >
-            Edit
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowResetPassword(true)}
+              className="text-xs text-gray-500 hover:text-amber-400 transition-colors px-2 py-1 rounded-lg hover:bg-gray-800 flex items-center gap-1"
+              title="Reset password"
+            >
+              <KeyRound className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-gray-500 hover:text-violet-400 transition-colors px-3 py-1 rounded-lg hover:bg-gray-800"
+            >
+              Edit
+            </button>
+          </div>
         ) : (
           <div className="flex items-center gap-2">
             <button
@@ -324,6 +403,10 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
           <span>Joined {timeAgo(user.createdAt)}</span>
           <span>Last login {timeAgo(user.lastLoginAt)}</span>
         </div>
+      )}
+
+      {showResetPassword && (
+        <ResetPasswordModal user={user} onClose={() => setShowResetPassword(false)} />
       )}
     </div>
   )

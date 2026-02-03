@@ -18,6 +18,8 @@ public interface IAuthService
         string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
         string? chatAccess = null, int? maxProjects = null);
     Task<bool> UpdateLastLoginAsync(string email);
+    Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+    Task<bool> ResetPasswordAsync(int userId, string newPassword);
 }
 
 public class AuthResult
@@ -177,6 +179,32 @@ public class AuthService : IAuthService
         using var db = new SqlConnection(_connectionString);
         var affected = await db.ExecuteAsync(
             "UPDATE Users SET LastLoginAt = GETUTCDATE() WHERE Email = @Email", new { Email = email });
+        return affected > 0;
+    }
+
+    public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var user = await db.QueryFirstOrDefaultAsync<UserRecord>(
+            "SELECT * FROM Users WHERE Id = @Id", new { Id = userId });
+
+        if (user == null) return false;
+        if (!VerifyPassword(currentPassword, user.PasswordHash)) return false;
+
+        var newHash = HashPassword(newPassword);
+        var affected = await db.ExecuteAsync(
+            "UPDATE Users SET PasswordHash = @Hash WHERE Id = @Id",
+            new { Hash = newHash, Id = userId });
+        return affected > 0;
+    }
+
+    public async Task<bool> ResetPasswordAsync(int userId, string newPassword)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var newHash = HashPassword(newPassword);
+        var affected = await db.ExecuteAsync(
+            "UPDATE Users SET PasswordHash = @Hash WHERE Id = @Id",
+            new { Hash = newHash, Id = userId });
         return affected > 0;
     }
 

@@ -213,6 +213,18 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
+  changePassword: (currentPassword: string, newPassword: string) =>
+    fetchApi<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  resetPassword: (userId: number, newPassword: string) =>
+    fetchApi<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ userId, newPassword }),
+    }),
+
   // Status
   getStatus: () => fetchApi<GatewayStatus>('/status'),
 

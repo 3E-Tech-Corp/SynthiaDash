@@ -98,6 +98,44 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Change current user's password
+    /// </summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (string.IsNullOrEmpty(request.NewPassword) || request.NewPassword.Length < 6)
+            return BadRequest(new { error = "New password must be at least 6 characters" });
+
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        var success = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+        if (!success)
+            return BadRequest(new { error = "Current password is incorrect" });
+
+        return Ok(new { message = "Password changed successfully" });
+    }
+
+    /// <summary>
+    /// Admin: reset any user's password
+    /// </summary>
+    [HttpPost("reset-password")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (string.IsNullOrEmpty(request.NewPassword) || request.NewPassword.Length < 6)
+            return BadRequest(new { error = "New password must be at least 6 characters" });
+
+        var success = await _authService.ResetPasswordAsync(request.UserId, request.NewPassword);
+        if (!success)
+            return NotFound(new { error = "User not found" });
+
+        return Ok(new { message = "Password reset successfully" });
+    }
+
+    /// <summary>
     /// Admin: update user role/repos/active status
     /// </summary>
     [HttpPatch("users/{id}")]
@@ -123,6 +161,18 @@ public class RegisterRequest
     public string? DisplayName { get; set; }
     public string Password { get; set; } = string.Empty;
     public string? Role { get; set; }
+}
+
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    public int UserId { get; set; }
+    public string NewPassword { get; set; } = string.Empty;
 }
 
 public class UpdateUserRequest

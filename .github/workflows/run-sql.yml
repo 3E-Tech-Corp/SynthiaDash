@@ -1,0 +1,25 @@
+name: Run SQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql:
+        description: 'SQL to execute'
+        required: true
+
+jobs:
+  run:
+    name: Run SQL
+    runs-on: [self-hosted, windows, iis]
+    steps:
+      - name: Execute SQL
+        shell: powershell
+        env:
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          $sql = @"
+          ${{ github.event.inputs.sql }}
+          "@
+          Write-Host "Executing: $sql"
+          $result = Invoke-Sqlcmd -ServerInstance "localhost" -Database "SynthiaDash" -Username "ftsql" -Password $env:SQL_PASSWORD -Query $sql
+          $result | Format-Table -AutoSize | Out-String -Width 300 | Write-Host

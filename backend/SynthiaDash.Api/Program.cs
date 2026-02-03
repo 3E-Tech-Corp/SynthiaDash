@@ -109,6 +109,16 @@ builder.Services.AddHttpClient("GitHub", client =>
     }
 });
 
+builder.Services.AddHttpClient("FXNotification", client =>
+{
+    var baseUrl = builder.Configuration["FXNotification:BaseUrl"];
+    if (!string.IsNullOrEmpty(baseUrl))
+        client.BaseAddress = new Uri(baseUrl);
+    var apiKey = builder.Configuration["FXNotification:ApiKey"];
+    if (!string.IsNullOrEmpty(apiKey))
+        client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+});
+
 builder.Services.AddScoped<IGatewayService, GatewayService>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();
 builder.Services.AddScoped<IUserScopeService, UserScopeService>();
@@ -116,6 +126,8 @@ builder.Services.AddSingleton<ITaskService, TaskService>();
 builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddSingleton<IFXNotificationClient, FXNotificationClient>();
+builder.Services.AddScoped<INotificationSettingsService, NotificationSettingsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();

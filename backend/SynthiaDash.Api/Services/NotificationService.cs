@@ -5,7 +5,8 @@ using SynthiaDash.Api.Models;
 namespace SynthiaDash.Api.Services;
 
 /// <summary>
-/// Sends notifications to Feng via the Clawdbot gateway (Telegram).
+/// Sends notifications to Feng via the Clawdbot gateway (Telegram)
+/// and routes event-based notifications through FXNotification.
 /// </summary>
 public interface INotificationService
 {
@@ -15,6 +16,18 @@ public interface INotificationService
     Task NotifyProjectProvisioned(Project project);
     Task NotifyProjectBriefSet(Project project, Ticket ticket);
     Task NotifyDemoRequest(string name, string email, string reason, string? ipAddress, string? location);
+
+    /// <summary>
+    /// Send a notification via FXNotification using the event code mapping.
+    /// Looks up TaskCode from NotificationSettings; if enabled, queues via FXNotificationClient.
+    /// Fire-and-forget safe — logs failures but never throws.
+    /// </summary>
+    Task FXSendAsync(string eventCode, string to, object? data = null);
+
+    /// <summary>
+    /// Fire-and-forget wrapper for FXSendAsync. Callers don't block on notification sending.
+    /// </summary>
+    void FXSendFireAndForget(string eventCode, string to, object? data = null);
 }
 
 public class NotificationService : INotificationService
@@ -22,15 +35,21 @@ public class NotificationService : INotificationService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IFXNotificationClient _fxClient;
+    private readonly INotificationSettingsService _settingsService;
 
     public NotificationService(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IFXNotificationClient fxClient,
+        INotificationSettingsService settingsService)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
+        _fxClient = fxClient;
+        _settingsService = settingsService;
     }
 
     public async Task NotifyTicketSubmitted(Ticket ticket)
@@ -113,6 +132,66 @@ public class NotificationService : INotificationService
             + "Approve or reject on the dashboard.";
 
         await SendToGateway(message);
+    }
+
+    public async Task FXSendAsync(string eventCode, string to, object? data = null)
+    {
+        try
+        {
+            var setting = await _settingsService.GetByEventCodeAsync(eventCode);
+            if (setting == null)
+            {
+                _logger.LogWarning("No NotificationSettings found for event code {EventCode}", eventCode);
+                return;
+            }
+
+            if (!setting.IsEnabled)
+            {
+                _logger.LogDebug("Notification for event {EventCode} is disabled", eventCode);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(setting.TaskCode))
+            {
+                _logger.LogWarning("No TaskCode configured for event {EventCode}", eventCode);
+                return;
+            }
+
+            string? bodyJson = data != null ? JsonSerializer.Serialize(data) : null;
+
+            var result = await _fxClient.QueueAsync(
+                taskCode: setting.TaskCode,
+                to: to,
+                bodyJson: data,
+                bodyHtml: null,
+                detailJson: null,
+                objectId: null);
+
+            if (result.Success)
+                _logger.LogInformation("FXNotification queued for event {EventCode} to {To} (id: {Id})", eventCode, to, result.Id);
+            else
+                _logger.LogError("FXNotification queue failed for event {EventCode}: {Error}", eventCode, result.Error);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send FXNotification for event {EventCode} to {To}", eventCode, to);
+            // Never throw — fire-and-forget safe
+        }
+    }
+
+    public void FXSendFireAndForget(string eventCode, string to, object? data = null)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await FXSendAsync(eventCode, to, data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fire-and-forget FXNotification failed for {EventCode}", eventCode);
+            }
+        });
     }
 
     private async Task SendToGateway(string message)

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import AnimatedLogo from '../components/AnimatedLogo'
 
 export default function Login() {
   const [email, setEmail] = useState('')

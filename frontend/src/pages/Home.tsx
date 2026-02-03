@@ -19,12 +19,15 @@ const FEATURES = [
 
 const STEPS = ['step1', 'step2', 'step3'] as const
 
-function ShinyTitle({ text, interval = 6000 }: { text: string; interval?: number }) {
+function ShinyTitle({ text, interval = 8000 }: { text: string; interval?: number }) {
   const [shining, setShining] = useState(false)
 
   const triggerShine = useCallback(() => {
-    setShining(true)
-    setTimeout(() => setShining(false), 1600)
+    setShining(false)
+    // Force reflow to restart animation
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setShining(true))
+    })
   }, [])
 
   useEffect(() => {
@@ -33,12 +36,44 @@ function ShinyTitle({ text, interval = 6000 }: { text: string; interval?: number
     return () => { clearTimeout(init); clearInterval(timer) }
   }, [triggerShine, interval])
 
+  // Split "Meet Synthia ⚡" → "Meet " + logo + "ynthia ⚡"
+  const synthiaIdx = text.indexOf('Synthia')
+  let before = text
+  let after = ''
+  if (synthiaIdx >= 0) {
+    before = text.slice(0, synthiaIdx)
+    after = text.slice(synthiaIdx + 1) // skip the "S", keep "ynthia ⚡"
+  }
+
   return (
     <h1
-      className={`text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-shine-base ${shining ? 'text-shine' : ''}`}
-      style={{ position: 'relative', display: 'inline-block' }}
+      className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 relative cursor-pointer select-none"
+      onClick={triggerShine}
     >
-      {text}
+      {/* Base gradient text */}
+      <span className="bg-gradient-to-r from-white via-violet-200 to-violet-400 bg-clip-text text-transparent">
+        {synthiaIdx >= 0 ? (
+          <>
+            {before}
+            <img
+              src="/images/synthia-logo.png?v=2"
+              alt="S"
+              className="inline-block h-[0.75em] align-baseline relative -top-[0.02em] mx-[-0.02em]"
+            />
+            {after}
+          </>
+        ) : text}
+      </span>
+
+      {/* Shine overlay */}
+      {shining && (
+        <span
+          className="absolute inset-0 pointer-events-none overflow-hidden"
+          aria-hidden="true"
+        >
+          <span className="shine-sweep absolute inset-0" />
+        </span>
+      )}
     </h1>
   )
 }

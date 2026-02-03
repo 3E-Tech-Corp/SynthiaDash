@@ -28,10 +28,10 @@ export default function Login() {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background image */}
       <div
-        className="absolute inset-0 bg-cover bg-center opacity-30"
+        className="absolute inset-0 bg-cover bg-center opacity-60"
         style={{ backgroundImage: 'url(/images/login-bg.png)' }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-gray-950/80 via-gray-950/60 to-gray-950/90" />
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-950/40 via-gray-950/30 to-gray-950/60" />
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">

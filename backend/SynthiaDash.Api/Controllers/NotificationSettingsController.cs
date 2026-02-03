@@ -5,7 +5,7 @@ using SynthiaDash.Api.Services;
 namespace SynthiaDash.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/notification-settings")]
 [Authorize]
 public class NotificationSettingsController : ControllerBase
 {

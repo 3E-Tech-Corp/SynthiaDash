@@ -78,6 +78,26 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
+    /// Get a Deepgram API token for real-time speech-to-text.
+    /// The actual API key stays server-side; client gets it only via this auth-gated endpoint.
+    /// </summary>
+    [HttpGet("deepgram-token")]
+    public IActionResult GetDeepgramToken()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var apiKey = _configuration["Deepgram:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            _logger.LogWarning("Deepgram API key not configured");
+            return StatusCode(503, new { error = "Speech-to-text not configured" });
+        }
+
+        return Ok(new { token = apiKey });
+    }
+
+    /// <summary>
     /// Legacy: Send a message to Synthia, scoped to the user's repos (non-streaming)
     /// </summary>
     [HttpPost]

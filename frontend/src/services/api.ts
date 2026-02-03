@@ -309,6 +309,9 @@ export const api = {
   getChatAccess: () =>
     fetchApi<ChatAccessResponse>('/chat/access'),
 
+  getDeepgramToken: () =>
+    fetchApi<{ token: string }>('/chat/deepgram-token'),
+
   clearChatHistory: (projectId?: number) => {
     const params = projectId ? `?projectId=${projectId}` : '';
     return fetchApi<{ message: string }>(`/chat/history${params}`, { method: 'DELETE' });

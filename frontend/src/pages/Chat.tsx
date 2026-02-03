@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square } from 'lucide-react'
 import { api } from '../services/api'
 import type { ChatMessageDto, ChatProject } from '../services/api'
 
@@ -134,10 +134,22 @@ export default function ChatPage() {
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [pendingImageName, setPendingImageName] = useState<string | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [interimText, setInterimText] = useState('')
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const streamingRef = useRef(false)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const deepgramWsRef = useRef<WebSocket | null>(null)
+  const finalTranscriptRef = useRef('')
+  const recordingRef = useRef(false)
+
+  // Check if browser supports voice input
+  const supportsVoice = typeof navigator !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -226,6 +238,180 @@ export default function ChatPage() {
       inputRef.current?.focus()
     }
   }, [selectedProjectId, streaming])
+
+  const stopRecording = useCallback(() => {
+    recordingRef.current = false
+    setIsRecording(false)
+    setInterimText('')
+
+    // Stop MediaRecorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
+    mediaRecorderRef.current = null
+
+    // Stop media stream tracks
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop())
+      mediaStreamRef.current = null
+    }
+
+    // Close Deepgram WebSocket
+    if (deepgramWsRef.current) {
+      if (deepgramWsRef.current.readyState === WebSocket.OPEN) {
+        // Send close message to finalize
+        deepgramWsRef.current.send(JSON.stringify({ type: 'CloseStream' }))
+      }
+      deepgramWsRef.current.close()
+      deepgramWsRef.current = null
+    }
+  }, [])
+
+  const startRecording = useCallback(async () => {
+    setVoiceError(null)
+
+    // Get Deepgram token from backend
+    let token: string
+    try {
+      const resp = await api.getDeepgramToken()
+      token = resp.token
+    } catch {
+      setVoiceError('Speech-to-text not available')
+      return
+    }
+
+    // Get microphone access
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setVoiceError('Microphone permission denied')
+      } else {
+        setVoiceError('Could not access microphone')
+      }
+      return
+    }
+
+    mediaStreamRef.current = stream
+    finalTranscriptRef.current = input // preserve any existing text
+    setIsRecording(true)
+    recordingRef.current = true
+
+    // Open Deepgram WebSocket
+    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&vad_events=true'
+
+    const ws = new WebSocket(dgUrl, ['token', token])
+    deepgramWsRef.current = ws
+
+    ws.onopen = () => {
+      if (!recordingRef.current) {
+        ws.close()
+        return
+      }
+
+      // Start MediaRecorder to capture audio chunks
+      try {
+        // Prefer webm/opus (Deepgram auto-detects), fall back to whatever is available
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : ''
+
+        const recorder = new MediaRecorder(stream, {
+          ...(mimeType ? { mimeType } : {}),
+          audioBitsPerSecond: 64000
+        })
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            ws.send(e.data)
+          }
+        }
+
+        recorder.start(250) // Send chunks every 250ms
+        mediaRecorderRef.current = recorder
+      } catch {
+        setVoiceError('Could not start audio recording')
+        stopRecording()
+      }
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'Results') {
+          const alt = data.channel?.alternatives?.[0]
+          const transcript = alt?.transcript || ''
+
+          if (data.is_final && transcript) {
+            // Append final transcript
+            const separator = finalTranscriptRef.current ? ' ' : ''
+            finalTranscriptRef.current += separator + transcript
+            setInput(finalTranscriptRef.current)
+            setInterimText('')
+          } else if (!data.is_final && transcript) {
+            // Show interim text
+            setInterimText(transcript)
+          }
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    ws.onerror = () => {
+      if (recordingRef.current) {
+        setVoiceError('Voice connection error')
+        stopRecording()
+      }
+    }
+
+    ws.onclose = () => {
+      if (recordingRef.current) {
+        stopRecording()
+      }
+    }
+  }, [input, stopRecording])
+
+  const toggleRecording = useCallback(() => {
+    if (isRecording) {
+      stopRecording()
+      // Auto-send if we have text
+      // Use a timeout so the state updates first
+      setTimeout(() => {
+        const finalText = finalTranscriptRef.current.trim()
+        if (finalText) {
+          // Trigger send
+          setInput(finalText)
+          // We need to manually trigger send after state settles
+          setTimeout(() => {
+            const sendBtn = document.querySelector('[data-voice-send]') as HTMLButtonElement
+            sendBtn?.click()
+          }, 50)
+        }
+      }, 100)
+    } else {
+      startRecording()
+    }
+  }, [isRecording, startRecording, stopRecording])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingRef.current) {
+        recordingRef.current = false
+        mediaRecorderRef.current?.stop()
+        mediaStreamRef.current?.getTracks().forEach(t => t.stop())
+        if (deepgramWsRef.current?.readyState === WebSocket.OPEN) {
+          deepgramWsRef.current.send(JSON.stringify({ type: 'CloseStream' }))
+          deepgramWsRef.current.close()
+        }
+      }
+    }
+  }, [])
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items
@@ -496,6 +682,25 @@ export default function ChatPage() {
 
       {/* Input area */}
       <div className="flex flex-col">
+        {/* Voice recording indicator */}
+        {isRecording && (
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-xs text-red-400 font-medium">Listening...</span>
+            {interimText && (
+              <span className="text-xs text-gray-500 italic truncate">{interimText}</span>
+            )}
+          </div>
+        )}
+        {/* Voice error */}
+        {voiceError && (
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="text-xs text-red-400">{voiceError}</span>
+            <button onClick={() => setVoiceError(null)} className="text-gray-500 hover:text-gray-300">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
         {pendingImage && (
           <div className="flex items-center gap-2 mb-2 p-2 bg-gray-800 border border-gray-700 rounded-lg">
             <img src={pendingImage} alt="Preview" className="h-16 w-auto rounded" />
@@ -554,8 +759,23 @@ export default function ChatPage() {
               e.target.value = ''
             }}
           />
+          {supportsVoice && (
+            <button
+              onClick={toggleRecording}
+              disabled={streaming || noProject}
+              className={`flex-shrink-0 p-3 rounded-xl transition-colors ${
+                isRecording
+                  ? 'mic-recording text-white'
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
+              }`}
+              title={isRecording ? 'Stop recording & send' : 'Voice input'}
+            >
+              {isRecording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+          )}
           <button
             onClick={handleSend}
+            data-voice-send
             disabled={(!input.trim() && !pendingImage) || streaming || noProject}
             className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
           >

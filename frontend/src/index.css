@@ -38,6 +38,17 @@
 .logo-animate-bounce-spin { animation: logo-bounce-spin 0.9s ease-in-out; }
 .logo-animate-glitch { animation: logo-glitch 0.4s ease-in-out; }
 
+/* ── Mic Recording Pulse ────────────────────────── */
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.mic-recording {
+  animation: pulse-red 1.5s ease-in-out infinite;
+  background-color: rgb(239, 68, 68) !important;
+}
+
 /* ── Text Shine / Light Sweep ───────────────────── */
 
 @keyframes shine-sweep {

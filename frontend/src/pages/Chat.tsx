@@ -137,7 +137,7 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [interimText, setInterimText] = useState('')
   const [voiceError, setVoiceError] = useState<string | null>(null)
-  const [, setVoiceMode] = useState(false)
+  const [voiceMode, setVoiceMode] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -150,6 +150,7 @@ export default function ChatPage() {
   const recordingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const voiceModeRef = useRef(false)
+  const autoResumeRef = useRef(false)
 
   // Check if browser supports voice input
   const supportsVoice = typeof navigator !== 'undefined' &&
@@ -193,6 +194,10 @@ export default function ChatPage() {
         setIsSpeaking(false)
         URL.revokeObjectURL(url)
         audioRef.current = null
+        // Auto-resume recording if still in voice mode
+        if (voiceModeRef.current) {
+          autoResumeRef.current = true
+        }
       }
       audio.onerror = () => {
         setIsSpeaking(false)
@@ -431,6 +436,24 @@ export default function ChatPage() {
     }
   }, [input, stopRecording])
 
+  // Auto-resume recording after TTS finishes in voice mode
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (autoResumeRef.current && !recordingRef.current && !streamingRef.current) {
+        autoResumeRef.current = false
+        startRecording()
+      }
+    }, 300)
+    return () => clearInterval(interval)
+  }, [startRecording])
+
+  const exitVoiceMode = useCallback(() => {
+    setVoiceMode(false)
+    voiceModeRef.current = false
+    stopRecording()
+    stopSpeaking()
+  }, [stopRecording, stopSpeaking])
+
   const toggleRecording = useCallback(() => {
     if (isRecording) {
       stopRecording()
@@ -438,8 +461,11 @@ export default function ChatPage() {
       setTimeout(() => {
         const finalText = finalTranscriptRef.current.trim()
         if (finalText) {
-          setVoiceMode(true)
-          voiceModeRef.current = true
+          // Enter voice mode (stays on until user exits)
+          if (!voiceModeRef.current) {
+            setVoiceMode(true)
+            voiceModeRef.current = true
+          }
           setInput(finalText)
           setTimeout(() => {
             const sendBtn = document.querySelector('[data-voice-send]') as HTMLButtonElement
@@ -447,11 +473,14 @@ export default function ChatPage() {
           }, 50)
         }
       }, 100)
+    } else if (voiceModeRef.current && !isRecording) {
+      // Already in voice mode, tapping mic exits it
+      exitVoiceMode()
     } else {
       stopSpeaking() // stop any current TTS playback
       startRecording()
     }
-  }, [isRecording, startRecording, stopRecording, stopSpeaking])
+  }, [isRecording, startRecording, stopRecording, stopSpeaking, exitVoiceMode])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -537,11 +566,9 @@ export default function ChatPage() {
         setStreaming(false)
         streamingRef.current = false
         inputRef.current?.focus()
-        // Auto-play TTS if voice mode is active
+        // Auto-play TTS if voice mode is active (voiceMode stays on for continuous conversation)
         if (voiceModeRef.current && fullResponse.trim()) {
           speakText(fullResponse)
-          setVoiceMode(false)
-          voiceModeRef.current = false
         }
       },
       (error) => {
@@ -747,6 +774,13 @@ export default function ChatPage() {
 
       {/* Input area */}
       <div className="flex flex-col">
+        {/* Voice mode indicator */}
+        {voiceMode && !isRecording && !isSpeaking && !streaming && (
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+            <span className="text-xs text-violet-400 font-medium">Voice mode — tap mic to exit</span>
+          </div>
+        )}
         {/* Voice recording indicator */}
         {isRecording && (
           <div className="flex items-center gap-2 mb-2 px-1">
@@ -833,9 +867,11 @@ export default function ChatPage() {
                   ? 'mic-recording text-white'
                   : isSpeaking
                     ? 'bg-violet-600 hover:bg-violet-500 text-white'
-                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
+                    : voiceMode
+                      ? 'bg-violet-700 hover:bg-violet-600 text-violet-200 ring-2 ring-violet-500/50'
+                      : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
               }`}
-              title={isRecording ? 'Stop recording & send' : isSpeaking ? 'Stop speaking' : 'Voice input'}
+              title={isRecording ? 'Stop recording & send' : isSpeaking ? 'Stop speaking' : voiceMode ? 'Exit voice mode' : 'Voice input'}
             >
               {isRecording ? <Square className="w-5 h-5" /> : isSpeaking ? <Volume2 className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
             </button>

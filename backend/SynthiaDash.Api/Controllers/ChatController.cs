@@ -214,9 +214,13 @@ public class ChatController : ControllerBase
         var projectSlug = project?.Slug;
         var projectBrief = project?.ProjectBrief;
 
+        // Get user identity for system prompt
+        var userEmail = User.FindFirst("email")?.Value;
+        var userDisplayName = User.Identity?.Name;
+
         // Build session key and system prompt
         var sessionKey = _chatService.BuildSessionKey(userId.Value, projectSlug);
-        var systemPrompt = _chatService.BuildSystemPrompt(chatAccess, projectName, repoFullName, projectBrief);
+        var systemPrompt = _chatService.BuildSystemPrompt(chatAccess, projectName, repoFullName, projectBrief, userDisplayName, userEmail);
 
         // Save user message (text only — no base64 images in DB)
         var messageToSave = request.Message;

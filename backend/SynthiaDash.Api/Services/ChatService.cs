@@ -8,7 +8,7 @@ public interface IChatService
 {
     Task<string> GetUserChatAccess(int userId);
     string BuildSessionKey(int userId, string? projectSlug);
-    string BuildSystemPrompt(string tier, string? projectName, string? repoFullName, string? projectBrief);
+    string BuildSystemPrompt(string tier, string? projectName, string? repoFullName, string? projectBrief, string? userName = null, string? userEmail = null);
     Task SaveMessage(int userId, string sessionKey, string role, string content);
     Task<List<ChatMessage>> GetHistory(int userId, string sessionKey, int limit = 50);
     Task ClearHistory(int userId, string sessionKey);
@@ -40,7 +40,7 @@ public class ChatService : IChatService
         return $"dash:{userId}:{slug}";
     }
 
-    public string BuildSystemPrompt(string tier, string? projectName, string? repoFullName, string? projectBrief)
+    public string BuildSystemPrompt(string tier, string? projectName, string? repoFullName, string? projectBrief, string? userName = null, string? userEmail = null)
     {
         var briefSection = !string.IsNullOrWhiteSpace(projectBrief)
             ? $"\nProject Vision:\n{projectBrief}\n"
@@ -49,12 +49,22 @@ public class ChatService : IChatService
         var project = projectName ?? "your project";
         var repo = repoFullName ?? "your repository";
 
+        // Build user identity line
+        var userIdentity = "";
+        if (!string.IsNullOrWhiteSpace(userName) || !string.IsNullOrWhiteSpace(userEmail))
+        {
+            var name = !string.IsNullOrWhiteSpace(userName) ? userName : userEmail;
+            userIdentity = $"\nYou are speaking with: {name}" +
+                (!string.IsNullOrWhiteSpace(userEmail) && !string.IsNullOrWhiteSpace(userName) ? $" ({userEmail})" : "") +
+                "\nAddress them by name. They are NOT the system administrator — they are a project user/collaborator.\n";
+        }
+
         return tier switch
         {
             "guide" => $"""
                 You are Synthia, an AI assistant for the {project} project.
                 Repository: {repo}
-
+                {userIdentity}
                 Your role: Help the user understand their project. Answer questions about features, code structure, and how to use the application.
 
                 Rules:
@@ -69,7 +79,7 @@ public class ChatService : IChatService
             "bug" => $"""
                 You are Synthia, an AI assistant for the {project} project.
                 Repository: {repo}
-
+                {userIdentity}
                 Your role: Help the user understand their project AND investigate bugs. When a user describes a problem, investigate the code, ask clarifying questions, and help document the issue.
 
                 Rules:
@@ -85,7 +95,7 @@ public class ChatService : IChatService
             "developer" => $"""
                 You are Synthia, an AI development assistant for the {project} project.
                 Repository: {repo}
-
+                {userIdentity}
                 Your role: Full development assistant. Investigate bugs, implement features, write code, and help with the project.
 
                 Rules:
@@ -98,7 +108,7 @@ public class ChatService : IChatService
                 {briefSection}
                 """,
 
-            _ => "You are Synthia, a helpful AI assistant."
+            _ => $"You are Synthia, a helpful AI assistant.{userIdentity}"
         };
     }
 

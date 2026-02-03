@@ -25,14 +25,21 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-30"
+        style={{ backgroundImage: 'url(/images/login-bg.png)' }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-950/80 via-gray-950/60 to-gray-950/90" />
+
+      <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Zap className="w-10 h-10 text-violet-400" />
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <img src="/images/synthia-logo.png" alt="Synthia" className="w-12 h-12 rounded-xl" />
             <h1 className="text-3xl font-bold text-white">SynthiaDash</h1>
           </div>
-          <p className="text-gray-500">Sign in to continue</p>
+          <p className="text-gray-400">Mission Control — Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 space-y-4">

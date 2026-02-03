@@ -26,7 +26,7 @@ export default function Layout() {
         >
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
-        <Zap className="w-5 h-5 text-violet-400" />
+        <img src="/images/synthia-logo.png" alt="" className="w-6 h-6 rounded" />
         <span className="text-lg font-bold">SynthiaDash</span>
       </div>
 
@@ -46,7 +46,7 @@ export default function Layout() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center gap-2 px-2">
-          <Zap className="w-6 h-6 text-violet-400" />
+          <img src="/images/synthia-logo.png" alt="" className="w-7 h-7 rounded" />
           <span className="text-xl font-bold">SynthiaDash</span>
           <button
             onClick={() => setSidebarOpen(false)}

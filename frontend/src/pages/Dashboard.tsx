@@ -179,11 +179,24 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl">
-      <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-        <Zap className="w-8 h-8 text-violet-400" />
-        Mission Control
-        {isAdmin && <span className="text-xs font-normal text-violet-400 bg-violet-900/30 px-2 py-1 rounded-full">Admin</span>}
-      </h1>
+      {/* Hero Banner */}
+      <div className="relative rounded-2xl overflow-hidden mb-8">
+        <img
+          src="/images/dashboard-hero.png"
+          alt="Mission Control"
+          className="w-full h-40 md:h-52 object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/60 to-transparent flex items-center px-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <img src="/images/synthia-logo.png" alt="" className="w-10 h-10 rounded-lg" />
+              <h1 className="text-3xl font-bold text-white">Mission Control</h1>
+              {isAdmin && <span className="text-xs font-medium text-violet-300 bg-violet-900/50 px-2 py-1 rounded-full">Admin</span>}
+            </div>
+            <p className="text-gray-400 text-sm">Monitor deployments, manage tickets, and track agent tasks</p>
+          </div>
+        </div>
+      </div>
 
       {/* Status Card */}
       <div className="mb-6">

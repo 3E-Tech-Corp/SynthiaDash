@@ -235,8 +235,8 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
           <div className="flex items-center gap-2">
-            <AnimatedLogo className="h-8" interval={12000} />
-            <span className="text-lg font-bold tracking-tight">Synthia.bot</span>
+            <AnimatedLogo className="h-8 inline-block" interval={12000} />
+            <span className="text-lg font-bold tracking-tight">ynthia.bot</span>
           </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
@@ -261,8 +261,8 @@ export default function Home() {
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
-            <Sparkles className="w-4 h-4" />
-            synthia.bot
+            <AnimatedLogo className="h-4 inline-block" interval={10000} />
+            ynthia.bot
           </div>
 
           <ShinyTitle text={t('hero.title')} />

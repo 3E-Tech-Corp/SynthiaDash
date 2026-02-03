@@ -36,10 +36,10 @@ export default function Login() {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <AnimatedLogo className="h-12" interval={10000} />
-            <h1 className="text-3xl font-bold text-white">Synthia.bot</h1>
-          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">
+            <img src="/images/synthia-logo.png?v=2" alt="S" className="inline-block h-[40px] align-baseline relative top-[3px] mr-[4px]" />
+            ynthia.bot
+          </h1>
           <p className="text-gray-400">Mission Control — Sign in to continue</p>
         </div>
 

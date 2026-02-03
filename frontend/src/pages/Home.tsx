@@ -58,7 +58,7 @@ function ShinyTitle({ text, interval = 8000 }: { text: string; interval?: number
             <img
               src="/images/synthia-logo.png?v=2"
               alt="S"
-              className="inline-block h-[80px] align-baseline relative -top-[0.05em] mx-[-0.02em]"
+              className="inline-block h-[80px] align-baseline relative top-[5px] ml-[-0.02em] mr-[6px]"
             />
             {after}
           </>

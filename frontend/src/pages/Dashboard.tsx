@@ -10,6 +10,7 @@ import StatusCard from '../components/StatusCard'
 import { api } from '../services/api'
 import type { Ticket, AgentTask, User } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import AnimatedLogo from '../components/AnimatedLogo'
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export default function Dashboard() {
         <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/60 to-transparent flex items-center px-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <img src="/images/synthia-logo.png" alt="" className="h-12" />
+              <AnimatedLogo className="h-12" interval={10000} />
               <h1 className="text-3xl font-bold text-white">Mission Control</h1>
               {isAdmin && <span className="text-xs font-medium text-violet-300 bg-violet-900/50 px-2 py-1 rounded-full">Admin</span>}
             </div>

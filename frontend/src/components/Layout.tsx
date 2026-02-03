@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import AnimatedLogo from './AnimatedLogo'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -26,7 +27,7 @@ export default function Layout() {
         >
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
-        <img src="/images/synthia-logo.png" alt="" className="w-6 h-6 rounded" />
+        <AnimatedLogo className="h-6" interval={15000} />
         <span className="text-lg font-bold">SynthiaDash</span>
       </div>
 
@@ -46,7 +47,7 @@ export default function Layout() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center gap-2 px-2">
-          <img src="/images/synthia-logo.png" alt="" className="w-7 h-7 rounded" />
+          <AnimatedLogo className="h-7" interval={15000} />
           <span className="text-xl font-bold">SynthiaDash</span>
           <button
             onClick={() => setSidebarOpen(false)}

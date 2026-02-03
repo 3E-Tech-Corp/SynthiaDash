@@ -5,6 +5,7 @@ import {
   Users, Bell, ArrowRight, LogIn, Sparkles,
 } from 'lucide-react'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import AnimatedLogo from '../components/AnimatedLogo'
 
 const FEATURES = [
   { key: 'codeAgent', icon: Bot, color: 'text-violet-400', bg: 'bg-violet-500/10' },
@@ -27,7 +28,7 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-lg border-b border-gray-800/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
           <div className="flex items-center gap-2">
-            <img src="/images/synthia-logo.png" alt="Synthia" className="h-8" />
+            <AnimatedLogo className="h-8" interval={12000} />
             <span className="text-lg font-bold tracking-tight">SynthiaDash</span>
           </div>
           <div className="flex items-center gap-2">
@@ -52,7 +53,7 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <img src="/images/synthia-logo.png" alt="Synthia" className="h-[100px] mx-auto mb-6" />
+          <AnimatedLogo className="h-[100px] mx-auto mb-6" interval={8000} />
 
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
             <Sparkles className="w-4 h-4" />
@@ -146,7 +147,7 @@ export default function Home() {
       <section className="py-20 sm:py-28 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <div className="bg-gradient-to-b from-violet-600/10 to-transparent border border-violet-500/20 rounded-3xl p-10 sm:p-14">
-            <img src="/images/synthia-logo.png" alt="Synthia" className="h-16 mx-auto mb-6" />
+            <AnimatedLogo className="h-16 mx-auto mb-6" interval={10000} />
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">{t('cta.title')}</h2>
             <p className="text-gray-400 text-lg mb-8 max-w-xl mx-auto">{t('cta.description')}</p>
             <button

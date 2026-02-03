@@ -14,6 +14,7 @@ public interface INotificationService
     Task NotifyTicketFlagged(Ticket ticket);
     Task NotifyProjectProvisioned(Project project);
     Task NotifyProjectBriefSet(Project project, Ticket ticket);
+    Task NotifyDemoRequest(string name, string email, string reason, string? ipAddress, string? location);
 }
 
 public class NotificationService : INotificationService
@@ -97,6 +98,19 @@ public class NotificationService : INotificationService
             + $"**Title:** {ticket.Title}\n"
             + (string.IsNullOrEmpty(ticket.RepoFullName) ? "" : $"**Repo:** {ticket.RepoFullName}\n")
             + $"\nI'm starting work on this now.";
+
+        await SendToGateway(message);
+    }
+
+    public async Task NotifyDemoRequest(string name, string email, string reason, string? ipAddress, string? location)
+    {
+        var message = "🎫 **Demo Account Request**\n\n"
+            + $"**Name:** {name}\n"
+            + $"**Email:** {email}\n"
+            + $"**IP:** {ipAddress ?? "Unknown"}\n"
+            + $"**Location:** {location ?? "Unknown"}\n\n"
+            + $"**Reason:**\n{reason}\n\n"
+            + "Approve or reject on the dashboard.";
 
         await SendToGateway(message);
     }

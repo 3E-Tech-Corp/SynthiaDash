@@ -117,6 +117,7 @@ builder.Services.AddSingleton<IRateLimitService, RateLimitService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
@@ -269,6 +270,23 @@ var app = builder.Build();
                     );
                     CREATE INDEX IX_ChatMessages_Session ON ChatMessages(SessionKey, CreatedAt);
                 END";
+            cmd.ExecuteNonQuery();
+
+            // Create DemoRequests table if missing
+            cmd.CommandText = @"
+                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DemoRequests')
+                CREATE TABLE DemoRequests (
+                    Id INT IDENTITY PRIMARY KEY,
+                    Email NVARCHAR(255) NOT NULL,
+                    Name NVARCHAR(255) NOT NULL,
+                    Reason NVARCHAR(2000) NOT NULL,
+                    IpAddress NVARCHAR(45) NULL,
+                    Location NVARCHAR(255) NULL,
+                    Status NVARCHAR(20) DEFAULT 'pending',
+                    CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+                    ReviewedAt DATETIME2 NULL,
+                    ReviewedBy INT NULL
+                );";
             cmd.ExecuteNonQuery();
 
             app.Logger.LogInformation("Database migration check complete");

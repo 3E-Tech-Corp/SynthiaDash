@@ -277,10 +277,10 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login?demo=1')}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 font-semibold text-lg transition-all hover:shadow-lg hover:shadow-violet-600/25"
             >
-              {t('hero.cta')}
+              Request Demo Access
               <ArrowRight className="w-5 h-5" />
             </button>
             <button
@@ -357,10 +357,10 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">{t('cta.title')}</h2>
             <p className="text-gray-400 text-lg mb-8 max-w-xl mx-auto">{t('cta.description')}</p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login?demo=1')}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-500 font-semibold text-lg transition-all hover:shadow-lg hover:shadow-violet-600/25"
             >
-              {t('cta.button')}
+              Request Demo Access
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

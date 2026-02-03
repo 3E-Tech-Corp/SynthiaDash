@@ -11,6 +11,7 @@ import ProjectsPage from './pages/Projects'
 import UsersPage from './pages/Users'
 import ChatPage from './pages/Chat'
 import FeaturedProjectsAdmin from './pages/FeaturedProjectsAdmin'
+import DemoRequests from './pages/DemoRequests'
 import SettingsPage from './pages/Settings'
 import Login from './pages/Login'
 
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="admin/featured" element={<FeaturedProjectsAdmin />} />
+        <Route path="admin/demo-requests" element={<DemoRequests />} />
       </Route>
     </Routes>
   )

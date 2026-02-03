@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
 
@@ -56,6 +56,7 @@ export default function Layout() {
     { to: '/tasks', icon: <Bot className="w-4 h-4" />, label: 'Tasks', adminOnly: true },
     { to: '/users', icon: <Users className="w-4 h-4" />, label: 'Users', adminOnly: true },
     { to: '/admin/featured', icon: <Star className="w-4 h-4" />, label: 'Featured', adminOnly: true },
+    { to: '/admin/demo-requests', icon: <UserPlus className="w-4 h-4" />, label: 'Demo Requests', adminOnly: true },
   ]
 
   const visibleItems = navItems.filter(item => {

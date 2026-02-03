@@ -252,6 +252,19 @@ export interface ReorderItem {
   sortOrder: number
 }
 
+export interface DemoRequestItem {
+  id: number
+  email: string
+  name: string
+  reason: string
+  ipAddress?: string
+  location?: string
+  status: string
+  createdAt: string
+  reviewedAt?: string
+  reviewedBy?: number
+}
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
@@ -575,5 +588,21 @@ export const api = {
     fetchApi<{ message: string }>('/featuredprojects/reorder', {
       method: 'POST',
       body: JSON.stringify(items),
+    }),
+
+  // Demo Requests
+  requestDemo: (data: { email: string; name: string; reason: string }) =>
+    fetchApi<{ message: string }>('/demo/request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getDemoRequests: () =>
+    fetchApi<DemoRequestItem[]>('/demo/requests'),
+
+  updateDemoRequest: (id: number, status: string) =>
+    fetchApi<{ message: string }>(`/demo/requests/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 };

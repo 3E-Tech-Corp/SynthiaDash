@@ -21,5 +21,5 @@ jobs:
           ${{ github.event.inputs.sql }}
           "@
           Write-Host "Executing: $sql"
-          $result = Invoke-Sqlcmd -ServerInstance "localhost" -Database "SynthiaDash" -Username "ftsql" -Password $env:SQL_PASSWORD -Query $sql
+          $result = Invoke-Sqlcmd -ServerInstance "localhost" -Database "Synthia" -Username "ftsql" -Password $env:SQL_PASSWORD -Query $sql
           $result | Format-Table -AutoSize | Out-String -Width 300 | Write-Host

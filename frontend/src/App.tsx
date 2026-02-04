@@ -64,6 +64,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/" element={<RootRoute />}>
         <Route index element={<Dashboard />} />
         <Route path="chat" element={<ChatPage />} />
@@ -74,7 +75,6 @@ function AppRoutes() {
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="about" element={<AboutPage />} />
         <Route path="admin/featured" element={<FeaturedProjectsAdmin />} />
         <Route path="admin/demo-requests" element={<DemoRequests />} />
         <Route path="admin/notifications" element={<NotificationSettings />} />

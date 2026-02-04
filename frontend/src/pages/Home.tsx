@@ -239,6 +239,12 @@ export default function Home() {
             <span className="text-lg font-bold tracking-tight">ynthia.bot</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/about')}
+              className="text-gray-400 hover:text-white text-sm font-medium transition-colors px-3 py-2 rounded-lg hover:bg-gray-800/60"
+            >
+              About Synthia
+            </button>
             <LanguageSwitcher />
             <button
               onClick={() => navigate('/login')}

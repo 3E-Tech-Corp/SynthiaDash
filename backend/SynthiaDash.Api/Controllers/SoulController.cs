@@ -18,30 +18,44 @@ public class SoulController : ControllerBase
     }
 
     /// <summary>
-    /// Public: list all soul snapshots (without content, ordered newest first)
+    /// Public: list published soul snapshots (no content, newest first)
     /// </summary>
     [HttpGet]
     [AllowAnonymous]
+    public async Task<IActionResult> GetPublished()
+    {
+        var snapshots = await _soulService.GetPublishedAsync();
+        return Ok(snapshots);
+    }
+
+    /// <summary>
+    /// Admin: list ALL soul snapshots including unpublished
+    /// </summary>
+    [HttpGet("admin")]
+    [Authorize]
     public async Task<IActionResult> GetAll()
     {
+        if (!User.IsInRole("admin")) return Forbid();
         var snapshots = await _soulService.GetAllAsync();
         return Ok(snapshots);
     }
 
     /// <summary>
-    /// Public: get a single snapshot with full content
+    /// Public: get a published snapshot with full content
     /// </summary>
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
     {
-        var snapshot = await _soulService.GetByIdAsync(id);
+        // If admin, show any snapshot. If public, only published.
+        var isAdmin = User.Identity?.IsAuthenticated == true && User.IsInRole("admin");
+        var snapshot = await _soulService.GetByIdAsync(id, publishedOnly: !isAdmin);
         if (snapshot == null) return NotFound();
         return Ok(snapshot);
     }
 
     /// <summary>
-    /// Public: get the latest snapshot with full content
+    /// Public: get the latest published snapshot with full content
     /// </summary>
     [HttpGet("latest")]
     [AllowAnonymous]
@@ -53,7 +67,7 @@ public class SoulController : ControllerBase
     }
 
     /// <summary>
-    /// Admin: create a new soul snapshot
+    /// Admin: create a new soul snapshot (unpublished by default)
     /// </summary>
     [HttpPost]
     [Authorize]
@@ -69,18 +83,19 @@ public class SoulController : ControllerBase
             Date = request.Date ?? DateTime.UtcNow.Date,
             Title = request.Title,
             Summary = request.Summary ?? string.Empty,
-            Content = request.Content
+            Content = request.Content,
+            IsPublished = request.IsPublished ?? false
         };
 
         var created = await _soulService.CreateAsync(snapshot);
-        _logger.LogInformation("Soul snapshot created: {Title} ({Date})", created.Title, created.Date);
+        _logger.LogInformation("Soul snapshot created: {Title} ({Date}), published={Published}", created.Title, created.Date, created.IsPublished);
         return Ok(created);
     }
 
     /// <summary>
     /// Admin: update a soul snapshot
     /// </summary>
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     [Authorize]
     public async Task<IActionResult> Update(int id, [FromBody] CreateSoulSnapshotRequest request)
     {
@@ -91,7 +106,8 @@ public class SoulController : ControllerBase
             Date = request.Date ?? DateTime.UtcNow.Date,
             Title = request.Title ?? string.Empty,
             Summary = request.Summary ?? string.Empty,
-            Content = request.Content ?? string.Empty
+            Content = request.Content ?? string.Empty,
+            IsPublished = request.IsPublished ?? false
         };
 
         var updated = await _soulService.UpdateAsync(id, snapshot);
@@ -100,9 +116,23 @@ public class SoulController : ControllerBase
     }
 
     /// <summary>
+    /// Admin: toggle publish/unpublish a snapshot
+    /// </summary>
+    [HttpPost("{id:int}/publish")]
+    [Authorize]
+    public async Task<IActionResult> TogglePublish(int id, [FromBody] TogglePublishRequest request)
+    {
+        if (!User.IsInRole("admin")) return Forbid();
+        var updated = await _soulService.TogglePublishAsync(id, request.IsPublished);
+        if (!updated) return NotFound();
+        _logger.LogInformation("Soul snapshot {Id} publish toggled to {Published}", id, request.IsPublished);
+        return Ok(new { message = request.IsPublished ? "Published" : "Unpublished" });
+    }
+
+    /// <summary>
     /// Admin: delete a soul snapshot
     /// </summary>
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     [Authorize]
     public async Task<IActionResult> Delete(int id)
     {
@@ -119,4 +149,10 @@ public class CreateSoulSnapshotRequest
     public string Title { get; set; } = string.Empty;
     public string? Summary { get; set; }
     public string Content { get; set; } = string.Empty;
+    public bool? IsPublished { get; set; }
+}
+
+public class TogglePublishRequest
+{
+    public bool IsPublished { get; set; }
 }

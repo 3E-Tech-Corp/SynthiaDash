@@ -16,6 +16,11 @@ import NotificationSettings from './pages/NotificationSettings'
 import SettingsPage from './pages/Settings'
 import AboutPage from './pages/About'
 import Login from './pages/Login'
+import Register from './pages/Register'
+import ProposalBrowse from './pages/ProposalBrowse'
+import ProposalPublic from './pages/ProposalPublic'
+import ProposalCreate from './pages/ProposalCreate'
+import ProposalAdmin from './pages/ProposalAdmin'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -64,7 +69,10 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/proposals" element={<ProposalBrowse />} />
+      <Route path="/proposals/:shareToken" element={<ProposalPublic />} />
       <Route path="/" element={<RootRoute />}>
         <Route index element={<Dashboard />} />
         <Route path="chat" element={<ChatPage />} />
@@ -73,11 +81,13 @@ function AppRoutes() {
         <Route path="tasks" element={<Tasks />} />
         <Route path="tickets" element={<TicketsPage />} />
         <Route path="projects" element={<ProjectsPage />} />
+        <Route path="proposals/new" element={<ProposalCreate />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="admin/featured" element={<FeaturedProjectsAdmin />} />
         <Route path="admin/demo-requests" element={<DemoRequests />} />
         <Route path="admin/notifications" element={<NotificationSettings />} />
+        <Route path="admin/proposals" element={<ProposalAdmin />} />
       </Route>
     </Routes>
   )

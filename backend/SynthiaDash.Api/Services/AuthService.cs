@@ -11,7 +11,7 @@ namespace SynthiaDash.Api.Services;
 public interface IAuthService
 {
     Task<AuthResult> LoginAsync(string email, string password);
-    Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer");
+    Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer", string? phoneNumber = null);
     Task<UserDto?> GetUserByEmailAsync(string email);
     Task<List<UserDto>> GetAllUsersAsync();
     Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
@@ -100,7 +100,7 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer")
+    public async Task<AuthResult> RegisterAsync(string email, string displayName, string password, string role = "viewer", string? phoneNumber = null)
     {
         try
         {
@@ -115,21 +115,27 @@ public class AuthService : IAuthService
 
             var passwordHash = HashPassword(password);
 
+            // Determine membership type based on role
+            var membershipType = (role == "free") ? "free" : "developer";
+
             var id = await db.QuerySingleAsync<int>(
-                @"INSERT INTO Users (Email, DisplayName, PasswordHash, Role) 
+                @"INSERT INTO Users (Email, DisplayName, PasswordHash, Role, MembershipType, PhoneNumber, EmailVerified) 
                   OUTPUT INSERTED.Id
-                  VALUES (@Email, @DisplayName, @PasswordHash, @Role)",
-                new { Email = email, DisplayName = displayName, PasswordHash = passwordHash, Role = role });
+                  VALUES (@Email, @DisplayName, @PasswordHash, @Role, @MembershipType, @PhoneNumber, 0)",
+                new { Email = email, DisplayName = displayName, PasswordHash = passwordHash, Role = role, MembershipType = membershipType, PhoneNumber = phoneNumber });
 
             var user = await db.QueryFirstAsync<UserRecord>(
                 "SELECT * FROM Users WHERE Id = @Id", new { Id = id });
 
             var token = GenerateJwtToken(user);
+            var refreshToken = GenerateRefreshToken();
+            await SaveRefreshTokenAsync(user.Id, refreshToken, DateTime.UtcNow.AddDays(30));
 
             return new AuthResult
             {
                 Success = true,
                 Token = token,
+                RefreshToken = refreshToken,
                 User = MapToDto(user)
             };
         }

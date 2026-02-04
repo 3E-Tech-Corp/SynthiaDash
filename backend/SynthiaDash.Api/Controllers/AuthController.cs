@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SynthiaDash.Api.Models;
 using SynthiaDash.Api.Services;
 
 namespace SynthiaDash.Api.Controllers;
@@ -110,6 +111,48 @@ public class AuthController : ControllerBase
             return BadRequest(new { error = result.Error });
 
         return Ok(new { token = result.Token, user = result.User });
+    }
+
+    /// <summary>
+    /// Public self-service registration (free tier)
+    /// </summary>
+    [HttpPost("register/public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterPublic([FromBody] PublicRegisterRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            return BadRequest(new { error = "Email and password are required" });
+
+        if (string.IsNullOrEmpty(request.FirstName) || string.IsNullOrEmpty(request.LastName))
+            return BadRequest(new { error = "First and last name are required" });
+
+        if (request.Password.Length < 6)
+            return BadRequest(new { error = "Password must be at least 6 characters" });
+
+        var ip = GetClientIp();
+        var ipKey = $"ip:{ip}:register";
+
+        // Rate limit registration attempts
+        if (_rateLimitService.IsRateLimited(ipKey, 5, TimeSpan.FromHours(1)))
+            return StatusCode(429, new { error = "Too many registration attempts. Please try again later." });
+
+        _rateLimitService.RecordAttempt(ipKey);
+
+        var displayName = $"{request.FirstName.Trim()} {request.LastName.Trim()}";
+
+        var result = await _authService.RegisterAsync(
+            request.Email.Trim(),
+            displayName,
+            request.Password,
+            "free",
+            request.PhoneNumber?.Trim());
+
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        _rateLimitService.Reset(ipKey);
+
+        return Ok(new { token = result.Token, refreshToken = result.RefreshToken, user = result.User });
     }
 
     [HttpGet("me")]

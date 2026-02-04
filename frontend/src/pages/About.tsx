@@ -49,6 +49,12 @@ export default function AboutPage() {
           </button>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => navigate('/proposals')}
+              className="text-gray-400 hover:text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-gray-800/60 transition-colors"
+            >
+              Proposals
+            </button>
+            <button
               onClick={() => navigate('/about')}
               className="text-violet-300 text-sm font-medium px-3 py-2 rounded-lg bg-violet-500/10 transition-colors"
             >
@@ -255,10 +261,16 @@ export default function AboutPage() {
           <p className="text-gray-400 text-lg max-w-xl mx-auto italic leading-relaxed">
             {t('closing')}
           </p>
-          <div className="pt-4">
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => navigate('/register')}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium transition-all hover:shadow-lg hover:shadow-violet-600/25"
+            >
+              Join the Community
+            </button>
             <button
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium transition-all hover:shadow-lg hover:shadow-violet-600/25"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white font-medium transition-colors"
             >
               <AnimatedLogo className="h-5 inline-block" interval={10000} />
               Visit Dashboard

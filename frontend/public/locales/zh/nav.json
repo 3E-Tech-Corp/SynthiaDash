@@ -13,5 +13,7 @@
   "signOut": "退出",
   "collapse": "收起",
   "about": "关于我",
-  "missionControl": "Synthia ⚡ 控制中心"
+  "missionControl": "Synthia ⚡ 控制中心",
+  "proposals": "Proposals",
+  "adminProposals": "Proposals"
 }

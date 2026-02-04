@@ -265,6 +265,82 @@ export interface DemoRequestItem {
   reviewedBy?: number
 }
 
+// ── Proposal types ──
+
+export interface ProposalListItem {
+  id: number
+  title: string
+  polishedDescription?: string
+  shareToken: string
+  status: string
+  likeCount: number
+  featureCount: number
+  createdAt: string
+}
+
+export interface ProposalFeature {
+  id: number
+  proposalId: number
+  description: string
+  authorId?: number
+  authorName?: string
+  createdAt: string
+}
+
+export interface ProposalPublicView {
+  id: number
+  title: string
+  polishedDescription?: string
+  problem?: string
+  shareToken: string
+  status: string
+  likeCount: number
+  features: ProposalFeature[]
+  createdAt: string
+}
+
+export interface ProjectProposal {
+  id: number
+  title: string
+  rawDescription: string
+  polishedDescription?: string
+  problem?: string
+  proposerRole?: string
+  expectedUsers?: number
+  expectedMonthlyValue?: number
+  shareToken: string
+  status: string
+  declineReason?: string
+  proposerId?: number
+  likeCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProposalAdminView {
+  id: number
+  title: string
+  rawDescription: string
+  polishedDescription?: string
+  problem?: string
+  proposerRole?: string
+  expectedUsers?: number
+  expectedMonthlyValue?: number
+  shareToken: string
+  status: string
+  declineReason?: string
+  proposerId?: number
+  proposerEmail?: string
+  likeCount: number
+  featureCount: number
+  supporterCount: number
+  weightedValueScore: number
+  createdAt: string
+  updatedAt: string
+  features?: ProposalFeature[]
+  valueEstimates?: { id: number; proposalId: number; userId?: number; isAnonymous: boolean; wouldPay: boolean; monthlyAmount?: number; weight: number; createdAt: string }[]
+}
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
@@ -605,4 +681,75 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  // Public Registration
+  registerPublic: (data: { email: string; password: string; firstName: string; lastName: string; phoneNumber?: string }) =>
+    fetchApi<{ token: string; refreshToken: string; user: User }>('/auth/register/public', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Proposals
+  getProposals: (page = 1, pageSize = 20, search?: string) => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+    if (search) params.set('search', search)
+    return fetchApi<ProposalListItem[]>(`/proposals?${params}`)
+  },
+
+  getProposalByToken: (shareToken: string) =>
+    fetchApi<{ proposal: ProposalPublicView; hasLiked: boolean }>(`/proposals/${shareToken}`),
+
+  createProposal: (data: { title: string; description: string; problem?: string; proposerRole?: string; expectedUsers?: number; expectedMonthlyValue?: number }) =>
+    fetchApi<ProjectProposal>('/proposals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  polishDescription: (description: string) =>
+    fetchApi<{ polished: string }>('/proposals/polish', {
+      method: 'POST',
+      body: JSON.stringify({ description }),
+    }),
+
+  updateProposal: (id: number, data: { polishedDescription?: string; status?: string }) =>
+    fetchApi<ProjectProposal>(`/proposals/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  getMyProposals: () =>
+    fetchApi<ProposalListItem[]>('/proposals/mine'),
+
+  likeProposal: (shareToken: string) =>
+    fetchApi<{ liked: boolean; likeCount: number }>(`/proposals/${shareToken}/like`, {
+      method: 'POST',
+    }),
+
+  addProposalFeature: (shareToken: string, description: string, authorName?: string) =>
+    fetchApi<ProposalFeature>(`/proposals/${shareToken}/features`, {
+      method: 'POST',
+      body: JSON.stringify({ description, authorName }),
+    }),
+
+  addProposalValue: (shareToken: string, wouldPay: boolean, monthlyAmount?: number) =>
+    fetchApi<{ message: string; weight: number }>(`/proposals/${shareToken}/value`, {
+      method: 'POST',
+      body: JSON.stringify({ wouldPay, monthlyAmount }),
+    }),
+
+  // Admin Proposals
+  getAdminProposals: () =>
+    fetchApi<ProposalAdminView[]>('/proposals/admin'),
+
+  getAdminProposalDetail: (id: number) =>
+    fetchApi<ProposalAdminView>(`/proposals/admin/${id}`),
+
+  updateProposalStatus: (id: number, status: string, reason?: string) =>
+    fetchApi<{ message: string }>(`/proposals/admin/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status, reason }),
+    }),
+
+  getWeeklyProposals: () =>
+    fetchApi<ProposalAdminView[]>('/proposals/admin/weekly'),
 };

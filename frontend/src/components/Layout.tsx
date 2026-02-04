@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles, Lightbulb } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
@@ -54,12 +54,14 @@ export default function Layout() {
     { to: '/chat', icon: <MessageCircle className="w-4 h-4" />, label: t('chat') },
     { to: '/', icon: <LayoutDashboard className="w-4 h-4" />, label: t('dashboard'), end: true },
     { to: '/tickets', icon: <TicketIcon className="w-4 h-4" />, label: t('tickets') },
+    { to: '/proposals', icon: <Lightbulb className="w-4 h-4" />, label: t('proposals') },
     { to: '/repos', icon: <FolderGit2 className="w-4 h-4" />, label: t('repos'), adminOnly: true },
     { to: '/tasks', icon: <Bot className="w-4 h-4" />, label: t('tasks'), adminOnly: true },
     { to: '/users', icon: <Users className="w-4 h-4" />, label: t('users'), adminOnly: true },
     { to: '/admin/featured', icon: <Star className="w-4 h-4" />, label: t('featured'), adminOnly: true },
     { to: '/admin/demo-requests', icon: <UserPlus className="w-4 h-4" />, label: t('demoRequests'), adminOnly: true },
     { to: '/admin/notifications', icon: <Bell className="w-4 h-4" />, label: t('notifications'), adminOnly: true },
+    { to: '/admin/proposals', icon: <Lightbulb className="w-4 h-4" />, label: t('adminProposals'), adminOnly: true },
     { to: '/about', icon: <Sparkles className="w-4 h-4" />, label: t('about') },
   ]
 

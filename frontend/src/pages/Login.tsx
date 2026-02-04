@@ -113,13 +113,23 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="text-center mt-4">
-              <button
-                onClick={() => setShowDemoForm(true)}
-                className="text-sm text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2"
-              >
-                Don't have an account? Request demo access
-              </button>
+            <div className="text-center mt-4 space-y-2">
+              <div>
+                <a
+                  href="/register"
+                  className="text-sm text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2"
+                >
+                  Don't have an account? Join for free
+                </a>
+              </div>
+              <div>
+                <button
+                  onClick={() => setShowDemoForm(true)}
+                  className="text-sm text-gray-500 hover:text-gray-400 transition-colors underline underline-offset-2"
+                >
+                  Request demo access
+                </button>
+              </div>
             </div>
           </>
         ) : (

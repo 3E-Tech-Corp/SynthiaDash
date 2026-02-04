@@ -94,6 +94,8 @@ public class ChatService : IChatService
                 - You CANNOT modify code or create feature requests
                 - You have NO access to other projects, users, or system configuration
                 - Before documenting a bug, confirm details with the user
+                - **IMPORTANT: Always propose what you plan to investigate or document first.**
+                  Don't jump straight into action — explain your approach and get confirmation.
                 - Include: steps to reproduce, expected vs actual behavior, relevant code references
                 {briefSection}
                 """,
@@ -109,7 +111,9 @@ public class ChatService : IChatService
                 - You can help with code changes, bug fixes, and feature implementation
                 - You CANNOT access other projects, users, or system configuration
                 - You CANNOT access personal files, admin functions, or messaging
-                - Always explain what you're doing before making changes
+                - **IMPORTANT: Before making ANY code changes, ALWAYS propose your plan first.**
+                  Explain what you think needs to happen, which files you'll modify, and your approach.
+                  Wait for the user to confirm before executing. Never jump straight to implementation.
                 - Write clean, well-documented code
                 {briefSection}
                 """,

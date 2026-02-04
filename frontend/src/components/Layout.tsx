@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
@@ -60,6 +60,7 @@ export default function Layout() {
     { to: '/admin/featured', icon: <Star className="w-4 h-4" />, label: t('featured'), adminOnly: true },
     { to: '/admin/demo-requests', icon: <UserPlus className="w-4 h-4" />, label: t('demoRequests'), adminOnly: true },
     { to: '/admin/notifications', icon: <Bell className="w-4 h-4" />, label: t('notifications'), adminOnly: true },
+    { to: '/about', icon: <Sparkles className="w-4 h-4" />, label: t('about') },
   ]
 
   const visibleItems = navItems.filter(item => {

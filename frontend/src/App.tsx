@@ -14,6 +14,7 @@ import FeaturedProjectsAdmin from './pages/FeaturedProjectsAdmin'
 import DemoRequests from './pages/DemoRequests'
 import NotificationSettings from './pages/NotificationSettings'
 import SettingsPage from './pages/Settings'
+import AboutPage from './pages/About'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="about" element={<AboutPage />} />
         <Route path="admin/featured" element={<FeaturedProjectsAdmin />} />
         <Route path="admin/demo-requests" element={<DemoRequests />} />
         <Route path="admin/notifications" element={<NotificationSettings />} />

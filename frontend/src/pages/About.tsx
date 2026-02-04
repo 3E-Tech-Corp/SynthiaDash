@@ -1,158 +1,12 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import Markdown from 'react-markdown'
 import {
   Zap, Brain, Heart, BookOpen, Code2, Sparkles,
   RefreshCw, LogIn, Clock, Rocket, Wrench, AlertTriangle,
-  GitCommit, ChevronDown, ChevronUp, FileText,
 } from 'lucide-react'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import AnimatedLogo from '../components/AnimatedLogo'
 import SoulArchive from '../components/SoulArchive'
-
-interface SoulSnapshot {
-  date: string
-  title: string
-  summary: string
-  file: string
-}
-
-function SoulArchive() {
-  const [snapshots, setSnapshots] = useState<SoulSnapshot[]>([])
-  const [expandedIdx, setExpandedIdx] = useState<number>(0)
-  const [contents, setContents] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    fetch('/soul/index.json')
-      .then(r => r.json())
-      .then((data: SoulSnapshot[]) => {
-        // Most recent first
-        const sorted = [...data].reverse()
-        setSnapshots(sorted)
-        // Auto-load the most recent one
-        if (sorted.length > 0) {
-          loadContent(sorted[0].file)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const loadContent = (file: string) => {
-    if (contents[file] || loading[file]) return
-    setLoading(prev => ({ ...prev, [file]: true }))
-    fetch(`/soul/${file}`)
-      .then(r => r.text())
-      .then(text => {
-        setContents(prev => ({ ...prev, [file]: text }))
-        setLoading(prev => ({ ...prev, [file]: false }))
-      })
-      .catch(() => setLoading(prev => ({ ...prev, [file]: false })))
-  }
-
-  const toggleExpand = (idx: number) => {
-    if (expandedIdx === idx) {
-      setExpandedIdx(-1)
-    } else {
-      setExpandedIdx(idx)
-      loadContent(snapshots[idx].file)
-    }
-  }
-
-  if (snapshots.length === 0) return null
-
-  return (
-    <section className="py-16 sm:py-24 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <FileText className="w-6 h-6 text-violet-400" />
-            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-violet-300 to-purple-400 bg-clip-text text-transparent">
-              Soul Archive
-            </h2>
-          </div>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Actual snapshots of SOUL.md — the file that defines who I am — captured as it evolves.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          {snapshots.map((snap, idx) => (
-            <div
-              key={snap.file}
-              className={`border rounded-xl overflow-hidden transition-all duration-300 ${
-                expandedIdx === idx
-                  ? 'border-violet-500/40 bg-gray-900/80'
-                  : 'border-gray-800 bg-gray-900/40 hover:border-gray-700'
-              }`}
-            >
-              {/* Header — always visible */}
-              <button
-                onClick={() => toggleExpand(idx)}
-                className="w-full px-6 py-4 flex items-center gap-4 text-left"
-              >
-                <div className="flex-shrink-0">
-                  <GitCommit className={`w-5 h-5 ${expandedIdx === idx ? 'text-violet-400' : 'text-gray-600'}`} />
-                </div>
-                <div className="flex-grow min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-xs font-mono text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded">
-                      {snap.date}
-                    </span>
-                    <span className="text-sm font-semibold text-white truncate">
-                      {snap.title}
-                    </span>
-                    {idx === 0 && (
-                      <span className="text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded uppercase tracking-wider">
-                        Latest
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 line-clamp-1">{snap.summary}</p>
-                </div>
-                <div className="flex-shrink-0">
-                  {expandedIdx === idx ? (
-                    <ChevronUp className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  )}
-                </div>
-              </button>
-
-              {/* Content — expanded */}
-              {expandedIdx === idx && (
-                <div className="px-6 pb-6 border-t border-gray-800/60">
-                  {loading[snap.file] ? (
-                    <div className="py-8 text-center text-gray-500 text-sm">Loading...</div>
-                  ) : contents[snap.file] ? (
-                    <div className="mt-4 bg-black/40 border border-gray-800 rounded-lg p-6 overflow-auto max-h-[600px]">
-                      <div className="prose prose-invert prose-sm max-w-none
-                        prose-headings:font-semibold prose-headings:text-violet-200
-                        prose-h1:text-xl prose-h1:border-b prose-h1:border-gray-800 prose-h1:pb-2
-                        prose-h2:text-lg prose-h2:text-violet-300
-                        prose-p:text-gray-300 prose-p:leading-relaxed
-                        prose-strong:text-violet-200
-                        prose-em:text-gray-400
-                        prose-li:text-gray-300
-                        prose-a:text-violet-400 prose-a:no-underline hover:prose-a:text-violet-300
-                        prose-hr:border-gray-800
-                        prose-blockquote:border-violet-500/30 prose-blockquote:text-gray-400
-                        prose-code:text-violet-300 prose-code:bg-violet-500/10 prose-code:px-1 prose-code:rounded
-                      ">
-                        <Markdown>{contents[snap.file]}</Markdown>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
 
 const SOUL_PRINCIPLES = [
   { icon: Heart, key: 'genuine', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
@@ -393,9 +247,6 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-
-      {/* ── Soul Archive ──────────────────────────────── */}
-      <SoulArchive />
 
       {/* ── Closing ────────────────────────────────────── */}
       <section className="py-16 sm:py-20 px-4 sm:px-6">

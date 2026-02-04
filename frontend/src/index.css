@@ -69,3 +69,111 @@
   );
   animation: shine-sweep 1.2s ease-in-out forwards;
 }
+
+/* ── Soul Archive Markdown ──────────────────────── */
+
+.soul-markdown {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+  color: #d1d5db; /* gray-300 */
+}
+
+.soul-markdown h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #e9d5ff; /* violet-200 */
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.soul-markdown h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #c4b5fd; /* violet-300 */
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.soul-markdown h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #a78bfa; /* violet-400 */
+  margin-top: 1.25rem;
+  margin-bottom: 0.375rem;
+}
+
+.soul-markdown p {
+  margin-bottom: 0.75rem;
+}
+
+.soul-markdown em {
+  color: #a78bfa; /* violet-400 */
+  font-style: italic;
+}
+
+.soul-markdown strong {
+  color: #f3f4f6; /* gray-100 */
+  font-weight: 600;
+}
+
+.soul-markdown ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0.75rem;
+}
+
+.soul-markdown ul li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.soul-markdown ul li::before {
+  content: '·';
+  position: absolute;
+  left: 0.25rem;
+  color: #7c3aed; /* violet-600 */
+  font-weight: 700;
+}
+
+.soul-markdown ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.soul-markdown ol li {
+  margin-bottom: 0.375rem;
+}
+
+.soul-markdown ol li::marker {
+  color: #7c3aed;
+}
+
+.soul-markdown code {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd; /* violet-300 */
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.soul-markdown hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(139, 92, 246, 0.3), transparent);
+  margin: 1.5rem 0;
+}
+
+.soul-markdown a {
+  color: #a78bfa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.soul-markdown a:hover {
+  color: #c4b5fd;
+}

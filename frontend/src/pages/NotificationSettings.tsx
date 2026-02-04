@@ -5,6 +5,7 @@ interface NotificationSetting {
   id: number
   eventCode: string
   eventName: string
+  taskId: number | null
   taskCode: string | null
   isEnabled: boolean
   description: string | null
@@ -96,7 +97,7 @@ export default function NotificationSettings() {
     try {
       const updated = await fetchWithAuth<NotificationSetting>(`/notification-settings/${setting.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ taskCode: setting.taskCode, isEnabled: setting.isEnabled }),
+        body: JSON.stringify({ taskId: setting.taskId, taskCode: setting.taskCode, isEnabled: setting.isEnabled }),
       })
       setSettings(prev => prev.map(s => s.id === updated.id ? updated : s))
       setSuccess(`Saved ${setting.eventName}`)
@@ -122,9 +123,14 @@ export default function NotificationSettings() {
     }
   }
 
-  function handleTaskCodeChange(id: number, taskCode: string) {
+  function handleTaskChange(id: number, selectedTaskId: string) {
+    const task = tasks.find(t => t.id === parseInt(selectedTaskId))
     setSettings(prev =>
-      prev.map(s => s.id === id ? { ...s, taskCode: taskCode || null } : s)
+      prev.map(s => s.id === id ? { 
+        ...s, 
+        taskId: task ? task.id : null,
+        taskCode: task ? task.taskCode : null 
+      } : s)
     )
   }
 
@@ -263,13 +269,13 @@ export default function NotificationSettings() {
                     {/* TaskCode dropdown */}
                     <td className="px-4 py-3">
                       <select
-                        value={setting.taskCode || ''}
-                        onChange={(e) => handleTaskCodeChange(setting.id, e.target.value)}
+                        value={setting.taskId?.toString() || ''}
+                        onChange={(e) => handleTaskChange(setting.id, e.target.value)}
                         className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-sm text-gray-200 w-full max-w-[200px] focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500"
                       >
                         <option value="">— Not mapped —</option>
                         {tasks.filter(t => t.isActive).map(task => (
-                          <option key={task.taskCode} value={task.taskCode}>
+                          <option key={task.id} value={task.id}>
                             {task.taskName || task.taskCode}
                             {task.channel ? ` (${task.channel})` : ''}
                           </option>
@@ -310,9 +316,9 @@ export default function NotificationSettings() {
                         </button>
                         <button
                           onClick={() => handleTest(setting.eventCode)}
-                          disabled={testingCode === setting.eventCode || !setting.taskCode || !setting.isEnabled}
+                          disabled={testingCode === setting.eventCode || !setting.taskId || !setting.isEnabled}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={!setting.taskCode ? 'Assign a task first' : !setting.isEnabled ? 'Enable this event first' : 'Send test notification'}
+                          title={!setting.taskId ? 'Assign a task first' : !setting.isEnabled ? 'Enable this event first' : 'Send test notification'}
                         >
                           {testingCode === setting.eventCode ? (
                             <Loader2 className="w-3 h-3 animate-spin" />

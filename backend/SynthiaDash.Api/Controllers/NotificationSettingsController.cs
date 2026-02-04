@@ -46,11 +46,11 @@ public class NotificationSettingsController : ControllerBase
     {
         if (!IsAdmin()) return Forbid();
 
-        var updated = await _settingsService.UpdateAsync(id, request.TaskCode, request.IsEnabled);
+        var updated = await _settingsService.UpdateAsync(id, request.TaskId, request.TaskCode, request.IsEnabled);
         if (updated == null) return NotFound();
 
-        _logger.LogInformation("Admin updated notification setting #{Id}: TaskCode={TaskCode}, Enabled={Enabled}",
-            id, request.TaskCode, request.IsEnabled);
+        _logger.LogInformation("Admin updated notification setting #{Id}: TaskId={TaskId}, TaskCode={TaskCode}, Enabled={Enabled}",
+            id, request.TaskId, request.TaskCode, request.IsEnabled);
 
         return Ok(updated);
     }
@@ -78,8 +78,8 @@ public class NotificationSettingsController : ControllerBase
         var setting = await _settingsService.GetByEventCodeAsync(eventCode);
         if (setting == null) return NotFound(new { error = $"Event code '{eventCode}' not found" });
 
-        if (string.IsNullOrEmpty(setting.TaskCode))
-            return BadRequest(new { error = "No TaskCode configured for this event" });
+        if (!setting.TaskId.HasValue)
+            return BadRequest(new { error = "No task configured for this event" });
 
         var testData = new
         {
@@ -92,7 +92,7 @@ public class NotificationSettingsController : ControllerBase
         var email = User.FindFirst("email")?.Value ?? "test@synthia.bot";
 
         var result = await _fxClient.QueueAsync(
-            taskCode: setting.TaskCode,
+            taskId: setting.TaskId.Value,
             to: email,
             bodyJson: testData,
             bodyHtml: $"<p>🔔 Test notification for <strong>{setting.EventName}</strong> ({eventCode})</p><p>Sent at {DateTime.UtcNow:u}</p>");
@@ -126,6 +126,7 @@ public class NotificationSettingsController : ControllerBase
 
 public class UpdateNotificationSettingRequest
 {
+    public int? TaskId { get; set; }
     public string? TaskCode { get; set; }
     public bool IsEnabled { get; set; }
 }

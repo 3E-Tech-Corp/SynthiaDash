@@ -7,7 +7,7 @@ public interface INotificationSettingsService
 {
     Task<List<NotificationSetting>> GetAllAsync();
     Task<NotificationSetting?> GetByEventCodeAsync(string eventCode);
-    Task<NotificationSetting?> UpdateAsync(int id, string? taskCode, bool isEnabled);
+    Task<NotificationSetting?> UpdateAsync(int id, int? taskId, string? taskCode, bool isEnabled);
 }
 
 public class NotificationSettingsService : INotificationSettingsService
@@ -38,14 +38,14 @@ public class NotificationSettingsService : INotificationSettingsService
             new { EventCode = eventCode });
     }
 
-    public async Task<NotificationSetting?> UpdateAsync(int id, string? taskCode, bool isEnabled)
+    public async Task<NotificationSetting?> UpdateAsync(int id, int? taskId, string? taskCode, bool isEnabled)
     {
         using var db = new SqlConnection(_connectionString);
         var rowsAffected = await db.ExecuteAsync(
             @"UPDATE NotificationSettings 
-              SET TaskCode = @TaskCode, IsEnabled = @IsEnabled, UpdatedAt = GETUTCDATE()
+              SET TaskId = @TaskId, TaskCode = @TaskCode, IsEnabled = @IsEnabled, UpdatedAt = GETUTCDATE()
               WHERE Id = @Id",
-            new { Id = id, TaskCode = taskCode, IsEnabled = isEnabled });
+            new { Id = id, TaskId = taskId, TaskCode = taskCode, IsEnabled = isEnabled });
 
         if (rowsAffected == 0) return null;
 
@@ -60,6 +60,7 @@ public class NotificationSetting
     public int Id { get; set; }
     public string EventCode { get; set; } = "";
     public string EventName { get; set; } = "";
+    public int? TaskId { get; set; }
     public string? TaskCode { get; set; }
     public bool IsEnabled { get; set; }
     public string? Description { get; set; }

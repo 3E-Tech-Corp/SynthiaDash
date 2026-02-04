@@ -23,9 +23,9 @@ public interface IFXNotificationClient
     /// <summary>Get all available notification tasks from FXNotification.</summary>
     Task<List<FXNotificationTask>> GetTasksAsync();
 
-    /// <summary>Queue a notification for delivery.</summary>
+    /// <summary>Queue a notification for delivery by TaskId.</summary>
     Task<FXQueueResult> QueueAsync(
-        string taskCode,
+        int taskId,
         string to,
         object? bodyJson = null,
         string? bodyHtml = null,
@@ -112,7 +112,7 @@ public class FXNotificationClient : IFXNotificationClient
     }
 
     public async Task<FXQueueResult> QueueAsync(
-        string taskCode,
+        int taskId,
         string to,
         object? bodyJson = null,
         string? bodyHtml = null,
@@ -125,7 +125,7 @@ public class FXNotificationClient : IFXNotificationClient
 
             var payload = new Dictionary<string, object?>
             {
-                ["taskCode"] = taskCode,
+                ["taskId"] = taskId,
                 ["to"] = to
             };
 

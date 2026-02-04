@@ -2,11 +2,16 @@ import { useState, useEffect, useCallback } from 'react'
 import Markdown from 'react-markdown'
 import { FileText, ChevronDown, GitCommit, Loader2 } from 'lucide-react'
 
-interface SoulSnapshot {
+interface SoulSnapshotListItem {
+  id: number
   date: string
   title: string
   summary: string
-  file: string
+  createdAt: string
+}
+
+interface SoulSnapshotFull extends SoulSnapshotListItem {
+  content: string
 }
 
 function SnapshotCard({
@@ -15,7 +20,7 @@ function SnapshotCard({
   isExpanded,
   onToggle,
 }: {
-  snapshot: SoulSnapshot
+  snapshot: SoulSnapshotListItem
   index: number
   isExpanded: boolean
   onToggle: () => void
@@ -25,26 +30,27 @@ function SnapshotCard({
   const [error, setError] = useState(false)
 
   const fetchContent = useCallback(async () => {
-    if (markdown !== null) return // already loaded
+    if (markdown !== null) return
     setLoading(true)
     setError(false)
     try {
-      const res = await fetch(`/soul/${snapshot.file}`)
+      const res = await fetch(`/api/soul/${snapshot.id}`)
       if (!res.ok) throw new Error('fetch failed')
-      setMarkdown(await res.text())
+      const data: SoulSnapshotFull = await res.json()
+      setMarkdown(data.content)
     } catch {
       setError(true)
     } finally {
       setLoading(false)
     }
-  }, [snapshot.file, markdown])
+  }, [snapshot.id, markdown])
 
-  // Fetch content when expanded
   useEffect(() => {
     if (isExpanded) fetchContent()
   }, [isExpanded, fetchContent])
 
   const isLatest = index === 0
+  const dateStr = new Date(snapshot.date).toISOString().split('T')[0]
 
   return (
     <div
@@ -56,12 +62,11 @@ function SnapshotCard({
         }
       `}
     >
-      {/* Header — always visible */}
+      {/* Header */}
       <button
         onClick={onToggle}
         className="w-full text-left px-5 sm:px-6 py-4 sm:py-5 flex items-start gap-4 group"
       >
-        {/* Commit dot */}
         <div className="flex-shrink-0 mt-0.5">
           <div className={`
             w-8 h-8 rounded-lg flex items-center justify-center
@@ -74,11 +79,10 @@ function SnapshotCard({
           </div>
         </div>
 
-        {/* Text */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono text-gray-500 tracking-wider">
-              {snapshot.date}
+              {dateStr}
             </span>
             {isLatest && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/25">
@@ -94,7 +98,6 @@ function SnapshotCard({
           </p>
         </div>
 
-        {/* Chevron */}
         <div className="flex-shrink-0 mt-1">
           <ChevronDown
             className={`w-5 h-5 text-gray-600 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
@@ -110,18 +113,15 @@ function SnapshotCard({
         `}
       >
         <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-          {/* Divider */}
           <div className="border-t border-dashed border-gray-800 mb-5" />
 
-          {/* File path label */}
           <div className="flex items-center gap-2 mb-4 text-xs text-gray-600 font-mono">
             <FileText className="w-3.5 h-3.5" />
             <span>SOUL.md</span>
             <span className="text-gray-700">·</span>
-            <span>{snapshot.date}</span>
+            <span>{dateStr}</span>
           </div>
 
-          {/* Markdown content */}
           {loading && (
             <div className="flex items-center gap-2 py-8 justify-center text-gray-600">
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -147,18 +147,16 @@ function SnapshotCard({
 }
 
 export default function SoulArchive() {
-  const [snapshots, setSnapshots] = useState<SoulSnapshot[]>([])
+  const [snapshots, setSnapshots] = useState<SoulSnapshotListItem[]>([])
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    fetch('/soul/index.json')
+    fetch('/api/soul')
       .then(r => r.json())
-      .then((data: SoulSnapshot[]) => {
-        // Reverse: most recent first
-        const sorted = [...data].sort((a, b) => b.date.localeCompare(a.date))
-        setSnapshots(sorted)
-        setExpandedIndex(0) // expand most recent by default
+      .then((data: SoulSnapshotListItem[]) => {
+        setSnapshots(data) // Already sorted newest first from API
+        setExpandedIndex(0)
         setLoaded(true)
       })
       .catch(() => setLoaded(true))
@@ -170,7 +168,6 @@ export default function SoulArchive() {
   return (
     <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gray-900/30">
       <div className="max-w-4xl mx-auto">
-        {/* Section header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold uppercase tracking-wider">
             <FileText className="w-3.5 h-3.5" />
@@ -185,15 +182,13 @@ export default function SoulArchive() {
           </p>
         </div>
 
-        {/* Timeline connector */}
         <div className="relative">
-          {/* Vertical connector line behind cards */}
           <div className="absolute left-9 sm:left-10 top-0 bottom-0 w-px bg-gradient-to-b from-violet-500/30 via-gray-800/50 to-transparent pointer-events-none" />
 
           <div className="space-y-4">
             {snapshots.map((snapshot, i) => (
               <SnapshotCard
-                key={snapshot.date}
+                key={snapshot.id}
                 snapshot={snapshot}
                 index={i}
                 isExpanded={expandedIndex === i}

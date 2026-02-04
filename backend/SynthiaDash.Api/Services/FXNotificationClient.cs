@@ -73,6 +73,34 @@ public class FXNotificationClient : IFXNotificationClient
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync();
+
+            // FXNotification wraps responses in {"success":true,"data":[...]}
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            JsonElement dataElement;
+            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out dataElement))
+            {
+                // Map from FXNotification's raw task format to our model
+                var tasks = new List<FXNotificationTask>();
+                foreach (var item in dataElement.EnumerateArray())
+                {
+                    tasks.Add(new FXNotificationTask
+                    {
+                        Id = item.TryGetProperty("taskID", out var tid) ? tid.GetInt32() : 0,
+                        TaskCode = item.TryGetProperty("taskCode", out var tc) ? tc.GetString() ?? "" : "",
+                        TaskName = item.TryGetProperty("taskCode", out var tn) ? tn.GetString() : null,
+                        Description = item.TryGetProperty("taskType", out var tt) 
+                            ? $"Type: {tt.GetString()}" : null,
+                        Channel = item.TryGetProperty("taskType", out var ch) ? ch.GetString() : null,
+                        IsActive = item.TryGetProperty("status", out var st) 
+                            && st.GetString()?.Equals("A", StringComparison.OrdinalIgnoreCase) == true
+                    });
+                }
+                return tasks;
+            }
+
+            // Fallback: try direct deserialization
             return JsonSerializer.Deserialize<List<FXNotificationTask>>(json, JsonOptions)
                 ?? new List<FXNotificationTask>();
         }

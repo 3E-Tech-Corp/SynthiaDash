@@ -151,16 +151,16 @@ public class NotificationService : INotificationService
                 return;
             }
 
-            if (string.IsNullOrEmpty(setting.TaskCode))
+            if (!setting.TaskId.HasValue)
             {
-                _logger.LogWarning("No TaskCode configured for event {EventCode}", eventCode);
+                _logger.LogWarning("No TaskId configured for event {EventCode}", eventCode);
                 return;
             }
 
             string? bodyJson = data != null ? JsonSerializer.Serialize(data) : null;
 
             var result = await _fxClient.QueueAsync(
-                taskCode: setting.TaskCode,
+                taskId: setting.TaskId.Value,
                 to: to,
                 bodyJson: data,
                 bodyHtml: null,

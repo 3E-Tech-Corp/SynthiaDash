@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
 
@@ -8,6 +9,7 @@ const COLLAPSED_KEY = 'synthia-sidebar-collapsed'
 
 export default function Layout() {
   const { user, logout } = useAuth()
+  const { t } = useTranslation('nav')
   const navigate = useNavigate()
   // Desktop collapsed state (persisted)
   const [collapsed, setCollapsed] = useState(() => {
@@ -48,16 +50,16 @@ export default function Layout() {
   type NavItem = { to: string; icon: React.ReactNode; label: string; end?: boolean; adminOnly?: boolean; authOnly?: boolean }
 
   const navItems: NavItem[] = [
-    { to: '/projects', icon: <Rocket className="w-4 h-4" />, label: 'Projects', authOnly: true },
-    { to: '/chat', icon: <MessageCircle className="w-4 h-4" />, label: 'Chat' },
-    { to: '/', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', end: true },
-    { to: '/tickets', icon: <TicketIcon className="w-4 h-4" />, label: 'Tickets' },
-    { to: '/repos', icon: <FolderGit2 className="w-4 h-4" />, label: 'Repos', adminOnly: true },
-    { to: '/tasks', icon: <Bot className="w-4 h-4" />, label: 'Tasks', adminOnly: true },
-    { to: '/users', icon: <Users className="w-4 h-4" />, label: 'Users', adminOnly: true },
-    { to: '/admin/featured', icon: <Star className="w-4 h-4" />, label: 'Featured', adminOnly: true },
-    { to: '/admin/demo-requests', icon: <UserPlus className="w-4 h-4" />, label: 'Demo Requests', adminOnly: true },
-    { to: '/admin/notifications', icon: <Bell className="w-4 h-4" />, label: 'Notifications', adminOnly: true },
+    { to: '/projects', icon: <Rocket className="w-4 h-4" />, label: t('projects'), authOnly: true },
+    { to: '/chat', icon: <MessageCircle className="w-4 h-4" />, label: t('chat') },
+    { to: '/', icon: <LayoutDashboard className="w-4 h-4" />, label: t('dashboard'), end: true },
+    { to: '/tickets', icon: <TicketIcon className="w-4 h-4" />, label: t('tickets') },
+    { to: '/repos', icon: <FolderGit2 className="w-4 h-4" />, label: t('repos'), adminOnly: true },
+    { to: '/tasks', icon: <Bot className="w-4 h-4" />, label: t('tasks'), adminOnly: true },
+    { to: '/users', icon: <Users className="w-4 h-4" />, label: t('users'), adminOnly: true },
+    { to: '/admin/featured', icon: <Star className="w-4 h-4" />, label: t('featured'), adminOnly: true },
+    { to: '/admin/demo-requests', icon: <UserPlus className="w-4 h-4" />, label: t('demoRequests'), adminOnly: true },
+    { to: '/admin/notifications', icon: <Bell className="w-4 h-4" />, label: t('notifications'), adminOnly: true },
   ]
 
   const visibleItems = navItems.filter(item => {
@@ -74,7 +76,7 @@ export default function Layout() {
         <button
           onClick={() => setMobileExpanded(v => !v)}
           className="mb-3 p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          title="Expand sidebar"
+          title={t('expandSidebar', 'Expand sidebar')}
         >
           {mobileExpanded ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -98,10 +100,10 @@ export default function Layout() {
         {/* Bottom: user avatar */}
         {user && (
           <div className="mt-auto flex flex-col items-center gap-2 pb-2">
-            <NavLink to="/settings" className="p-2 text-gray-500 hover:text-violet-400 rounded-lg hover:bg-gray-800 transition-colors" title="Settings" onClick={() => setMobileExpanded(false)}>
+            <NavLink to="/settings" className="p-2 text-gray-500 hover:text-violet-400 rounded-lg hover:bg-gray-800 transition-colors" title={t("settings")} onClick={() => setMobileExpanded(false)}>
               <Settings className="w-4 h-4" />
             </NavLink>
-            <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors" title="Sign out">
+            <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors" title={t("signOut")}>
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -142,13 +144,13 @@ export default function Layout() {
                         <Settings className="w-3 h-3" />
                       </NavLink>
                       <button onClick={logout} className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors">
-                        <LogOut className="w-3 h-3" /> Sign out
+                        <LogOut className="w-3 h-3" /> {t('signOut')}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
-              <div className="px-2 text-xs text-gray-600">Synthia ⚡ Mission Control</div>
+              <div className="px-2 text-xs text-gray-600">{t('missionControl')}</div>
             </div>
           </aside>
         </>
@@ -197,7 +199,7 @@ export default function Layout() {
                     <Settings className="w-3 h-3" />
                   </NavLink>
                   <button onClick={logout} className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors">
-                    <LogOut className="w-3 h-3" /> Sign out
+                    <LogOut className="w-3 h-3" /> {t('signOut')}
                   </button>
                 </div>
               </div>
@@ -205,22 +207,22 @@ export default function Layout() {
           )}
           {user && collapsed && (
             <div className="flex flex-col items-center gap-2">
-              <NavLink to="/settings" className="p-2 text-gray-500 hover:text-violet-400 rounded-lg hover:bg-gray-800 transition-colors" title="Settings">
+              <NavLink to="/settings" className="p-2 text-gray-500 hover:text-violet-400 rounded-lg hover:bg-gray-800 transition-colors" title={t("settings")}>
                 <Settings className="w-4 h-4" />
               </NavLink>
-              <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors" title="Sign out">
+              <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors" title={t("signOut")}>
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           )}
-          {!collapsed && <div className="px-2 text-xs text-gray-600">Synthia ⚡ Mission Control</div>}
+          {!collapsed && <div className="px-2 text-xs text-gray-600">{t('missionControl')}</div>}
           {/* Collapse toggle */}
           <button
             onClick={toggleCollapsed}
             className={`flex items-center justify-center w-full p-2 rounded-lg text-gray-500 hover:text-white hover:bg-gray-800 transition-colors ${collapsed ? '' : 'gap-2'}`}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronsRight className="w-4 h-4" /> : <><ChevronsLeft className="w-4 h-4" /> <span className="text-xs">Collapse</span></>}
+            {collapsed ? <ChevronsRight className="w-4 h-4" /> : <><ChevronsLeft className="w-4 h-4" /> <span className="text-xs">{t('collapse')}</span></>}
           </button>
         </div>
       </aside>

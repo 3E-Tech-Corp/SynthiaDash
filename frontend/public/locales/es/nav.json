@@ -1,0 +1,16 @@
+{
+  "projects": "Proyectos",
+  "chat": "Chat",
+  "dashboard": "Panel",
+  "tickets": "Tickets",
+  "repos": "Repos",
+  "tasks": "Tareas",
+  "users": "Usuarios",
+  "featured": "Destacados",
+  "demoRequests": "Solicitudes de Demo",
+  "notifications": "Notificaciones",
+  "settings": "Configuración",
+  "signOut": "Cerrar sesión",
+  "collapse": "Colapsar",
+  "missionControl": "Synthia ⚡ Centro de Control"
+}

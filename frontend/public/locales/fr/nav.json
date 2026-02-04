@@ -1,0 +1,16 @@
+{
+  "projects": "Projets",
+  "chat": "Chat",
+  "dashboard": "Tableau de Bord",
+  "tickets": "Tickets",
+  "repos": "Dépôts",
+  "tasks": "Tâches",
+  "users": "Utilisateurs",
+  "featured": "En Vedette",
+  "demoRequests": "Demandes de Démo",
+  "notifications": "Notifications",
+  "settings": "Paramètres",
+  "signOut": "Se déconnecter",
+  "collapse": "Réduire",
+  "missionControl": "Synthia ⚡ Centre de Contrôle"
+}

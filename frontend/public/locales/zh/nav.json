@@ -1,0 +1,16 @@
+{
+  "projects": "项目",
+  "chat": "聊天",
+  "dashboard": "控制台",
+  "tickets": "工单",
+  "repos": "仓库",
+  "tasks": "任务",
+  "users": "用户",
+  "featured": "精选",
+  "demoRequests": "演示申请",
+  "notifications": "通知",
+  "settings": "设置",
+  "signOut": "退出",
+  "collapse": "收起",
+  "missionControl": "Synthia ⚡ 控制中心"
+}

@@ -71,7 +71,7 @@ public class NotificationSettingsController : ControllerBase
     /// Send a test notification for an event code
     /// </summary>
     [HttpPost("test/{eventCode}")]
-    public async Task<IActionResult> SendTest(string eventCode)
+    public async Task<IActionResult> SendTest(string eventCode, [FromBody] TestNotificationRequest? request = null)
     {
         if (!IsAdmin()) return Forbid();
 
@@ -81,29 +81,39 @@ public class NotificationSettingsController : ControllerBase
         if (!setting.TaskId.HasValue)
             return BadRequest(new { error = "No task configured for this event" });
 
-        var testData = new
+        var recipient = request?.Recipient
+            ?? User.FindFirst("email")?.Value
+            ?? "test@synthia.bot";
+
+        var bodyData = new
         {
+            SUBJECT = request?.Subject ?? $"Test: {setting.EventName}",
+            BODY = request?.Body ?? $"Test notification for {setting.EventName} ({eventCode})",
             eventCode,
             eventName = setting.EventName,
-            message = $"Test notification for {setting.EventName} ({eventCode})",
+            test = true,
             timestamp = DateTime.UtcNow
         };
 
-        var email = User.FindFirst("email")?.Value ?? "test@synthia.bot";
-
         var result = await _fxClient.QueueAsync(
             taskId: setting.TaskId.Value,
-            to: email,
-            bodyJson: testData,
-            bodyHtml: $"<p>🔔 Test notification for <strong>{setting.EventName}</strong> ({eventCode})</p><p>Sent at {DateTime.UtcNow:u}</p>");
+            to: recipient,
+            bodyJson: bodyData);
 
         if (result.Success)
         {
-            _logger.LogInformation("Test notification sent for {EventCode} by {Email}", eventCode, email);
-            return Ok(new { message = "Test notification sent", id = result.Id });
+            _logger.LogInformation("Test notification sent for {EventCode} to {Recipient}", eventCode, recipient);
+            return Ok(new { message = $"Test notification queued to {recipient}", id = result.Id });
         }
 
         return StatusCode(502, new { error = "Failed to queue test notification", detail = result.Error });
+    }
+
+    public class TestNotificationRequest
+    {
+        public string? Recipient { get; set; }
+        public string? Subject { get; set; }
+        public string? Body { get; set; }
     }
 
     /// <summary>

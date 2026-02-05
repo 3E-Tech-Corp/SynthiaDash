@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Bell, CheckCircle, XCircle, Loader2, Send, RefreshCw, Wifi, WifiOff, Eye, EyeOff } from 'lucide-react'
+import { Bell, CheckCircle, XCircle, Loader2, Send, RefreshCw, Wifi, WifiOff, Eye, EyeOff, X } from 'lucide-react'
 
 interface NotificationSetting {
   id: number
@@ -59,6 +59,12 @@ export default function NotificationSettings() {
   const [savingId, setSavingId] = useState<number | null>(null)
   const [testingCode, setTestingCode] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
+  // Test modal state
+  const [testModal, setTestModal] = useState<{ eventCode: string; setting: NotificationSetting } | null>(null)
+  const [testRecipient, setTestRecipient] = useState('')
+  const [testSubject, setTestSubject] = useState('')
+  const [testBody, setTestBody] = useState('')
+  const [testResult, setTestResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     loadAll()
@@ -108,16 +114,34 @@ export default function NotificationSettings() {
     }
   }
 
-  async function handleTest(eventCode: string) {
-    setTestingCode(eventCode)
+  function openTestModal(setting: NotificationSetting) {
+    const task = tasks.find(t => t.id === setting.taskId)
+    const isSms = task?.taskCode?.toUpperCase().includes('SMS') || task?.channel?.toUpperCase().startsWith('T')
+    setTestModal({ eventCode: setting.eventCode, setting })
+    setTestRecipient('')
+    setTestSubject(isSms ? '' : `Test: ${setting.eventName}`)
+    setTestBody(`This is a test notification for ${setting.eventName} (${setting.eventCode}).`)
+    setTestResult(null)
+  }
+
+  async function handleTestSend() {
+    if (!testModal || !testRecipient.trim()) return
+    setTestingCode(testModal.eventCode)
     setError(null)
+    setTestResult(null)
     try {
-      const result = await fetchWithAuth<{ message: string; id?: number }>(`/notification-settings/test/${eventCode}`, {
+      const result = await fetchWithAuth<{ message: string; id?: number }>(`/notification-settings/test/${testModal.eventCode}`, {
         method: 'POST',
+        body: JSON.stringify({
+          recipient: testRecipient.trim(),
+          subject: testSubject.trim() || undefined,
+          body: testBody.trim() || undefined,
+        }),
       })
-      setSuccess(result.message || 'Test sent!')
+      setTestResult({ type: 'success', message: result.message || 'Test sent!' })
+      setTimeout(() => { setTestModal(null); setTestResult(null) }, 2000)
     } catch (err: any) {
-      setError(err.message || 'Test failed')
+      setTestResult({ type: 'error', message: err.message || 'Test failed' })
     } finally {
       setTestingCode(null)
     }
@@ -315,7 +339,7 @@ export default function NotificationSettings() {
                           Save
                         </button>
                         <button
-                          onClick={() => handleTest(setting.eventCode)}
+                          onClick={() => openTestModal(setting)}
                           disabled={testingCode === setting.eventCode || !setting.taskId || !setting.isEnabled}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title={!setting.taskId ? 'Assign a task first' : !setting.isEnabled ? 'Enable this event first' : 'Send test notification'}
@@ -371,6 +395,97 @@ export default function NotificationSettings() {
           </div>
         </div>
       )}
+      {/* Test Send Modal */}
+      {testModal && (() => {
+        const task = tasks.find(t => t.id === testModal.setting.taskId)
+        const isSms = task?.taskCode?.toUpperCase().includes('SMS') || task?.channel?.toUpperCase().startsWith('T')
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl max-w-md w-full m-4">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="font-semibold text-white">Send Test Notification</h3>
+                <button onClick={() => { setTestModal(null); setTestResult(null) }} className="p-1 hover:bg-gray-800 rounded">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500">Event</p>
+                    <p className="text-sm font-medium text-white">{testModal.setting.eventName}</p>
+                  </div>
+                  <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                    isSms ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {isSms ? '📱 SMS' : '✉️ Email'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    {isSms ? 'Phone Number' : 'Email Address'}
+                  </label>
+                  <input
+                    type={isSms ? 'tel' : 'email'}
+                    value={testRecipient}
+                    onChange={(e) => setTestRecipient(e.target.value)}
+                    placeholder={isSms ? 'e.g. 5551234567' : 'e.g. test@example.com'}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500"
+                  />
+                </div>
+                {!isSms && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Subject</label>
+                    <input
+                      type="text"
+                      value={testSubject}
+                      onChange={(e) => setTestSubject(e.target.value)}
+                      placeholder="Email subject"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    {isSms ? 'Message' : 'Body'}
+                  </label>
+                  <textarea
+                    value={testBody}
+                    onChange={(e) => setTestBody(e.target.value)}
+                    placeholder={isSms ? 'SMS message text' : 'Email body (HTML supported)'}
+                    rows={isSms ? 3 : 5}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500"
+                  />
+                </div>
+                {testResult && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    testResult.type === 'success'
+                      ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                      : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {testResult.message}
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-700 flex justify-end gap-2">
+                <button
+                  onClick={() => { setTestModal(null); setTestResult(null) }}
+                  className="px-4 py-2 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTestSend}
+                  disabled={testingCode === testModal.eventCode || !testRecipient.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 hover:bg-blue-700"
+                >
+                  {testingCode === testModal.eventCode && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Send Test
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

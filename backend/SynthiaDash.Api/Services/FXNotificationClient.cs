@@ -130,7 +130,7 @@ public class FXNotificationClient : IFXNotificationClient
             };
 
             if (bodyJson != null)
-                payload["bodyJson"] = bodyJson is string s ? s : JsonSerializer.Serialize(bodyJson, JsonOptions);
+                payload["bodyJson"] = bodyJson is string s ? s : JsonSerializer.Serialize(bodyJson);
             if (bodyHtml != null)
                 payload["bodyHtml"] = bodyHtml;
             if (detailJson != null)

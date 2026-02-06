@@ -7,6 +7,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import StatusCard from '../components/StatusCard'
+import TodoPanel from '../components/TodoPanel'
 import { api } from '../services/api'
 import type { Ticket, AgentTask, User } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -284,6 +285,13 @@ export default function Dashboard() {
           </a>
         </div>
       </div>
+
+      {/* ── Todo List (Admin Only) ─────────────────────── */}
+      {isAdmin && (
+        <div className="mb-8">
+          <TodoPanel />
+        </div>
+      )}
 
       {/* ── Recent Tickets ─────────────────────────────── */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-8">

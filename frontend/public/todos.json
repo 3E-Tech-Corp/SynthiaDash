@@ -1,0 +1,45 @@
+{
+  "lastUpdated": "2026-02-06T05:20:00Z",
+  "updatedBy": "Synthia",
+  "priorities": [
+    {
+      "category": "🔴 Critical",
+      "items": [
+        {"text": "CASEC Spring Gala - Feb 25 (~19 days)", "project": "CASEC", "done": false},
+        {"text": "Fix Rec Play ScheduleType (one SQL line)", "project": "Pickleball", "done": false},
+        {"text": "Tournament Go Live + auto-advance on score", "project": "Pickleball", "done": false}
+      ]
+    },
+    {
+      "category": "🟠 High",
+      "items": [
+        {"text": "Court auto-release when game finishes", "project": "Pickleball", "done": false},
+        {"text": "Phase transition UI for TD dashboard", "project": "Pickleball", "done": false},
+        {"text": "Lawfirm: real content + attorney profile", "project": "Lawfirm", "done": false},
+        {"text": "CASEC gala testing & QR codes", "project": "CASEC", "done": false}
+      ]
+    },
+    {
+      "category": "🟡 Medium",
+      "items": [
+        {"text": "Dynamic phase scheduling design", "project": "Pickleball", "done": false},
+        {"text": "Consolidate duplicate gameday routes", "project": "Pickleball", "done": false},
+        {"text": "InstaGame merge planning", "project": "Pickleball", "done": false}
+      ]
+    },
+    {
+      "category": "🔒 Security",
+      "items": [
+        {"text": "Rotate ftsql password (old one in git)", "project": "All", "done": false},
+        {"text": "Rotate JWT signing keys", "project": "All", "done": false}
+      ]
+    }
+  ],
+  "recentlyCompleted": [
+    {"text": "Player badge page with QR codes", "project": "Pickleball", "completedAt": "2026-02-06"},
+    {"text": "Push notification check-in flow", "project": "Pickleball", "completedAt": "2026-02-06"},
+    {"text": "Real-time check-in updates via SignalR", "project": "Pickleball", "completedAt": "2026-02-06"},
+    {"text": "Acknowledgment-required push notifications", "project": "Pickleball", "completedAt": "2026-02-06"},
+    {"text": "GameNotificationService (self-contained)", "project": "Pickleball", "completedAt": "2026-02-06"}
+  ]
+}

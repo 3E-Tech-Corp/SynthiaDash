@@ -16,7 +16,7 @@ public interface IAuthService
     Task<List<UserDto>> GetAllUsersAsync();
     Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
         string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
-        string? chatAccess = null, int? maxProjects = null);
+        string? chatAccess = null, bool? fullChatAccess = null, int? maxProjects = null);
     Task<bool> UpdateLastLoginAsync(string email);
     Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     Task<bool> ResetPasswordAsync(int userId, string newPassword);
@@ -44,6 +44,7 @@ public class UserDto
     public string BugAccess { get; set; } = "none";
     public string FeatureAccess { get; set; } = "none";
     public string ChatAccess { get; set; } = "none";
+    public bool FullChatAccess { get; set; } = false;
     public int MaxProjects { get; set; } = 1;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -163,7 +164,7 @@ public class AuthService : IAuthService
 
     public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
         string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
-        string? chatAccess = null, int? maxProjects = null)
+        string? chatAccess = null, bool? fullChatAccess = null, int? maxProjects = null)
     {
         using var db = new SqlConnection(_connectionString);
         var updates = new List<string>();
@@ -177,6 +178,7 @@ public class AuthService : IAuthService
         if (bugAccess != null) { updates.Add("BugAccess = @BugAccess"); parameters.Add("BugAccess", bugAccess); }
         if (featureAccess != null) { updates.Add("FeatureAccess = @FeatureAccess"); parameters.Add("FeatureAccess", featureAccess); }
         if (chatAccess != null) { updates.Add("ChatAccess = @ChatAccess"); parameters.Add("ChatAccess", chatAccess); }
+        if (fullChatAccess.HasValue) { updates.Add("FullChatAccess = @FullChatAccess"); parameters.Add("FullChatAccess", fullChatAccess.Value); }
         if (maxProjects.HasValue) { updates.Add("MaxProjects = @MaxProjects"); parameters.Add("MaxProjects", maxProjects.Value); }
 
         if (updates.Count == 0) return false;
@@ -357,6 +359,7 @@ public class AuthService : IAuthService
         BugAccess = user.BugAccess,
         FeatureAccess = user.FeatureAccess,
         ChatAccess = user.ChatAccess,
+        FullChatAccess = user.FullChatAccess,
         MaxProjects = user.MaxProjects,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,
@@ -375,6 +378,7 @@ public class AuthService : IAuthService
         public string BugAccess { get; set; } = "none";
         public string FeatureAccess { get; set; } = "none";
         public string ChatAccess { get; set; } = "none";
+        public bool FullChatAccess { get; set; } = false;
         public int MaxProjects { get; set; } = 1;
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }

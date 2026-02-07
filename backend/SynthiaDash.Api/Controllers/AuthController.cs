@@ -249,7 +249,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
     {
         var success = await _authService.UpdateUserAsync(id, request.Role, request.Repos, request.IsActive,
-            request.TicketAccess, request.BugAccess, request.FeatureAccess, request.ChatAccess, request.MaxProjects);
+            request.TicketAccess, request.BugAccess, request.FeatureAccess, request.ChatAccess, request.FullChatAccess, request.MaxProjects);
         if (!success) return NotFound();
         return Ok(new { message = "User updated" });
     }
@@ -290,6 +290,7 @@ public class UpdateUserRequest
     public string? BugAccess { get; set; }
     public string? FeatureAccess { get; set; }
     public string? ChatAccess { get; set; }
+    public bool? FullChatAccess { get; set; }
     public int? MaxProjects { get; set; }
 }
 

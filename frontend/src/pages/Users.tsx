@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2, KeyRound } from 'lucide-react'
+import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2, KeyRound, Zap } from 'lucide-react'
 import { api } from '../services/api'
 import type { User, RepoStatus } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -50,6 +50,7 @@ interface EditState {
   bugAccess: string
   featureAccess: string
   chatAccess: string
+  fullChatAccess: boolean
   maxProjects: number
   isActive: boolean
 }
@@ -133,6 +134,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
     bugAccess: user.bugAccess || 'none',
     featureAccess: user.featureAccess || 'none',
     chatAccess: user.chatAccess || 'none',
+    fullChatAccess: user.fullChatAccess || false,
     maxProjects: user.maxProjects ?? 1,
     isActive: user.isActive,
   })
@@ -146,6 +148,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         bugAccess: edit.bugAccess,
         featureAccess: edit.featureAccess,
         chatAccess: edit.chatAccess,
+        fullChatAccess: edit.fullChatAccess,
         maxProjects: edit.maxProjects,
         isActive: edit.isActive,
       })
@@ -159,7 +162,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', maxProjects: user.maxProjects ?? 1, isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', fullChatAccess: user.fullChatAccess || false, maxProjects: user.maxProjects ?? 1, isActive: user.isActive })
     setEditing(false)
   }
 
@@ -355,6 +358,25 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
+          {/* Full Chat Access toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setEdit({ ...edit, fullChatAccess: !edit.fullChatAccess })}
+              className={`w-10 h-5 rounded-full transition-colors relative ${
+                edit.fullChatAccess ? 'bg-violet-600' : 'bg-gray-700'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                edit.fullChatAccess ? 'translate-x-5' : 'translate-x-0.5'
+              }`} />
+            </button>
+            <div className="flex items-center gap-1.5">
+              <Zap className={`w-4 h-4 ${edit.fullChatAccess ? 'text-violet-400' : 'text-gray-600'}`} />
+              <label className="text-xs font-medium text-gray-400">Synthia Full Access</label>
+              <span className="text-[10px] text-gray-600">(direct chat at /synthia)</span>
+            </div>
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -397,6 +419,9 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
               user.chatAccess === 'bug' ? 'text-amber-400' :
               user.chatAccess === 'guide' ? 'text-blue-400' : 'text-gray-500'
             }>{user.chatAccess || 'none'}</span>
+            {user.fullChatAccess && (
+              <> · <Zap className="w-3 h-3 inline text-violet-400" /> <span className="text-violet-400">Synthia</span></>
+            )}
             {' · '}
             🚀 <span className="text-emerald-400">{user.maxProjects ?? 1}</span> project{(user.maxProjects ?? 1) !== 1 ? 's' : ''}
           </span>

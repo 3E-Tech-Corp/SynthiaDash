@@ -8,6 +8,7 @@ public interface IPermissionService
     Task<string> GetEffectiveBugAccess(int userId, int? projectId);
     Task<string> GetEffectiveFeatureAccess(int userId, int? projectId);
     Task<string> GetEffectiveChatAccess(int userId, int? projectId);
+    Task<bool> HasFullChatAccess(int userId);
 }
 
 public class PermissionService : IPermissionService
@@ -68,6 +69,20 @@ public class PermissionService : IPermissionService
         }
 
         return await GetGlobalAccess(userId, "ChatAccess") ?? "none";
+    }
+
+    public async Task<bool> HasFullChatAccess(int userId)
+    {
+        // Admins always have full chat access
+        if (await IsAdmin(userId))
+            return true;
+
+        // Check the FullChatAccess column
+        using var db = new SqlConnection(_connectionString);
+        var hasAccess = await db.QueryFirstOrDefaultAsync<bool?>(
+            "SELECT FullChatAccess FROM Users WHERE Id = @Id AND IsActive = 1",
+            new { Id = userId });
+        return hasAccess == true;
     }
 
     private async Task<bool> IsAdmin(int userId)

@@ -448,10 +448,152 @@ public class ChatController : ControllerBase
             return userId;
         return null;
     }
+
+    #region Full Chat (Direct Synthia Access)
+
+    /// <summary>
+    /// Check if user has full chat access
+    /// </summary>
+    [HttpGet("full/access")]
+    public async Task<IActionResult> GetFullChatAccess()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var hasAccess = await _permissionService.HasFullChatAccess(userId.Value);
+        return Ok(new { hasAccess });
+    }
+
+    /// <summary>
+    /// Stream chat with Synthia directly (proxies to Clawdbot gateway)
+    /// </summary>
+    [HttpPost("full/stream")]
+    public async Task StreamFullChat([FromBody] FullChatRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null)
+        {
+            Response.StatusCode = 401;
+            return;
+        }
+
+        // Check full chat access permission
+        var hasAccess = await _permissionService.HasFullChatAccess(userId.Value);
+        if (!hasAccess)
+        {
+            Response.StatusCode = 403;
+            await Response.WriteAsync("{\"error\": \"Full chat access required\"}");
+            return;
+        }
+
+        Response.Headers.Append("Content-Type", "text/event-stream");
+        Response.Headers.Append("Cache-Control", "no-cache");
+        Response.Headers.Append("X-Accel-Buffering", "no");
+
+        try
+        {
+            // Get user info for session key
+            var email = User.FindFirst("email")?.Value ?? "";
+            var displayName = User.FindFirst("displayName")?.Value ?? email;
+            
+            // Build session key for this user's full chat
+            var sessionKey = $"web-full-{userId.Value}";
+
+            // Get gateway config
+            var gatewayUrl = _configuration["Gateway:Url"] ?? "http://127.0.0.1:18789";
+            var gatewayToken = _configuration["Gateway:Token"] ?? "";
+
+            // Build messages array
+            var messages = new List<object>();
+
+            // Add history from request if provided
+            if (request.History != null)
+            {
+                foreach (var msg in request.History)
+                {
+                    messages.Add(new { role = msg.Role, content = msg.Content });
+                }
+            }
+
+            // Add current message
+            messages.Add(new { role = "user", content = request.Message });
+
+            // Build request to Clawdbot gateway
+            var gatewayRequest = new
+            {
+                model = "clawdbot:main",
+                messages,
+                stream = true,
+                user = sessionKey
+            };
+
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{gatewayUrl}/v1/chat/completions");
+            httpRequest.Content = new StringContent(
+                JsonSerializer.Serialize(gatewayRequest),
+                Encoding.UTF8,
+                "application/json"
+            );
+            
+            if (!string.IsNullOrEmpty(gatewayToken))
+            {
+                httpRequest.Headers.Add("Authorization", $"Bearer {gatewayToken}");
+            }
+
+            using var response = await httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Gateway returned {StatusCode}: {Body}", response.StatusCode, errorBody);
+                await Response.WriteAsync($"data: {{\"error\": \"Gateway error: {response.StatusCode}\"}}\n\n");
+                await Response.WriteAsync("data: [DONE]\n\n");
+                return;
+            }
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrEmpty(line)) continue;
+
+                // Forward the SSE line to the client
+                await Response.WriteAsync(line + "\n\n");
+                await Response.Body.FlushAsync();
+
+                if (line == "data: [DONE]") break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in full chat stream for user {UserId}", userId);
+            await Response.WriteAsync($"data: {{\"error\": \"Internal error\"}}\n\n");
+            await Response.WriteAsync("data: [DONE]\n\n");
+            await Response.Body.FlushAsync();
+        }
+    }
+
+    #endregion
 }
 
 public class ChatRequest
 {
     public string Message { get; set; } = string.Empty;
     public string? SessionKey { get; set; }
+}
+
+public class FullChatRequest
+{
+    public string Message { get; set; } = string.Empty;
+    public List<FullChatMessage>? History { get; set; }
+}
+
+public class FullChatMessage
+{
+    public string Role { get; set; } = "user";
+    public string Content { get; set; } = string.Empty;
 }

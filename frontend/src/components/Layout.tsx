@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles, Lightbulb } from 'lucide-react'
+import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles, Lightbulb, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
@@ -50,6 +50,7 @@ export default function Layout() {
   type NavItem = { to: string; icon: React.ReactNode; label: string; end?: boolean; adminOnly?: boolean; authOnly?: boolean }
 
   const navItems: NavItem[] = [
+    { to: '/synthia', icon: <Zap className="w-4 h-4" />, label: 'Synthia' },
     { to: '/projects', icon: <Rocket className="w-4 h-4" />, label: t('projects'), authOnly: true },
     { to: '/chat', icon: <MessageCircle className="w-4 h-4" />, label: t('chat') },
     { to: '/', icon: <LayoutDashboard className="w-4 h-4" />, label: t('dashboard'), end: true },

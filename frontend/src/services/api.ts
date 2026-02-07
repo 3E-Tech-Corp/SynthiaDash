@@ -632,6 +632,90 @@ export const api = {
     }
   },
 
+  // Full Chat (Direct Synthia Access)
+  getFullChatAccess: () =>
+    fetchApi<{ hasAccess: boolean }>('/chat/full/access'),
+
+  streamFullChat: async (
+    message: string,
+    history: { role: string; content: string }[],
+    onChunk: (text: string) => void,
+    onDone: () => void,
+    onError?: (error: string) => void
+  ) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`${API_BASE}/chat/full/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message, history }),
+      });
+
+      if (!response.ok) {
+        onError?.(`Error: ${response.status}`);
+        onDone();
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        onError?.('No response stream');
+        onDone();
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+
+          if (data === '[DONE]') {
+            onDone();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              onError?.(parsed.error);
+              onDone();
+              return;
+            }
+            const choices = parsed.choices;
+            if (choices) {
+              for (const choice of choices) {
+                const content = choice.delta?.content;
+                if (content) {
+                  onChunk(content);
+                }
+              }
+            }
+          } catch {
+            // Skip non-JSON lines
+          }
+        }
+      }
+
+      onDone();
+    } catch (err: any) {
+      onError?.(err.message || 'Stream failed');
+      onDone();
+    }
+  },
+
   // Featured Projects
   getFeaturedProjects: () =>
     fetchApi<FeaturedProject[]>('/featuredprojects'),

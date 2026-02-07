@@ -10,6 +10,7 @@ import TicketsPage from './pages/Tickets'
 import ProjectsPage from './pages/Projects'
 import UsersPage from './pages/Users'
 import ChatPage from './pages/Chat'
+import FullChatPage from './pages/FullChat'
 import FeaturedProjectsAdmin from './pages/FeaturedProjectsAdmin'
 import DemoRequests from './pages/DemoRequests'
 import NotificationSettings from './pages/NotificationSettings'
@@ -76,6 +77,7 @@ function AppRoutes() {
       <Route path="/" element={<RootRoute />}>
         <Route index element={<Dashboard />} />
         <Route path="chat" element={<ChatPage />} />
+        <Route path="synthia" element={<FullChatPage />} />
         <Route path="repos" element={<Repos />} />
         <Route path="repos/:owner/:repo" element={<RepoDetail />} />
         <Route path="tasks" element={<Tasks />} />

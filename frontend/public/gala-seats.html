@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CASEC 2026 Spring Gala - Seat Picker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: white;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+    }
+    
+    .stage {
+      background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+      color: white;
+      text-align: center;
+      padding: 15px 40px;
+      border-radius: 0 0 50% 50%;
+      margin: 0 auto 30px;
+      width: 60%;
+      font-weight: bold;
+      letter-spacing: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
+    .theater {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+    
+    .level {
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    
+    .level-title {
+      text-align: center;
+      color: #a855f7;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .sections {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+    }
+    
+    .section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    
+    .section-label {
+      color: #666;
+      font-size: 0.7rem;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    
+    .row {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+    
+    .row-label {
+      width: 20px;
+      font-size: 0.6rem;
+      color: #555;
+      text-align: right;
+      margin-right: 5px;
+    }
+    
+    .seat {
+      width: 14px;
+      height: 14px;
+      background: #3a3a5a;
+      border-radius: 3px 3px 5px 5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid #4a4a6a;
+    }
+    
+    .seat:hover {
+      background: #6366f1;
+      transform: scale(1.2);
+    }
+    
+    .seat.highlight {
+      background: #fbbf24;
+      box-shadow: 0 0 10px #fbbf24;
+      transform: scale(1.3);
+    }
+    
+    .seat.selected {
+      background: #22c55e;
+      box-shadow: 0 0 20px #22c55e, 0 0 40px #22c55e;
+      transform: scale(1.5);
+      animation: pulse 0.5s ease infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px #22c55e, 0 0 40px #22c55e; }
+      50% { box-shadow: 0 0 30px #22c55e, 0 0 60px #22c55e; }
+    }
+    
+    .controls {
+      text-align: center;
+      margin: 40px 0;
+    }
+    
+    .pick-btn {
+      background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+      color: white;
+      border: none;
+      padding: 16px 48px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+    }
+    
+    .pick-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(168, 85, 247, 0.6);
+    }
+    
+    .pick-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .result {
+      text-align: center;
+      margin-top: 30px;
+      min-height: 80px;
+    }
+    
+    .result-text {
+      font-size: 1.5rem;
+      color: #22c55e;
+      font-weight: bold;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    .result-details {
+      color: #888;
+      margin-top: 10px;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+      font-size: 0.8rem;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #888;
+    }
+    
+    .legend-seat {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px 3px 5px 5px;
+    }
+    
+    .legend-seat.available { background: #3a3a5a; }
+    .legend-seat.scanning { background: #fbbf24; }
+    .legend-seat.winner { background: #22c55e; }
+
+    /* Confetti */
+    .confetti {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎉 CASEC 2026 Spring Gala</h1>
+    <p class="subtitle">Miramar Cultural Center • February 15, 2026</p>
+    
+    <div class="stage">STAGE</div>
+    
+    <div class="theater">
+      <!-- Orchestra -->
+      <div class="level">
+        <div class="level-title">Orchestra</div>
+        <div class="sections">
+          <div class="section" id="orch-left">
+            <div class="section-label">Left</div>
+          </div>
+          <div class="section" id="orch-center">
+            <div class="section-label">Center</div>
+          </div>
+          <div class="section" id="orch-right">
+            <div class="section-label">Right</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Balcony -->
+      <div class="level">
+        <div class="level-title">Balcony</div>
+        <div class="sections">
+          <div class="section" id="balc-left">
+            <div class="section-label">Left</div>
+          </div>
+          <div class="section" id="balc-center">
+            <div class="section-label">Center</div>
+          </div>
+          <div class="section" id="balc-right">
+            <div class="section-label">Right</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button class="pick-btn" onclick="pickRandomSeat()">🎲 Pick Random Seat</button>
+    </div>
+    
+    <div class="result" id="result"></div>
+    
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-seat available"></div>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-seat scanning"></div>
+        <span>Scanning...</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-seat winner"></div>
+        <span>Selected!</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const seats = [];
+    const orchRows = ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U','V','W'];
+    const balcRows = ['AA','BB','CC','DD','EE','FF'];
+    
+    function createSection(containerId, rows, seatsPerRow, sectionName, startSeat = 1) {
+      const container = document.getElementById(containerId);
+      
+      rows.forEach(rowLabel => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'row';
+        
+        const label = document.createElement('span');
+        label.className = 'row-label';
+        label.textContent = rowLabel;
+        rowDiv.appendChild(label);
+        
+        for (let i = 0; i < seatsPerRow; i++) {
+          const seat = document.createElement('div');
+          seat.className = 'seat';
+          const seatNum = startSeat + i;
+          const seatId = `${sectionName}-${rowLabel}-${seatNum}`;
+          seat.id = seatId;
+          seat.dataset.section = sectionName;
+          seat.dataset.row = rowLabel;
+          seat.dataset.seat = seatNum;
+          seat.title = `${sectionName} ${rowLabel}-${seatNum}`;
+          rowDiv.appendChild(seat);
+          seats.push(seat);
+        }
+        
+        container.appendChild(rowDiv);
+      });
+    }
+    
+    // Create Orchestra sections
+    createSection('orch-left', orchRows.slice(3), 11, 'Orch-Left');
+    createSection('orch-center', orchRows, 14, 'Orch-Center', 101);
+    createSection('orch-right', orchRows.slice(3), 11, 'Orch-Right');
+    
+    // Create Balcony sections
+    createSection('balc-left', balcRows, 8, 'Balc-Left');
+    createSection('balc-center', balcRows, 14, 'Balc-Center', 101);
+    createSection('balc-right', balcRows, 8, 'Balc-Right');
+    
+    let isRunning = false;
+    
+    async function pickRandomSeat() {
+      if (isRunning) return;
+      isRunning = true;
+      
+      const btn = document.querySelector('.pick-btn');
+      btn.disabled = true;
+      btn.textContent = '🎰 Spinning...';
+      
+      // Clear previous selection
+      seats.forEach(s => s.classList.remove('selected', 'highlight'));
+      document.getElementById('result').innerHTML = '';
+      
+      // Pick the final winner first
+      const winnerIndex = Math.floor(Math.random() * seats.length);
+      const winner = seats[winnerIndex];
+      
+      // Animate through random seats
+      const totalDuration = 3000; // 3 seconds
+      const intervals = 30; // Number of highlight changes
+      let currentInterval = 0;
+      
+      const animate = () => {
+        if (currentInterval >= intervals) {
+          // Final selection
+          winner.classList.add('selected');
+          showResult(winner);
+          createConfetti();
+          btn.disabled = false;
+          btn.textContent = '🎲 Pick Again';
+          isRunning = false;
+          return;
+        }
+        
+        // Clear previous highlight
+        seats.forEach(s => s.classList.remove('highlight'));
+        
+        // Highlight random seat (or winner near the end)
+        let highlightSeat;
+        if (currentInterval >= intervals - 5) {
+          // Near the end, start gravitating toward winner
+          const nearbySeats = seats.filter((s, i) => Math.abs(i - winnerIndex) < 20);
+          highlightSeat = nearbySeats[Math.floor(Math.random() * nearbySeats.length)];
+        } else {
+          highlightSeat = seats[Math.floor(Math.random() * seats.length)];
+        }
+        highlightSeat.classList.add('highlight');
+        
+        currentInterval++;
+        
+        // Slow down as we approach the end
+        const delay = 50 + (currentInterval / intervals) * 150;
+        setTimeout(animate, delay);
+      };
+      
+      animate();
+    }
+    
+    function showResult(seat) {
+      const section = seat.dataset.section.replace('-', ' ');
+      const row = seat.dataset.row;
+      const seatNum = seat.dataset.seat;
+      
+      document.getElementById('result').innerHTML = `
+        <div class="result-text">🎫 Your Seat: ${section}</div>
+        <div class="result-details">Row ${row}, Seat ${seatNum}</div>
+      `;
+    }
+    
+    function createConfetti() {
+      const colors = ['#a855f7', '#ec4899', '#22c55e', '#fbbf24', '#3b82f6'];
+      
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.cssText = `
+          left: ${Math.random() * 100}vw;
+          top: -10px;
+          width: ${Math.random() * 10 + 5}px;
+          height: ${Math.random() * 10 + 5}px;
+          background: ${colors[Math.floor(Math.random() * colors.length)]};
+          border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+          animation: fall ${Math.random() * 2 + 2}s linear forwards;
+        `;
+        document.body.appendChild(confetti);
+        
+        setTimeout(() => confetti.remove(), 4000);
+      }
+    }
+    
+    // Add confetti animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fall {
+        to {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

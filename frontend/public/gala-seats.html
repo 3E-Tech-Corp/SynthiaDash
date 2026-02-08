@@ -22,6 +22,12 @@
       margin-bottom: 20px;
     }
     
+    .header-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
     .pick-btn {
       background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
       color: white;
@@ -45,6 +51,23 @@
       opacity: 0.6;
       cursor: not-allowed;
       transform: none;
+    }
+    
+    .reset-btn {
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .reset-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(107, 114, 128, 0.4);
     }
     
     .title-area {
@@ -269,11 +292,17 @@
       margin-bottom: 30px;
     }
     
+    .modal-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    
     .modal-close {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
       color: white;
       border: none;
-      padding: 12px 40px;
+      padding: 12px 30px;
       font-size: 1rem;
       font-weight: bold;
       border-radius: 30px;
@@ -283,7 +312,24 @@
     
     .modal-close:hover {
       transform: scale(1.05);
-      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5);
+      box-shadow: 0 4px 20px rgba(107, 114, 128, 0.5);
+    }
+    
+    .modal-again {
+      background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-again:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.5);
     }
 
     /* Confetti */
@@ -304,7 +350,10 @@
 <body>
   <div class="container">
     <div class="header">
-      <button class="pick-btn" onclick="pickRandomSeat()">🎲 Start Raffle</button>
+      <div class="header-buttons">
+        <button class="pick-btn" onclick="pickRandomSeat()">🎲 Start Raffle</button>
+        <button class="reset-btn" onclick="resetAll()">🔄 Reset</button>
+      </div>
       <div class="title-area">
         <h1>🎉 CASEC 2026 Spring Gala</h1>
         <p class="subtitle">Miramar Cultural Center • February 15, 2026</p>
@@ -371,7 +420,10 @@
       <div class="modal-title">Congratulations!</div>
       <div class="modal-seat" id="modal-seat"></div>
       <div class="modal-details" id="modal-details"></div>
-      <button class="modal-close" onclick="closeModal()">OK</button>
+      <div class="modal-buttons">
+        <button class="modal-close" onclick="closeModal()">OK</button>
+        <button class="modal-again" onclick="drawAgain()">🎲 Draw Again</button>
+      </div>
     </div>
   </div>
 
@@ -548,6 +600,19 @@
     
     function closeModal() {
       document.getElementById('modal').classList.remove('show');
+    }
+    
+    function drawAgain() {
+      closeModal();
+      // Clear current winner
+      seats.forEach(s => s.classList.remove('selected', 'highlight'));
+      // Start new draw
+      setTimeout(() => pickRandomSeat(), 300);
+    }
+    
+    function resetAll() {
+      seats.forEach(s => s.classList.remove('selected', 'highlight'));
+      closeModal();
     }
     
     function createConfetti() {

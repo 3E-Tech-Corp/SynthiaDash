@@ -254,6 +254,14 @@ public class AuthController : ControllerBase
         return Ok(new { message = "User updated" });
     }
 
+    private int? GetUserId()
+    {
+        var userIdClaim = User.FindFirst("userId")?.Value;
+        if (int.TryParse(userIdClaim, out var userId))
+            return userId;
+        return null;
+    }
+
     /// <summary>
     /// Update own profile (display name)
     /// </summary>

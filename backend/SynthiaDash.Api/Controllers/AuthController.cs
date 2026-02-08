@@ -249,10 +249,34 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
     {
         var success = await _authService.UpdateUserAsync(id, request.Role, request.Repos, request.IsActive,
-            request.TicketAccess, request.BugAccess, request.FeatureAccess, request.ChatAccess, request.FullChatAccess, request.MaxProjects);
+            request.TicketAccess, request.BugAccess, request.FeatureAccess, request.ChatAccess, request.FullChatAccess, request.MaxProjects, request.DisplayName);
         if (!success) return NotFound();
         return Ok(new { message = "User updated" });
     }
+
+    /// <summary>
+    /// Update own profile (display name)
+    /// </summary>
+    [HttpPatch("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = GetUserId();
+        if (!userId.HasValue)
+            return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+            return BadRequest(new { error = "Display name is required" });
+
+        var success = await _authService.UpdateUserAsync(userId.Value, null, null, null, null, null, null, null, null, null, request.DisplayName);
+        if (!success) return NotFound();
+        return Ok(new { message = "Profile updated" });
+    }
+}
+
+public class UpdateProfileRequest
+{
+    public string? DisplayName { get; set; }
 }
 
 public class LoginRequest
@@ -292,6 +316,7 @@ public class UpdateUserRequest
     public string? ChatAccess { get; set; }
     public bool? FullChatAccess { get; set; }
     public int? MaxProjects { get; set; }
+    public string? DisplayName { get; set; }
 }
 
 public class RefreshRequest

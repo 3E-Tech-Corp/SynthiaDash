@@ -53,6 +53,7 @@ interface EditState {
   fullChatAccess: boolean
   maxProjects: number
   isActive: boolean
+  displayName: string
 }
 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
@@ -137,6 +138,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
     fullChatAccess: user.fullChatAccess || false,
     maxProjects: user.maxProjects ?? 1,
     isActive: user.isActive,
+    displayName: user.displayName,
   })
 
   const handleSave = async () => {
@@ -151,6 +153,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         fullChatAccess: edit.fullChatAccess,
         maxProjects: edit.maxProjects,
         isActive: edit.isActive,
+        displayName: edit.displayName !== user.displayName ? edit.displayName : undefined,
       })
       setEditing(false)
       onUpdate()
@@ -162,7 +165,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', fullChatAccess: user.fullChatAccess || false, maxProjects: user.maxProjects ?? 1, isActive: user.isActive })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', fullChatAccess: user.fullChatAccess || false, maxProjects: user.maxProjects ?? 1, isActive: user.isActive, displayName: user.displayName })
     setEditing(false)
   }
 
@@ -218,6 +221,18 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
 
       {editing ? (
         <div className="space-y-3 mt-4">
+          {/* Display Name */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Display Name</label>
+            <input
+              type="text"
+              value={edit.displayName}
+              onChange={e => setEdit({ ...edit, displayName: e.target.value })}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+              placeholder="User's display name"
+            />
+          </div>
+
           {/* Role selector */}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">Role</label>

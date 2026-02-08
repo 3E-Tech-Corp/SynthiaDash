@@ -372,7 +372,7 @@ export const api = {
       body: JSON.stringify({ email, displayName, password, role }),
     }),
 
-  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string; fullChatAccess?: boolean; maxProjects?: number }) =>
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string; fullChatAccess?: boolean; maxProjects?: number; displayName?: string }) =>
     fetchApi<{ message: string }>(`/auth/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -382,6 +382,12 @@ export const api = {
     fetchApi<{ message: string }>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  updateProfile: (data: { displayName?: string }) =>
+    fetchApi<{ message: string }>('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     }),
 
   resetPassword: (userId: number, newPassword: string) =>

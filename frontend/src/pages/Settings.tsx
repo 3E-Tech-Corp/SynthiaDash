@@ -5,6 +5,9 @@ import { api } from '../services/api'
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const [displayName, setDisplayName] = useState(user?.displayName || '')
+  const [editingName, setEditingName] = useState(false)
+  const [savingName, setSavingName] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -14,6 +17,25 @@ export default function SettingsPage() {
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message })
     setTimeout(() => setToast(null), 4000)
+  }
+
+  const handleSaveName = async () => {
+    if (!displayName.trim()) {
+      showToast('error', 'Name cannot be empty')
+      return
+    }
+    setSavingName(true)
+    try {
+      await api.updateProfile({ displayName: displayName.trim() })
+      showToast('success', 'Name updated successfully')
+      setEditingName(false)
+      // Refresh user data
+      window.location.reload()
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update name')
+    } finally {
+      setSavingName(false)
+    }
   }
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -73,7 +95,40 @@ export default function SettingsPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-gray-800">
             <span className="text-sm text-gray-400">Name</span>
-            <span className="text-sm text-gray-100">{user?.displayName}</span>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-violet-500 w-48"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName}
+                  className="text-xs text-green-400 hover:text-green-300 px-2 py-1 rounded hover:bg-gray-800"
+                >
+                  {savingName ? '...' : <Check className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => { setEditingName(false); setDisplayName(user?.displayName || '') }}
+                  className="text-xs text-gray-500 hover:text-red-400 px-1 py-1 rounded hover:bg-gray-800"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-100">{user?.displayName}</span>
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="text-xs text-gray-500 hover:text-violet-400 transition-colors"
+                >
+                  Edit
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between py-2 border-b border-gray-800">
             <span className="text-sm text-gray-400">Email</span>

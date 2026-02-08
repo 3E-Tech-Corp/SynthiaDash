@@ -354,6 +354,8 @@
       
       const animate = () => {
         if (currentInterval >= intervals) {
+          // Clear all highlights before showing winner
+          seats.forEach(s => s.classList.remove('highlight'));
           // Final selection
           winner.classList.add('selected');
           showResult(winner);

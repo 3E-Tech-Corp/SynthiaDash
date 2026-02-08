@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, Lock, X, Mic, Square, Volume2, Headphones } from 'lucide-react'
+import { Zap, Send, Trash2, Lock, X, Mic, Square, Volume2, Headphones, Image, Paperclip } from 'lucide-react'
 import { api } from '../services/api'
 
 interface DisplayMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  imageUrl?: string
 }
 
 function renderMarkdown(text: string) {
@@ -110,8 +111,11 @@ export default function FullChatPage() {
   const [voiceMode, setVoiceMode] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
+  const [pendingImage, setPendingImage] = useState<{ file: File; preview: string } | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const streamingRef = useRef(false)
   const mediaStreamRef = useRef<MediaStream | null>(null)
@@ -436,12 +440,38 @@ export default function FullChatPage() {
 
   const handleSend = async (voiceText?: string) => {
     const msg = (voiceText ?? input).trim()
-    if (!msg || streamingRef.current) return
+    if ((!msg && !pendingImage) || streamingRef.current) return
+
+    // Upload image if pending
+    let imageUrl: string | undefined
+    if (pendingImage) {
+      setUploadingImage(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', pendingImage.file)
+        const token = localStorage.getItem('token')
+        const resp = await fetch('/api/chat/upload-image', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData
+        })
+        if (resp.ok) {
+          const data = await resp.json()
+          imageUrl = data.url
+        }
+      } catch {
+        // Continue without image if upload fails
+      } finally {
+        setUploadingImage(false)
+        clearPendingImage()
+      }
+    }
 
     const userMsg: DisplayMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: msg,
+      content: msg || (imageUrl ? '📷 [Image]' : ''),
+      imageUrl,
     }
     setMessages(prev => [...prev, userMsg])
     setInput('')
@@ -464,7 +494,8 @@ export default function FullChatPage() {
       // Build history (last 20 messages for context)
       const historyMsgs = [...messages.slice(-20), userMsg].map(m => ({
         role: m.role,
-        content: m.content
+        content: m.content,
+        ...(m.imageUrl ? { imageUrl: m.imageUrl } : {})
       }))
 
       await api.streamFullChat(
@@ -527,6 +558,34 @@ export default function FullChatPage() {
   const handleClear = () => {
     setMessages([])
     setShowClearConfirm(false)
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // Validate file type and size
+    if (!file.type.startsWith('image/')) {
+      setVoiceError('请选择图片文件 / Please select an image file')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      setVoiceError('图片太大 (最大10MB) / Image too large (max 10MB)')
+      return
+    }
+    
+    const preview = URL.createObjectURL(file)
+    setPendingImage({ file, preview })
+    
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const clearPendingImage = () => {
+    if (pendingImage) {
+      URL.revokeObjectURL(pendingImage.preview)
+      setPendingImage(null)
+    }
   }
 
   if (loading) {
@@ -616,6 +675,14 @@ export default function FullChatPage() {
                 : 'bg-gray-800/50 border border-gray-800 text-gray-200'
             }`}>
               <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                {msg.imageUrl && (
+                  <img 
+                    src={msg.imageUrl} 
+                    alt="Uploaded" 
+                    className="max-w-full max-h-64 rounded-lg mb-2 cursor-pointer hover:opacity-90"
+                    onClick={() => window.open(msg.imageUrl, '_blank')}
+                  />
+                )}
                 {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
               </div>
             </div>
@@ -684,21 +751,62 @@ export default function FullChatPage() {
           </div>
         )}
 
+        {/* Pending image preview */}
+        {pendingImage && (
+          <div className="relative mb-2 inline-block">
+            <img 
+              src={pendingImage.preview} 
+              alt="Pending upload" 
+              className="max-h-32 rounded-lg border border-gray-700"
+            />
+            <button
+              onClick={clearPendingImage}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center shadow-lg"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+            {uploadingImage && (
+              <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                <span className="text-xs text-white">上传中...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelect}
+          className="hidden"
+        />
+
         <div className="flex gap-2 items-end w-full min-w-0">
+          {/* Image attach button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={streaming || voiceMode || uploadingImage}
+            className="flex-shrink-0 p-3 md:p-3 rounded-xl transition-colors bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600"
+            title="附加图片 / Attach image"
+          >
+            <Paperclip className="w-5 h-5 md:w-5 md:h-5" />
+          </button>
+
           <div className="flex-1 min-w-0 relative">
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={streaming ? 'Synthia 正在回复... / responding...' : voiceMode ? '语音模式 / Voice mode active...' : '输入消息... / Type a message...'}
+              placeholder={streaming ? 'Synthia 正在回复...' : voiceMode ? '语音模式...' : '输入消息... / Type a message...'}
               disabled={streaming || voiceMode}
               rows={1}
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
-              style={{ minHeight: '48px', maxHeight: '120px' }}
+              className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 py-3.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-gray-900 resize-none disabled:opacity-50 transition-all shadow-inner"
+              style={{ minHeight: '52px', maxHeight: '120px' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement
-                target.style.height = '48px'
+                target.style.height = '52px'
                 target.style.height = Math.min(target.scrollHeight, 120) + 'px'
               }}
             />

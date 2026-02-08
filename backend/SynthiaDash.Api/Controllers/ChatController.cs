@@ -578,6 +578,86 @@ public class ChatController : ControllerBase
     }
 
     #endregion
+
+    /// <summary>
+    /// Upload an image for chat (VIP users only)
+    /// </summary>
+    [HttpPost("upload-image")]
+    [Authorize]
+    public async Task<IActionResult> UploadImage(IFormFile file)
+    {
+        var userId = GetUserId();
+        if (!userId.HasValue)
+            return Unauthorized(new { error = "Unauthorized" });
+
+        // Check if user has full chat access
+        if (!await _permissionService.HasFullChatAccess(userId.Value))
+            return StatusCode(403, new { error = "Full chat access required" });
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { error = "No file provided" });
+
+        // Validate file type
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            return BadRequest(new { error = "Invalid file type. Allowed: JPEG, PNG, GIF, WebP" });
+
+        // Validate file size (10MB max)
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { error = "File too large. Max size: 10MB" });
+
+        try
+        {
+            // Generate unique filename
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            if (string.IsNullOrEmpty(ext)) ext = ".jpg";
+            var fileName = $"chat-{userId.Value}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}{ext}";
+
+            // Save to uploads folder
+            var uploadsPath = Path.Combine(AppContext.BaseDirectory, "uploads", "chat-images", DateTime.UtcNow.ToString("yyyy-MM"));
+            Directory.CreateDirectory(uploadsPath);
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Return URL
+            var url = $"/api/chat/image/{DateTime.UtcNow:yyyy-MM}/{fileName}";
+            return Ok(new { url });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upload chat image for user {UserId}", userId);
+            return StatusCode(500, new { error = "Failed to upload image" });
+        }
+    }
+
+    /// <summary>
+    /// Serve uploaded chat image
+    /// </summary>
+    [HttpGet("image/{year}-{month}/{fileName}")]
+    [AllowAnonymous]
+    public IActionResult GetChatImage(string year, string month, string fileName)
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "uploads", "chat-images", $"{year}-{month}", fileName);
+        
+        if (!System.IO.File.Exists(filePath))
+            return NotFound();
+
+        var ext = Path.GetExtension(fileName).ToLower();
+        var contentType = ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+
+        return PhysicalFile(filePath, contentType);
+    }
 }
 
 public class ChatRequest
@@ -596,4 +676,5 @@ public class FullChatMessage
 {
     public string Role { get; set; } = "user";
     public string Content { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 }

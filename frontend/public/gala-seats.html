@@ -70,6 +70,27 @@
       box-shadow: 0 4px 15px rgba(107, 114, 128, 0.4);
     }
     
+    .music-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .music-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+    }
+    
+    .music-btn.playing {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    }
+    
     .title-area {
       text-align: center;
       flex: 1;
@@ -353,6 +374,7 @@
       <div class="header-buttons">
         <button class="pick-btn" onclick="pickRandomSeat()">🎲 Start Raffle</button>
         <button class="reset-btn" onclick="resetAll()">🔄 Reset</button>
+        <button class="music-btn" id="musicBtn" onclick="toggleMusic()">🎵 Music</button>
       </div>
       <div class="title-area">
         <h1>🎉 CASEC 2026 Spring Gala</h1>
@@ -430,6 +452,102 @@
   <script>
     // Sound effects using Web Audio API
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Background music state
+    let musicPlaying = false;
+    let musicNodes = [];
+    let musicInterval = null;
+    
+    function createBackgroundMusic() {
+      // Create an exciting game-show style background loop
+      const bassFreqs = [130.81, 146.83, 164.81, 174.61]; // C3, D3, E3, F3
+      const melodyFreqs = [523, 587, 659, 698, 784]; // C5, D5, E5, F5, G5
+      
+      let beatIndex = 0;
+      
+      musicInterval = setInterval(() => {
+        if (!musicPlaying) return;
+        
+        // Bass drum on beats 1 and 3
+        if (beatIndex % 4 === 0 || beatIndex % 4 === 2) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = 80;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.15);
+        }
+        
+        // Hi-hat on every beat
+        const noise = audioCtx.createOscillator();
+        const noiseGain = audioCtx.createGain();
+        noise.connect(noiseGain);
+        noiseGain.connect(audioCtx.destination);
+        noise.frequency.value = 8000 + Math.random() * 2000;
+        noise.type = 'square';
+        noiseGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+        noise.start();
+        noise.stop(audioCtx.currentTime + 0.05);
+        
+        // Bass line
+        if (beatIndex % 2 === 0) {
+          const bass = audioCtx.createOscillator();
+          const bassGain = audioCtx.createGain();
+          bass.connect(bassGain);
+          bassGain.connect(audioCtx.destination);
+          bass.frequency.value = bassFreqs[Math.floor(beatIndex / 2) % bassFreqs.length];
+          bass.type = 'sawtooth';
+          bassGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          bassGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+          bass.start();
+          bass.stop(audioCtx.currentTime + 0.2);
+        }
+        
+        // Melody sparkles
+        if (Math.random() > 0.6) {
+          const melody = audioCtx.createOscillator();
+          const melodyGain = audioCtx.createGain();
+          melody.connect(melodyGain);
+          melodyGain.connect(audioCtx.destination);
+          melody.frequency.value = melodyFreqs[Math.floor(Math.random() * melodyFreqs.length)];
+          melody.type = 'sine';
+          melodyGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          melodyGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+          melody.start();
+          melody.stop(audioCtx.currentTime + 0.15);
+        }
+        
+        beatIndex++;
+      }, 180); // ~165 BPM exciting tempo
+    }
+    
+    function toggleMusic() {
+      const btn = document.getElementById('musicBtn');
+      
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      
+      if (musicPlaying) {
+        musicPlaying = false;
+        if (musicInterval) {
+          clearInterval(musicInterval);
+          musicInterval = null;
+        }
+        btn.textContent = '🎵 Music';
+        btn.classList.remove('playing');
+      } else {
+        musicPlaying = true;
+        createBackgroundMusic();
+        btn.textContent = '🔊 Playing';
+        btn.classList.add('playing');
+      }
+    }
     
     function playTick() {
       const osc = audioCtx.createOscillator();

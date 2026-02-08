@@ -283,6 +283,18 @@ export default function Dashboard() {
             <div className="text-sm font-medium">Projects</div>
             <div className="text-xs text-gray-500">Manage projects</div>
           </a>
+          {isAdmin && (
+            <a
+              href="/gala-seats.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gradient-to-br from-violet-900/50 to-pink-900/50 hover:from-violet-800/50 hover:to-pink-800/50 border border-violet-500/30 rounded-lg p-4 text-center transition-colors"
+            >
+              <div className="text-2xl mb-2">🎰</div>
+              <div className="text-sm font-medium">Gala Raffle</div>
+              <div className="text-xs text-violet-300">CASEC 2026</div>
+            </a>
+          )}
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CASEC 2026 Spring Gala - Seat Picker</title>
+  <title>CASEC 2026 Spring Gala - Seat Raffle</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
@@ -15,144 +15,25 @@
       padding: 20px;
     }
     
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    h1 {
-      text-align: center;
-      font-size: 2rem;
-      margin-bottom: 10px;
-      background: linear-gradient(90deg, #a855f7, #ec4899);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .subtitle {
-      text-align: center;
-      color: #888;
-      margin-bottom: 30px;
-    }
-    
-    .stage {
-      background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-      color: white;
-      text-align: center;
-      padding: 15px 40px;
-      border-radius: 0 0 50% 50%;
-      margin: 0 auto 30px;
-      width: 60%;
-      font-weight: bold;
-      letter-spacing: 4px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    }
-    
-    .theater {
+    .header {
       display: flex;
-      flex-direction: column;
-      gap: 40px;
-    }
-    
-    .level {
-      background: rgba(255,255,255,0.03);
-      border-radius: 16px;
-      padding: 20px;
-    }
-    
-    .level-title {
-      text-align: center;
-      color: #a855f7;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-    
-    .sections {
-      display: flex;
-      justify-content: center;
-      gap: 30px;
-    }
-    
-    .section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-    }
-    
-    .section-label {
-      color: #666;
-      font-size: 0.7rem;
-      margin-bottom: 5px;
-      text-transform: uppercase;
-    }
-    
-    .row {
-      display: flex;
-      gap: 3px;
-      align-items: center;
-    }
-    
-    .row-label {
-      width: 20px;
-      font-size: 0.6rem;
-      color: #555;
-      text-align: right;
-      margin-right: 5px;
-    }
-    
-    .seat {
-      width: 14px;
-      height: 14px;
-      background: #3a3a5a;
-      border-radius: 3px 3px 5px 5px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      border: 1px solid #4a4a6a;
-    }
-    
-    .seat:hover {
-      background: #6366f1;
-      transform: scale(1.2);
-    }
-    
-    .seat.highlight {
-      background: #fbbf24;
-      box-shadow: 0 0 10px #fbbf24;
-      transform: scale(1.3);
-    }
-    
-    .seat.selected {
-      background: #22c55e;
-      box-shadow: 0 0 20px #22c55e, 0 0 40px #22c55e;
-      transform: scale(1.5);
-      animation: pulse 0.5s ease infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 20px #22c55e, 0 0 40px #22c55e; }
-      50% { box-shadow: 0 0 30px #22c55e, 0 0 60px #22c55e; }
-    }
-    
-    .controls {
-      text-align: center;
-      margin: 40px 0;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
     }
     
     .pick-btn {
       background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
       color: white;
       border: none;
-      padding: 16px 48px;
-      font-size: 1.2rem;
+      padding: 14px 32px;
+      font-size: 1.1rem;
       font-weight: bold;
       border-radius: 50px;
       cursor: pointer;
       transition: all 0.3s ease;
       box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+      white-space: nowrap;
     }
     
     .pick-btn:hover {
@@ -163,68 +44,273 @@
     .pick-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+      transform: none;
     }
     
-    .result {
+    .title-area {
       text-align: center;
-      margin-top: 30px;
-      min-height: 80px;
+      flex: 1;
     }
     
-    .result-text {
-      font-size: 1.5rem;
-      color: #22c55e;
-      font-weight: bold;
-      animation: fadeIn 0.5s ease;
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 5px;
+      background: linear-gradient(90deg, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     
-    .result-details {
+    .subtitle {
       color: #888;
-      margin-top: 10px;
+      font-size: 0.9rem;
     }
     
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .spacer {
+      width: 160px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .stage {
+      background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+      color: white;
+      text-align: center;
+      padding: 12px 40px;
+      border-radius: 0 0 50% 50%;
+      margin: 0 auto 25px;
+      width: 50%;
+      font-weight: bold;
+      letter-spacing: 4px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
+    .theater {
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+    
+    .level {
+      background: rgba(255,255,255,0.03);
+      border-radius: 16px;
+      padding: 15px;
+    }
+    
+    .level-title {
+      text-align: center;
+      color: #a855f7;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .sections {
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+    }
+    
+    .section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .section-label {
+      color: #666;
+      font-size: 0.65rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    
+    .row {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    
+    .row-label {
+      width: 18px;
+      font-size: 0.55rem;
+      color: #555;
+      text-align: right;
+      margin-right: 4px;
+    }
+    
+    .seat {
+      width: 12px;
+      height: 12px;
+      background: #3a3a5a;
+      border-radius: 2px 2px 4px 4px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      border: 1px solid #4a4a6a;
+    }
+    
+    .seat:hover {
+      background: #6366f1;
+      transform: scale(1.3);
+    }
+    
+    .seat.highlight {
+      background: #fbbf24;
+      box-shadow: 0 0 8px #fbbf24;
+      transform: scale(1.4);
+    }
+    
+    .seat.selected {
+      background: #22c55e;
+      box-shadow: 0 0 15px #22c55e, 0 0 30px #22c55e;
+      transform: scale(1.6);
+      animation: pulse 0.5s ease infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 15px #22c55e, 0 0 30px #22c55e; }
+      50% { box-shadow: 0 0 25px #22c55e, 0 0 50px #22c55e; }
     }
     
     .legend {
       display: flex;
       justify-content: center;
-      gap: 30px;
-      margin-top: 30px;
-      font-size: 0.8rem;
+      gap: 25px;
+      margin-top: 20px;
+      font-size: 0.75rem;
     }
     
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       color: #888;
     }
     
     .legend-seat {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px 3px 5px 5px;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px 2px 4px 4px;
     }
     
     .legend-seat.available { background: #3a3a5a; }
     .legend-seat.scanning { background: #fbbf24; }
     .legend-seat.winner { background: #22c55e; }
 
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-overlay.show {
+      display: flex;
+    }
+    
+    .modal {
+      background: linear-gradient(135deg, #1e1e3f 0%, #2a2a4a 100%);
+      border: 2px solid #a855f7;
+      border-radius: 24px;
+      padding: 50px 80px;
+      text-align: center;
+      animation: modalPop 0.4s ease;
+      box-shadow: 0 0 60px rgba(168, 85, 247, 0.5);
+    }
+    
+    @keyframes modalPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .modal-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      animation: bounce 0.6s ease infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .modal-title {
+      font-size: 1.5rem;
+      color: #a855f7;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    
+    .modal-seat {
+      font-size: 3rem;
+      font-weight: bold;
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 20px 0;
+    }
+    
+    .modal-details {
+      font-size: 1.3rem;
+      color: #ccc;
+      margin-bottom: 30px;
+    }
+    
+    .modal-close {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-close:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5);
+    }
+
     /* Confetti */
     .confetti {
       position: fixed;
       pointer-events: none;
-      z-index: 1000;
+      z-index: 1001;
+    }
+    
+    @keyframes fall {
+      to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎉 CASEC 2026 Spring Gala</h1>
-    <p class="subtitle">Miramar Cultural Center • February 15, 2026</p>
+    <div class="header">
+      <button class="pick-btn" onclick="pickRandomSeat()">🎲 Start Raffle</button>
+      <div class="title-area">
+        <h1>🎉 CASEC 2026 Spring Gala</h1>
+        <p class="subtitle">Miramar Cultural Center • February 15, 2026</p>
+      </div>
+      <div class="spacer"></div>
+    </div>
     
     <div class="stage">STAGE</div>
     
@@ -262,12 +348,6 @@
       </div>
     </div>
     
-    <div class="controls">
-      <button class="pick-btn" onclick="pickRandomSeat()">🎲 Pick Random Seat</button>
-    </div>
-    
-    <div class="result" id="result"></div>
-    
     <div class="legend">
       <div class="legend-item">
         <div class="legend-seat available"></div>
@@ -279,12 +359,73 @@
       </div>
       <div class="legend-item">
         <div class="legend-seat winner"></div>
-        <span>Selected!</span>
+        <span>Winner!</span>
       </div>
     </div>
   </div>
 
+  <!-- Winner Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-icon">🎊</div>
+      <div class="modal-title">Congratulations!</div>
+      <div class="modal-seat" id="modal-seat"></div>
+      <div class="modal-details" id="modal-details"></div>
+      <button class="modal-close" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
   <script>
+    // Sound effects using Web Audio API
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playTick() {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 800 + Math.random() * 400;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.05);
+    }
+    
+    function playWinner() {
+      const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        }, i * 150);
+      });
+    }
+    
+    function playDrumroll() {
+      const interval = setInterval(() => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 100 + Math.random() * 50;
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.03);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.03);
+      }, 30);
+      return interval;
+    }
+
     const seats = [];
     const orchRows = ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U','V','W'];
     const balcRows = ['AA','BB','CC','DD','EE','FF'];
@@ -302,7 +443,6 @@
         rowDiv.appendChild(label);
         
         if (activeRows.includes(rowLabel)) {
-          // Active row - create seats
           for (let i = 0; i < seatsPerRow; i++) {
             const seat = document.createElement('div');
             seat.className = 'seat';
@@ -317,10 +457,9 @@
             seats.push(seat);
           }
         } else {
-          // Empty row - add spacer to maintain alignment
           const spacer = document.createElement('div');
-          spacer.style.width = `${seatsPerRow * 17}px`; // 14px seat + 3px gap
-          spacer.style.height = '14px';
+          spacer.style.width = `${seatsPerRow * 14}px`;
+          spacer.style.height = '12px';
           rowDiv.appendChild(spacer);
         }
         
@@ -328,121 +467,118 @@
       });
     }
     
-    // Create Orchestra sections - Left/Right start at row D
-    const orchLeftRightRows = orchRows.slice(3); // D onwards
+    const orchLeftRightRows = orchRows.slice(3);
     createSection('orch-left', orchRows, orchLeftRightRows, 11, 'Orch-Left');
     createSection('orch-center', orchRows, orchRows, 14, 'Orch-Center', 101);
     createSection('orch-right', orchRows, orchLeftRightRows, 11, 'Orch-Right');
-    
-    // Create Balcony sections - all rows active
     createSection('balc-left', balcRows, balcRows, 8, 'Balc-Left');
     createSection('balc-center', balcRows, balcRows, 14, 'Balc-Center', 101);
     createSection('balc-right', balcRows, balcRows, 8, 'Balc-Right');
     
     let isRunning = false;
+    let drumrollInterval = null;
     
     async function pickRandomSeat() {
       if (isRunning) return;
       isRunning = true;
       
+      // Resume audio context (required for user interaction)
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      
       const btn = document.querySelector('.pick-btn');
       btn.disabled = true;
-      btn.textContent = '🎰 Spinning...';
+      btn.textContent = '🎰 Drawing...';
       
-      // Clear previous selection
       seats.forEach(s => s.classList.remove('selected', 'highlight'));
-      document.getElementById('result').innerHTML = '';
       
-      // Pick the final winner first
       const winnerIndex = Math.floor(Math.random() * seats.length);
       const winner = seats[winnerIndex];
       
-      // Animate through random seats
-      const totalDuration = 3000; // 3 seconds
-      const intervals = 30; // Number of highlight changes
+      const intervals = 35;
       let currentInterval = 0;
+      
+      // Start drumroll
+      drumrollInterval = playDrumroll();
       
       const animate = () => {
         if (currentInterval >= intervals) {
-          // Clear all highlights before showing winner
+          clearInterval(drumrollInterval);
           seats.forEach(s => s.classList.remove('highlight'));
-          // Final selection
           winner.classList.add('selected');
-          showResult(winner);
+          playWinner();
+          showModal(winner);
           createConfetti();
           btn.disabled = false;
-          btn.textContent = '🎲 Pick Again';
+          btn.textContent = '🎲 Start Raffle';
           isRunning = false;
           return;
         }
         
-        // Clear previous highlight
         seats.forEach(s => s.classList.remove('highlight'));
         
-        // Highlight random seat (or winner near the end)
         let highlightSeat;
-        if (currentInterval >= intervals - 5) {
-          // Near the end, start gravitating toward winner
-          const nearbySeats = seats.filter((s, i) => Math.abs(i - winnerIndex) < 20);
+        if (currentInterval >= intervals - 8) {
+          const nearbySeats = seats.filter((s, i) => Math.abs(i - winnerIndex) < 15);
           highlightSeat = nearbySeats[Math.floor(Math.random() * nearbySeats.length)];
         } else {
           highlightSeat = seats[Math.floor(Math.random() * seats.length)];
         }
         highlightSeat.classList.add('highlight');
+        playTick();
         
         currentInterval++;
-        
-        // Slow down as we approach the end
-        const delay = 50 + (currentInterval / intervals) * 150;
+        const delay = 40 + (currentInterval / intervals) * 180;
         setTimeout(animate, delay);
       };
       
       animate();
     }
     
-    function showResult(seat) {
-      const section = seat.dataset.section.replace('-', ' ');
+    function showModal(seat) {
+      const section = seat.dataset.section.replace('Orch-', 'Orchestra ').replace('Balc-', 'Balcony ');
       const row = seat.dataset.row;
       const seatNum = seat.dataset.seat;
       
-      document.getElementById('result').innerHTML = `
-        <div class="result-text">🎫 Your Seat: ${section}</div>
-        <div class="result-details">Row ${row}, Seat ${seatNum}</div>
-      `;
+      document.getElementById('modal-seat').textContent = section;
+      document.getElementById('modal-details').textContent = `Row ${row}, Seat ${seatNum}`;
+      document.getElementById('modal').classList.add('show');
+    }
+    
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
     }
     
     function createConfetti() {
-      const colors = ['#a855f7', '#ec4899', '#22c55e', '#fbbf24', '#3b82f6'];
+      const colors = ['#a855f7', '#ec4899', '#22c55e', '#fbbf24', '#3b82f6', '#ef4444'];
       
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 80; i++) {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
         confetti.style.cssText = `
           left: ${Math.random() * 100}vw;
           top: -10px;
-          width: ${Math.random() * 10 + 5}px;
-          height: ${Math.random() * 10 + 5}px;
+          width: ${Math.random() * 12 + 6}px;
+          height: ${Math.random() * 12 + 6}px;
           background: ${colors[Math.floor(Math.random() * colors.length)]};
           border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
           animation: fall ${Math.random() * 2 + 2}s linear forwards;
         `;
         document.body.appendChild(confetti);
-        
         setTimeout(() => confetti.remove(), 4000);
       }
     }
     
-    // Add confetti animation
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes fall {
-        to {
-          transform: translateY(100vh) rotate(720deg);
-          opacity: 0;
-        }
-      }
-    `;
-    document.head.appendChild(style);
+    // Close modal on overlay click
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') closeModal();
+    });
+    
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
   </script>
 </body>
 </html>

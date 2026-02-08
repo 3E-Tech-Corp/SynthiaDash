@@ -519,9 +519,10 @@ public class ChatController : ControllerBase
             messages.Add(new { role = "user", content = request.Message });
 
             // Build request to Clawdbot gateway
+            // Use VIP agent for full chat — compartmentalized workspace, no access to personal files
             var gatewayRequest = new
             {
-                model = "clawdbot:main",
+                model = "clawdbot:vip",
                 messages,
                 stream = true,
                 user = sessionKey

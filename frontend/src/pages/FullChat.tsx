@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, Lock, X, Mic, Square, Volume2, Headphones, Image, Paperclip } from 'lucide-react'
+import { Zap, Send, Trash2, Lock, X, Mic, Square, Volume2, Headphones, Paperclip } from 'lucide-react'
 import { api } from '../services/api'
 
 interface DisplayMessage {

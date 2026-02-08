@@ -49,6 +49,7 @@ public class UserDto
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    public string? DefaultLandingPage { get; set; }
 }
 
 public class AuthService : IAuthService
@@ -363,7 +364,8 @@ public class AuthService : IAuthService
         MaxProjects = user.MaxProjects,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,
-        LastLoginAt = user.LastLoginAt
+        LastLoginAt = user.LastLoginAt,
+        DefaultLandingPage = user.DefaultLandingPage
     };
 
     private class UserRecord
@@ -383,6 +385,7 @@ public class AuthService : IAuthService
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+        public string? DefaultLandingPage { get; set; }
     }
 
     private class RefreshTokenRecord

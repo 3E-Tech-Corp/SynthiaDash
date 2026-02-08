@@ -8,13 +8,14 @@ interface User {
   role: string
   repos?: string
   isActive: boolean
+  defaultLandingPage?: string
 }
 
 interface AuthContextType {
   user: User | null
   token: string | null
   loading: boolean
-  login: (email: string, password: string) => Promise<string | null>
+  login: (email: string, password: string) => Promise<string | User>
   logout: () => void
   isAdmin: boolean
 }
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string): Promise<string | null> => {
+  const login = async (email: string, password: string): Promise<string | User> => {
     try {
       const result = await api.login(email, password)
       localStorage.setItem('token', result.token)
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(result.token)
       setUser(result.user)
       scheduleRefresh(result.token)
-      return null
+      return result.user // Return user on success
     } catch (err: any) {
       return err.message || 'Login failed'
     }

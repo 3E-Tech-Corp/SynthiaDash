@@ -27,12 +27,14 @@ export default function Login() {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const err = await login(email, password)
+    const result = await login(email, password)
     setLoading(false)
-    if (err) {
-      setError(err)
+    if (typeof result === 'string') {
+      setError(result)
     } else {
-      navigate('/')
+      // Redirect to user's default landing page if set, otherwise home
+      const landingPage = result?.defaultLandingPage || '/'
+      navigate(landingPage)
     }
   }
 

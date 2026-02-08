@@ -843,4 +843,17 @@ export const api = {
 
   getWeeklyProposals: () =>
     fetchApi<ProposalAdminView[]>('/proposals/admin/weekly'),
+
+  // Admin Settings
+  getAdminSettings: () =>
+    fetchApi<{
+      fullChatAgentId: string;
+      availableAgents: { id: string; name: string; description: string }[];
+    }>('/admin/settings'),
+
+  updateAdminSetting: (key: string, value: string) =>
+    fetchApi<{ message: string }>('/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify({ key, value }),
+    }),
 };

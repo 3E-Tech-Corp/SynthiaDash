@@ -1,10 +1,18 @@
-import { useState } from 'react'
-import { Settings as SettingsIcon, User, Lock, Check, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings as SettingsIcon, User, Lock, Check, AlertCircle, Shield, Bot } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
+  // Admin settings state
+  const [adminSettings, setAdminSettings] = useState<{
+    fullChatAgentId: string;
+    availableAgents: { id: string; name: string; description: string }[];
+  } | null>(null)
+  const [savingAgent, setSavingAgent] = useState(false)
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
@@ -17,6 +25,28 @@ export default function SettingsPage() {
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message })
     setTimeout(() => setToast(null), 4000)
+  }
+
+  // Load admin settings if admin
+  useEffect(() => {
+    if (isAdmin) {
+      api.getAdminSettings()
+        .then(setAdminSettings)
+        .catch(err => console.error('Failed to load admin settings:', err))
+    }
+  }, [isAdmin])
+
+  const handleAgentChange = async (agentId: string) => {
+    setSavingAgent(true)
+    try {
+      await api.updateAdminSetting('FullChat:AgentId', agentId)
+      setAdminSettings(prev => prev ? { ...prev, fullChatAgentId: agentId } : null)
+      showToast('success', 'Chat agent updated')
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update agent')
+    } finally {
+      setSavingAgent(false)
+    }
   }
 
   const handleSaveName = async () => {
@@ -192,6 +222,55 @@ export default function SettingsPage() {
           </div>
         </form>
       </div>
+
+      {/* Admin Settings */}
+      {isAdmin && adminSettings && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mt-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+            <Shield className="w-5 h-5 text-violet-400" />
+            Admin Settings
+          </h2>
+          
+          {/* Chat Agent Selection */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                Full Chat Agent
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Controls which agent handles VIP full chat sessions (Lynn, Xiaofang, etc.)
+              </p>
+              <div className="space-y-2">
+                {adminSettings.availableAgents.map(agent => (
+                  <label
+                    key={agent.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      adminSettings.fullChatAgentId === agent.id
+                        ? 'border-violet-500 bg-violet-500/10'
+                        : 'border-gray-700 hover:border-gray-600'
+                    } ${savingAgent ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="chatAgent"
+                      value={agent.id}
+                      checked={adminSettings.fullChatAgentId === agent.id}
+                      onChange={() => handleAgentChange(agent.id)}
+                      disabled={savingAgent}
+                      className="mt-1 text-violet-500 focus:ring-violet-500"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-200">{agent.name}</div>
+                      <div className="text-xs text-gray-500">{agent.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

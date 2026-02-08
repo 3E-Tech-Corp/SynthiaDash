@@ -162,18 +162,18 @@ export default function Layout() {
 
       {/* ===== DESKTOP sidebar ===== */}
       <aside className={`
-        hidden md:flex md:static md:flex-col md:gap-6 md:border-r md:border-gray-800 md:bg-gray-950
-        transition-all duration-200 ease-in-out flex-shrink-0
+        hidden md:flex md:fixed md:top-0 md:left-0 md:h-screen md:flex-col md:border-r md:border-gray-800 md:bg-gray-950
+        transition-all duration-200 ease-in-out flex-shrink-0 z-40
         ${collapsed ? 'md:w-16 md:p-2' : 'md:w-64 md:p-4'}
       `}>
         {/* Logo area */}
-        <div className={`flex items-center ${collapsed ? 'justify-center px-0' : 'gap-2 px-2'}`}>
+        <div className={`flex items-center flex-shrink-0 mb-6 ${collapsed ? 'justify-center px-0' : 'gap-2 px-2'}`}>
           <AnimatedLogo className="h-7 inline-block flex-shrink-0" interval={15000} />
           {!collapsed && <span className="text-xl font-bold">ynthia.bot</span>}
         </div>
 
-        {/* Nav */}
-        <nav className="flex flex-col gap-1">
+        {/* Nav - scrollable */}
+        <nav className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0">
           {visibleItems.map(item =>
             collapsed ? (
               <NavLink key={item.to} to={item.to} end={item.end} className={collapsedLinkClass} title={item.label}>
@@ -188,8 +188,8 @@ export default function Layout() {
           )}
         </nav>
 
-        {/* User section + collapse toggle */}
-        <div className="mt-auto space-y-3">
+        {/* User section + collapse toggle - fixed at bottom */}
+        <div className="flex-shrink-0 space-y-3 pt-3 border-t border-gray-800 mt-3">
           {user && !collapsed && (
             <div className="px-2 py-3 bg-gray-900 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
@@ -231,8 +231,8 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content — offset for mobile rail */}
-      <main className="flex-1 p-4 md:p-8 overflow-auto ml-16 md:ml-0">
+      {/* Main content — offset for mobile rail and desktop fixed sidebar */}
+      <main className={`flex-1 p-4 md:p-8 overflow-auto ml-16 ${collapsed ? 'md:ml-16' : 'md:ml-64'}`}>
         <Outlet />
       </main>
     </div>

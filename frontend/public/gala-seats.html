@@ -289,45 +289,55 @@
     const orchRows = ['A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U','V','W'];
     const balcRows = ['AA','BB','CC','DD','EE','FF'];
     
-    function createSection(containerId, rows, seatsPerRow, sectionName, startSeat = 1) {
+    function createSection(containerId, allRows, activeRows, seatsPerRow, sectionName, startSeat = 1) {
       const container = document.getElementById(containerId);
       
-      rows.forEach(rowLabel => {
+      allRows.forEach(rowLabel => {
         const rowDiv = document.createElement('div');
         rowDiv.className = 'row';
         
         const label = document.createElement('span');
         label.className = 'row-label';
-        label.textContent = rowLabel;
+        label.textContent = activeRows.includes(rowLabel) ? rowLabel : '';
         rowDiv.appendChild(label);
         
-        for (let i = 0; i < seatsPerRow; i++) {
-          const seat = document.createElement('div');
-          seat.className = 'seat';
-          const seatNum = startSeat + i;
-          const seatId = `${sectionName}-${rowLabel}-${seatNum}`;
-          seat.id = seatId;
-          seat.dataset.section = sectionName;
-          seat.dataset.row = rowLabel;
-          seat.dataset.seat = seatNum;
-          seat.title = `${sectionName} ${rowLabel}-${seatNum}`;
-          rowDiv.appendChild(seat);
-          seats.push(seat);
+        if (activeRows.includes(rowLabel)) {
+          // Active row - create seats
+          for (let i = 0; i < seatsPerRow; i++) {
+            const seat = document.createElement('div');
+            seat.className = 'seat';
+            const seatNum = startSeat + i;
+            const seatId = `${sectionName}-${rowLabel}-${seatNum}`;
+            seat.id = seatId;
+            seat.dataset.section = sectionName;
+            seat.dataset.row = rowLabel;
+            seat.dataset.seat = seatNum;
+            seat.title = `${sectionName} ${rowLabel}-${seatNum}`;
+            rowDiv.appendChild(seat);
+            seats.push(seat);
+          }
+        } else {
+          // Empty row - add spacer to maintain alignment
+          const spacer = document.createElement('div');
+          spacer.style.width = `${seatsPerRow * 17}px`; // 14px seat + 3px gap
+          spacer.style.height = '14px';
+          rowDiv.appendChild(spacer);
         }
         
         container.appendChild(rowDiv);
       });
     }
     
-    // Create Orchestra sections
-    createSection('orch-left', orchRows.slice(3), 11, 'Orch-Left');
-    createSection('orch-center', orchRows, 14, 'Orch-Center', 101);
-    createSection('orch-right', orchRows.slice(3), 11, 'Orch-Right');
+    // Create Orchestra sections - Left/Right start at row D
+    const orchLeftRightRows = orchRows.slice(3); // D onwards
+    createSection('orch-left', orchRows, orchLeftRightRows, 11, 'Orch-Left');
+    createSection('orch-center', orchRows, orchRows, 14, 'Orch-Center', 101);
+    createSection('orch-right', orchRows, orchLeftRightRows, 11, 'Orch-Right');
     
-    // Create Balcony sections
-    createSection('balc-left', balcRows, 8, 'Balc-Left');
-    createSection('balc-center', balcRows, 14, 'Balc-Center', 101);
-    createSection('balc-right', balcRows, 8, 'Balc-Right');
+    // Create Balcony sections - all rows active
+    createSection('balc-left', balcRows, balcRows, 8, 'Balc-Left');
+    createSection('balc-center', balcRows, balcRows, 14, 'Balc-Center', 101);
+    createSection('balc-right', balcRows, balcRows, 8, 'Balc-Right');
     
     let isRunning = false;
     

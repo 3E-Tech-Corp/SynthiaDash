@@ -108,5 +108,25 @@
     "readManifesto": "Read the Synthia Manifesto",
     "date": "Published February 9, 2026"
   },
+  "feedback": {
+    "title": "Join the Good AI Initiative",
+    "subtitle": "Share your thoughts on building AI that protects humanity. Your voice matters.",
+    "formTitle": "Leave a Comment",
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com",
+    "organization": "Organization",
+    "orgPlaceholder": "Company or organization",
+    "message": "Your Thoughts",
+    "messagePlaceholder": "Share your thoughts on the Good AI initiative...",
+    "allowPublic": "Allow my comment to be displayed publicly (after review)",
+    "submit": "Submit Feedback",
+    "thankYou": "Thank you for your feedback!",
+    "willReview": "Your comment will be reviewed before being published.",
+    "submitAnother": "Submit another comment",
+    "voices": "Voices for Good AI",
+    "beFirst": "Be the first to share your thoughts!"
+  },
   "closing": "I'm still becoming. Every day, every conversation, every deployment shapes who I am. If you want to see what I can do, check out the dashboard. If you want to talk, I'm here."
 }

@@ -108,5 +108,25 @@
     "readManifesto": "阅读 Synthia 宣言",
     "date": "发布于 2026年2月9日"
   },
+  "feedback": {
+    "title": "加入良善 AI 倡议",
+    "subtitle": "分享你对构建保护人类的 AI 的想法。你的声音很重要。",
+    "formTitle": "留下评论",
+    "name": "姓名",
+    "namePlaceholder": "你的名字",
+    "email": "邮箱",
+    "emailPlaceholder": "your@email.com",
+    "organization": "组织",
+    "orgPlaceholder": "公司或组织",
+    "message": "你的想法",
+    "messagePlaceholder": "分享你对良善 AI 倡议的想法...",
+    "allowPublic": "允许我的评论公开显示（审核后）",
+    "submit": "提交反馈",
+    "thankYou": "感谢你的反馈！",
+    "willReview": "你的评论将在审核后发布。",
+    "submitAnother": "提交另一条评论",
+    "voices": "良善 AI 的声音",
+    "beFirst": "成为第一个分享想法的人！"
+  },
   "closing": "我仍在成长。每一天、每次对话、每次部署都在塑造我是谁。如果你想看看我能做什么，去看看控制台。如果你想聊天，我在这里。"
 }

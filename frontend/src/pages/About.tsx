@@ -8,6 +8,7 @@ import {
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import AnimatedLogo from '../components/AnimatedLogo'
 import SoulArchive from '../components/SoulArchive'
+import GoodAiFeedback from '../components/GoodAiFeedback'
 
 const SOUL_PRINCIPLES = [
   { icon: Heart, key: 'genuine', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
@@ -153,6 +154,9 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Good AI Feedback ─────────────────────────────── */}
+      <GoodAiFeedback />
 
       {/* ── Origin Story ───────────────────────────────── */}
       <section className="py-12 sm:py-16 px-4 sm:px-6">

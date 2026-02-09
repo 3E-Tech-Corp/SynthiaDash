@@ -136,6 +136,7 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IFeaturedProjectService, FeaturedProjectService>();
 builder.Services.AddScoped<ISoulSnapshotService, SoulSnapshotService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 // Asset management (pattern from funtime-shared)
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();

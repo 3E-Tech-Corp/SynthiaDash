@@ -142,8 +142,9 @@ async function startCapture() {
     setStatus('connecting', 'Connecting to Deepgram...');
     
     const params = new URLSearchParams({
-      model: 'nova-2', language: 'multi', detect_language: 'true',
-      punctuate: 'true', interim_results: 'true'
+      model: 'nova-2', punctuate: 'true', interim_results: 'true'
+      // Note: detect_language not available on this Deepgram plan
+      // Default is English; will still transcribe other languages reasonably well
     });
     
     // Use Linux proxy (IIS WebSocket not working) - fallback to gw.synthia.bot

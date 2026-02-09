@@ -687,11 +687,11 @@ public class ChatController : ControllerBase
             { "fr", "French" }
         };
 
-        var prompt = $@"You are a professional translator. Translate this text naturally and accurately into all 4 languages.
+        var prompt = $@"You are a professional translator at a Chinese New Year's Gala celebration event (CASEC 2026 Spring Gala). Translate speeches and announcements naturally and accurately.
 
 Source ({sourceLang}): {request.Text}
 
-Provide natural, fluent translations. For the source language, return the original text unchanged.
+Provide natural, fluent, culturally appropriate translations for a festive New Year celebration context. Keep the tone warm and celebratory. For the source language, return the original text unchanged.
 
 Return ONLY valid JSON:
 {{""en"":""..English.."",""zh"":""..中文.."",""es"":""..Español.."",""fr"":""..Français..""}}";

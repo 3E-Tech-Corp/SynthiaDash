@@ -66,7 +66,8 @@
   </div>
 <script>
 let isCapturing = false, socket = null, stream = null, audioContext = null, analyser = null, processor = null;
-const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','cmn':'zh','fr':'fr','fr-FR':'fr'};
+const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','zh-TW':'zh','cmn':'zh','yue':'zh','ja':'zh','ko':'zh','fr':'fr','fr-FR':'fr'};
+// Note: ja/ko mapped to zh because Deepgram often misdetects Chinese as Japanese/Korean
 const langNames = {'en':'English','es':'Spanish','zh':'Chinese','fr':'French'};
 
 function log(msg) { 
@@ -235,10 +236,14 @@ async function startCapture() {
         const alt = d.channel?.alternatives?.[0];
         const t = alt?.transcript;
         if (!t) return;
-        // Nova-2 multilingual returns language in alternatives[0].languages[0]
+        
+        // Check for Chinese characters in transcript (override detection)
+        const hasChinese = /[\u4e00-\u9fff]/.test(t);
         const detectedLang = alt?.languages?.[0] || d.channel?.detected_language || 'en';
-        const lang = langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'en';
-        log('Detected lang: ' + detectedLang + ' -> ' + lang);
+        
+        // Force Chinese if transcript contains Chinese characters
+        const lang = hasChinese ? 'zh' : (langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'en');
+        log('Detected: ' + detectedLang + (hasChinese ? ' (has Chinese chars)' : '') + ' -> ' + lang);
         handleText(t, lang, d.is_final);
       } catch(err) { log('Parse err: ' + err); }
     };

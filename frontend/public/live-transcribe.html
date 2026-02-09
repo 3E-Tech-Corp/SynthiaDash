@@ -146,9 +146,8 @@ async function startCapture() {
       punctuate: 'true', interim_results: 'true'
     });
     
-    // Use backend proxy to avoid browser auth issues
-    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const proxyUrl = `${wsProtocol}//${location.host}/api/deepgram-proxy?${params}`;
+    // Use external proxy via gw.synthia.bot (has valid TLS)
+    const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
     log('Connecting to: ' + proxyUrl);
     socket = new WebSocket(proxyUrl);
     

@@ -143,11 +143,10 @@ async function startCapture() {
     
     const params = new URLSearchParams({
       model: 'nova-2', 
-      encoding: 'opus',
-      container: 'webm',
-      sample_rate: '48000',
       punctuate: 'true', 
-      interim_results: 'true'
+      interim_results: 'true',
+      smart_format: 'true'
+      // Let Deepgram auto-detect webm/opus format
     });
     
     // Use Linux proxy (IIS WebSocket not working) - fallback to gw.synthia.bot

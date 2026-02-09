@@ -123,6 +123,7 @@ interface DisplayMessage {
 export default function ChatPage() {
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [input, setInput] = useState('')
+  const [inputZh, setInputZh] = useState('')  // Chinese input box
   const [streaming, setStreaming] = useState(false)
   const [chatAccess, setChatAccess] = useState<string>('none')
   const [projectName, setProjectName] = useState<string | null>(null)
@@ -148,6 +149,8 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const deepgramWsRef = useRef<WebSocket | null>(null)
   const finalTranscriptRef = useRef('')
+  const finalTranscriptZhRef = useRef('')  // Chinese transcript
+  const detectedLangRef = useRef<string>('en')  // Track detected language
   const recordingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const voiceModeRef = useRef(false)
@@ -419,12 +422,25 @@ export default function ChatPage() {
         if (data.type === 'Results') {
           const alt = data.channel?.alternatives?.[0]
           const transcript = alt?.transcript || ''
+          const detectedLang = data.channel?.detected_language || 'en'
+          
+          // Track detected language for routing
+          if (detectedLang) {
+            detectedLangRef.current = detectedLang
+          }
 
           if (data.is_final && transcript) {
-            // Append final transcript
-            const separator = finalTranscriptRef.current ? ' ' : ''
-            finalTranscriptRef.current += separator + transcript
-            setInput(finalTranscriptRef.current)
+            // Route to appropriate input based on detected language
+            const isChinese = detectedLang === 'zh' || detectedLang.startsWith('zh-')
+            if (isChinese) {
+              const separator = finalTranscriptZhRef.current ? ' ' : ''
+              finalTranscriptZhRef.current += separator + transcript
+              setInputZh(finalTranscriptZhRef.current)
+            } else {
+              const separator = finalTranscriptRef.current ? ' ' : ''
+              finalTranscriptRef.current += separator + transcript
+              setInput(finalTranscriptRef.current)
+            }
             setInterimText('')
           } else if (!data.is_final && transcript) {
             // Show interim text
@@ -443,7 +459,9 @@ export default function ChatPage() {
                 setVoiceModeStatus(null)
                 stopRecording()
                 setInput('')
+                setInputZh('')
                 finalTranscriptRef.current = ''
+                finalTranscriptZhRef.current = ''
               }, 0)
               return
             }
@@ -452,7 +470,9 @@ export default function ChatPage() {
               stopRecording()
               setVoiceModeStatus('processing')
               finalTranscriptRef.current = ''
+              finalTranscriptZhRef.current = ''
               setInput('')
+              setInputZh('')
               handleSendRef.current(finalText)
             }, 0)
           }
@@ -506,7 +526,9 @@ export default function ChatPage() {
     stopRecording()
     stopSpeaking()
     setInput('')
+    setInputZh('')
     finalTranscriptRef.current = ''
+    finalTranscriptZhRef.current = ''
   }, [stopRecording, stopSpeaking])
 
   // Toggle voice mode on/off (dedicated button)
@@ -519,7 +541,9 @@ export default function ChatPage() {
       voiceModeRef.current = true
       setVoiceModeStatus('listening')
       finalTranscriptRef.current = ''
+      finalTranscriptZhRef.current = ''
       setInput('')
+      setInputZh('')
       startRecording()
     }
   }, [exitVoiceMode, stopSpeaking, startRecording])
@@ -528,13 +552,16 @@ export default function ChatPage() {
   const toggleRecording = useCallback(() => {
     if (voiceModeRef.current) return // Don't use manual mic in voice mode
     if (isRecording) {
-      // Manual stop — send if there's text
-      const finalText = finalTranscriptRef.current.trim()
+      // Manual stop — send if there's text (combine both language inputs)
+      const finalTextEn = finalTranscriptRef.current.trim()
+      const finalTextZh = finalTranscriptZhRef.current.trim()
+      const finalText = [finalTextEn, finalTextZh].filter(Boolean).join(' ')
       stopRecording()
       if (finalText) {
         setTimeout(() => {
           handleSendRef.current(finalText)
           finalTranscriptRef.current = ''
+          finalTranscriptZhRef.current = ''
         }, 100)
       }
     } else {
@@ -585,7 +612,9 @@ export default function ChatPage() {
   const noProject = !selectedProjectId && projects.length === 0 && !projectName
 
   const handleSend = async (voiceText?: string) => {
-    const msg = (voiceText ?? input).trim()
+    // Combine Chinese and English inputs (or use voiceText if provided)
+    const combinedInput = [inputZh.trim(), input.trim()].filter(Boolean).join('\n\n')
+    const msg = (voiceText ?? combinedInput).trim()
     if ((!msg && !pendingImage) || streamingRef.current || noProject) return
 
     const imageData = pendingImage
@@ -599,6 +628,7 @@ export default function ChatPage() {
     }
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    setInputZh('')
     setPendingImage(null)
     setPendingImageName(null)
     setStreaming(true)
@@ -859,7 +889,13 @@ export default function ChatPage() {
             <div className="flex items-center gap-2">
               {voiceModeStatus === 'listening' && (
                 <>
-                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                  {/* 4 horizontal bars audio visualizer */}
+                  <div className="flex items-end gap-0.5 h-4">
+                    <span className="w-4 h-1 bg-green-500 rounded-sm animate-pulse" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
+                    <span className="w-4 h-1.5 bg-green-500 rounded-sm animate-pulse" style={{ animationDelay: '150ms', animationDuration: '0.5s' }} />
+                    <span className="w-4 h-2 bg-green-500 rounded-sm animate-pulse" style={{ animationDelay: '75ms', animationDuration: '0.7s' }} />
+                    <span className="w-4 h-1 bg-green-500 rounded-sm animate-pulse" style={{ animationDelay: '225ms', animationDuration: '0.55s' }} />
+                  </div>
                   <span className="text-sm text-green-400 font-medium">🎙️ Listening...</span>
                 </>
               )}
@@ -891,7 +927,13 @@ export default function ChatPage() {
         {/* Manual recording indicator (non-voice-mode only) */}
         {!voiceMode && isRecording && (
           <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            {/* 4 horizontal bars audio visualizer */}
+            <div className="flex items-end gap-0.5 h-3">
+              <span className="w-3 h-0.5 bg-red-500 rounded-sm animate-pulse" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
+              <span className="w-3 h-1 bg-red-500 rounded-sm animate-pulse" style={{ animationDelay: '150ms', animationDuration: '0.5s' }} />
+              <span className="w-3 h-1.5 bg-red-500 rounded-sm animate-pulse" style={{ animationDelay: '75ms', animationDuration: '0.7s' }} />
+              <span className="w-3 h-0.5 bg-red-500 rounded-sm animate-pulse" style={{ animationDelay: '225ms', animationDuration: '0.55s' }} />
+            </div>
             <span className="text-xs text-red-400 font-medium">Listening...</span>
             {interimText && (
               <span className="text-xs text-gray-500 italic truncate">{interimText}</span>
@@ -919,36 +961,66 @@ export default function ChatPage() {
             </button>
           </div>
         )}
-        <div className="flex gap-2 items-end w-full min-w-0">
-          <div className="flex-1 min-w-0 relative">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : voiceMode ? 'Voice mode active — speak to chat...' : 'Message Synthia...'}
-              disabled={streaming || noProject || voiceMode}
-              rows={1}
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
-              style={{ minHeight: '48px', maxHeight: '120px' }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement
-                target.style.height = '48px'
-                target.style.height = Math.min(target.scrollHeight, 120) + 'px'
-              }}
-            />
-            {!voiceMode && (
-              <button
-                onClick={() => imageInputRef.current?.click()}
-                disabled={streaming}
-                className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
-                title="Attach image"
-              >
-                <Paperclip className="w-4 h-4" />
-              </button>
+        {/* Dual input boxes: Chinese (top) and English (bottom) */}
+        <div className="flex flex-col gap-2 w-full">
+          {/* Chinese input - always visible when recording or has content */}
+          {(isRecording || inputZh) && (
+            <div className="flex gap-2 items-end w-full min-w-0">
+              <span className="text-xs text-amber-500 font-medium shrink-0 pb-3">中文</span>
+              <div className="flex-1 min-w-0 relative">
+                <textarea
+                  value={inputZh}
+                  onChange={e => setInputZh(e.target.value)}
+                  placeholder="Chinese transcription..."
+                  disabled={streaming || noProject}
+                  rows={1}
+                  className="w-full bg-gray-900 border border-amber-800/50 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-600 resize-none disabled:opacity-50 transition-colors"
+                  style={{ minHeight: '48px', maxHeight: '120px' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement
+                    target.style.height = '48px'
+                    target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          {/* English input */}
+          <div className="flex gap-2 items-end w-full min-w-0">
+            {(isRecording || inputZh) && (
+              <span className="text-xs text-violet-500 font-medium shrink-0 pb-3">EN</span>
             )}
+            <div className="flex-1 min-w-0 relative">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : voiceMode ? 'Voice mode active — speak to chat...' : 'Message Synthia...'}
+                disabled={streaming || noProject || voiceMode}
+                rows={1}
+                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
+                style={{ minHeight: '48px', maxHeight: '120px' }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement
+                  target.style.height = '48px'
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+                }}
+              />
+              {!voiceMode && (
+                <button
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={streaming}
+                  className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
+                  title="Attach image"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
+        </div>
           <input
             ref={imageInputRef}
             type="file"

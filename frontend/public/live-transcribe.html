@@ -146,8 +146,8 @@ async function startCapture() {
       punctuate: 'true', interim_results: 'true'
     });
     
-    // Use external proxy via gw.synthia.bot (has valid TLS)
-    const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
+    // Use backend proxy on IIS
+    const proxyUrl = `wss://synthia.bot/api/deepgram-proxy?${params}`;
     log('Connecting to: ' + proxyUrl);
     socket = new WebSocket(proxyUrl);
     

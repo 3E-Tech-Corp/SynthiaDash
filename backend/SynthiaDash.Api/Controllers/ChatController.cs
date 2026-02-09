@@ -660,6 +660,101 @@ public class ChatController : ControllerBase
 
         return PhysicalFile(filePath, contentType);
     }
+
+    /// <summary>
+    /// Translate text to multiple languages using Claude
+    /// </summary>
+    [HttpPost("translate")]
+    public async Task<IActionResult> Translate([FromBody] TranslateRequest request)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { error = "Text is required" });
+
+        var anthropicKey = _configuration["Anthropic:ApiKey"];
+        if (string.IsNullOrEmpty(anthropicKey))
+            return StatusCode(503, new { error = "Translation not configured" });
+
+        var targetLangs = request.TargetLanguages ?? new[] { "en", "zh", "es", "fr" };
+        var sourceLang = request.SourceLanguage ?? "auto";
+
+        // Build prompt for Claude
+        var langNames = new Dictionary<string, string>
+        {
+            { "en", "English" },
+            { "zh", "Chinese (Simplified)" },
+            { "es", "Spanish" },
+            { "fr", "French" }
+        };
+
+        var prompt = $@"Translate the following text to these languages: {string.Join(", ", targetLangs.Select(l => langNames.GetValueOrDefault(l, l)))}.
+
+Text to translate:
+{request.Text}
+
+Respond ONLY with a JSON object in this exact format, no other text:
+{{
+  ""en"": ""English translation"",
+  ""zh"": ""Chinese translation"",
+  ""es"": ""Spanish translation"",
+  ""fr"": ""French translation""
+}}
+
+If the source text is already in one of the target languages, include it as-is for that language.";
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("x-api-key", anthropicKey);
+            client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+            var payload = new
+            {
+                model = "claude-sonnet-4-20250514",
+                max_tokens = 1024,
+                messages = new[]
+                {
+                    new { role = "user", content = prompt }
+                }
+            };
+
+            var response = await client.PostAsync(
+                "https://api.anthropic.com/v1/messages",
+                new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Claude translation failed: {Status} {Body}", response.StatusCode, body);
+                return StatusCode(502, new { error = "Translation failed" });
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            var json = JsonDocument.Parse(result);
+            var content = json.RootElement
+                .GetProperty("content")[0]
+                .GetProperty("text")
+                .GetString();
+
+            // Parse the JSON response from Claude
+            var translations = JsonSerializer.Deserialize<Dictionary<string, string>>(content ?? "{}");
+            return Ok(new { translations });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Translation error");
+            return StatusCode(500, new { error = "Translation failed" });
+        }
+    }
+}
+
+public class TranslateRequest
+{
+    public string Text { get; set; } = string.Empty;
+    public string? SourceLanguage { get; set; }
+    public string[]? TargetLanguages { get; set; }
 }
 
 public class ChatRequest

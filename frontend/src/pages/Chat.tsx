@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Paperclip, Mic, Square, Volume2, Headphones } from 'lucide-react'
+import { Zap, Send, Trash2, BookOpen, Bug, Code, Lock, ChevronDown, X, Mic, Square, Volume2, Headphones } from 'lucide-react'
 import { api } from '../services/api'
 import type { ChatMessageDto, ChatProject } from '../services/api'
 
@@ -122,8 +122,12 @@ interface DisplayMessage {
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<DisplayMessage[]>([])
-  const [input, setInput] = useState('')
-  const [inputZh, setInputZh] = useState('')  // Chinese input box
+  // 4-language input bars
+  const [inputEn, setInputEn] = useState('')
+  const [inputZh, setInputZh] = useState('')
+  const [inputEs, setInputEs] = useState('')
+  const [inputFr, setInputFr] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [chatAccess, setChatAccess] = useState<string>('none')
   const [projectName, setProjectName] = useState<string | null>(null)
@@ -142,15 +146,15 @@ export default function ChatPage() {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const streamingRef = useRef(false)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const deepgramWsRef = useRef<WebSocket | null>(null)
-  const finalTranscriptRef = useRef('')
-  const finalTranscriptZhRef = useRef('')  // Chinese transcript
-  const detectedLangRef = useRef<string>('en')  // Track detected language
+  // Transcript refs for each language
+  const finalTranscriptRef = useRef<{ en: string; zh: string; es: string; fr: string }>({ en: '', zh: '', es: '', fr: '' })
+  const detectedLangRef = useRef<string>('en')
   const recordingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const voiceModeRef = useRef(false)
@@ -369,7 +373,12 @@ export default function ChatPage() {
     }
 
     mediaStreamRef.current = stream
-    finalTranscriptRef.current = voiceModeRef.current ? '' : input // preserve text only in manual mode
+    // Reset all transcripts (or preserve in manual mode)
+    if (voiceModeRef.current) {
+      finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
+    } else {
+      finalTranscriptRef.current = { en: inputEn, zh: inputZh, es: inputEs, fr: inputFr }
+    }
     setIsRecording(true)
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
@@ -424,23 +433,43 @@ export default function ChatPage() {
           const transcript = alt?.transcript || ''
           const detectedLang = data.channel?.detected_language || 'en'
           
-          // Track detected language for routing
-          if (detectedLang) {
-            detectedLangRef.current = detectedLang
-          }
+          // Map detected language to our 4 languages
+          const langKey = detectedLang.startsWith('zh') ? 'zh' 
+            : detectedLang.startsWith('es') ? 'es'
+            : detectedLang.startsWith('fr') ? 'fr'
+            : 'en'
+          
+          detectedLangRef.current = langKey
 
           if (data.is_final && transcript) {
-            // Route to appropriate input based on detected language
-            const isChinese = detectedLang === 'zh' || detectedLang.startsWith('zh-')
-            if (isChinese) {
-              const separator = finalTranscriptZhRef.current ? ' ' : ''
-              finalTranscriptZhRef.current += separator + transcript
-              setInputZh(finalTranscriptZhRef.current)
-            } else {
-              const separator = finalTranscriptRef.current ? ' ' : ''
-              finalTranscriptRef.current += separator + transcript
-              setInput(finalTranscriptRef.current)
-            }
+            // Append to the detected language's transcript
+            const separator = finalTranscriptRef.current[langKey as keyof typeof finalTranscriptRef.current] ? ' ' : ''
+            finalTranscriptRef.current[langKey as keyof typeof finalTranscriptRef.current] += separator + transcript
+            
+            // Update the detected language input
+            const setters = { en: setInputEn, zh: setInputZh, es: setInputEs, fr: setInputFr }
+            setters[langKey as keyof typeof setters](finalTranscriptRef.current[langKey as keyof typeof finalTranscriptRef.current])
+            
+            // Translate to other languages
+            setIsTranslating(true)
+            api.translate(transcript, langKey)
+              .then(({ translations }) => {
+                // Populate other language inputs
+                Object.entries(translations).forEach(([lang, text]) => {
+                  if (lang !== langKey && text) {
+                    const setter = setters[lang as keyof typeof setters]
+                    if (setter) {
+                      const prevTranscript = finalTranscriptRef.current[lang as keyof typeof finalTranscriptRef.current]
+                      const sep = prevTranscript ? ' ' : ''
+                      finalTranscriptRef.current[lang as keyof typeof finalTranscriptRef.current] = prevTranscript + sep + text
+                      setter(finalTranscriptRef.current[lang as keyof typeof finalTranscriptRef.current])
+                    }
+                  }
+                })
+              })
+              .catch(err => console.error('Translation failed:', err))
+              .finally(() => setIsTranslating(false))
+            
             setInterimText('')
           } else if (!data.is_final && transcript) {
             // Show interim text
@@ -448,20 +477,19 @@ export default function ChatPage() {
           }
         } else if (data.type === 'UtteranceEnd') {
           // Auto-send when speaker pauses (voice mode continuous flow)
-          const finalText = finalTranscriptRef.current.trim()
-          if (finalText && voiceModeRef.current) {
-            // Check for voice commands to exit
-            const lower = finalText.toLowerCase()
+          // Combine all language transcripts
+          const allText = Object.values(finalTranscriptRef.current).filter(Boolean).join('\n\n')
+          if (allText && voiceModeRef.current) {
+            // Check for voice commands to exit (in English)
+            const lower = finalTranscriptRef.current.en.toLowerCase().trim()
             if (lower === 'stop' || lower === 'exit voice mode' || lower === 'stop listening') {
               setTimeout(() => {
                 voiceModeRef.current = false
                 setVoiceMode(false)
                 setVoiceModeStatus(null)
                 stopRecording()
-                setInput('')
-                setInputZh('')
-                finalTranscriptRef.current = ''
-                finalTranscriptZhRef.current = ''
+                setInputEn(''); setInputZh(''); setInputEs(''); setInputFr('')
+                finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
               }, 0)
               return
             }
@@ -469,11 +497,9 @@ export default function ChatPage() {
             setTimeout(() => {
               stopRecording()
               setVoiceModeStatus('processing')
-              finalTranscriptRef.current = ''
-              finalTranscriptZhRef.current = ''
-              setInput('')
-              setInputZh('')
-              handleSendRef.current(finalText)
+              finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
+              setInputEn(''); setInputZh(''); setInputEs(''); setInputFr('')
+              handleSendRef.current(allText)
             }, 0)
           }
         }
@@ -502,7 +528,7 @@ export default function ChatPage() {
         }
       }
     }
-  }, [input, stopRecording])
+  }, [inputEn, stopRecording])
 
   // Auto-resume recording after TTS finishes in voice mode
   useEffect(() => {
@@ -525,10 +551,8 @@ export default function ChatPage() {
     autoResumeRef.current = false
     stopRecording()
     stopSpeaking()
-    setInput('')
-    setInputZh('')
-    finalTranscriptRef.current = ''
-    finalTranscriptZhRef.current = ''
+    setInputEn(''); setInputZh(''); setInputEs(''); setInputFr('')
+    finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
   }, [stopRecording, stopSpeaking])
 
   // Toggle voice mode on/off (dedicated button)
@@ -540,10 +564,8 @@ export default function ChatPage() {
       setVoiceMode(true)
       voiceModeRef.current = true
       setVoiceModeStatus('listening')
-      finalTranscriptRef.current = ''
-      finalTranscriptZhRef.current = ''
-      setInput('')
-      setInputZh('')
+      finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
+      setInputEn(''); setInputZh(''); setInputEs(''); setInputFr('')
       startRecording()
     }
   }, [exitVoiceMode, stopSpeaking, startRecording])
@@ -552,16 +574,13 @@ export default function ChatPage() {
   const toggleRecording = useCallback(() => {
     if (voiceModeRef.current) return // Don't use manual mic in voice mode
     if (isRecording) {
-      // Manual stop — send if there's text (combine both language inputs)
-      const finalTextEn = finalTranscriptRef.current.trim()
-      const finalTextZh = finalTranscriptZhRef.current.trim()
-      const finalText = [finalTextEn, finalTextZh].filter(Boolean).join(' ')
+      // Manual stop — send if there's text (combine all language inputs)
+      const allText = Object.values(finalTranscriptRef.current).filter(Boolean).join('\n\n')
       stopRecording()
-      if (finalText) {
+      if (allText) {
         setTimeout(() => {
-          handleSendRef.current(finalText)
-          finalTranscriptRef.current = ''
-          finalTranscriptZhRef.current = ''
+          handleSendRef.current(allText)
+          finalTranscriptRef.current = { en: '', zh: '', es: '', fr: '' }
         }, 100)
       }
     } else {
@@ -612,8 +631,8 @@ export default function ChatPage() {
   const noProject = !selectedProjectId && projects.length === 0 && !projectName
 
   const handleSend = async (voiceText?: string) => {
-    // Combine Chinese and English inputs (or use voiceText if provided)
-    const combinedInput = [inputZh.trim(), input.trim()].filter(Boolean).join('\n\n')
+    // Combine all 4 language inputs (or use voiceText if provided)
+    const combinedInput = [inputEn.trim(), inputZh.trim(), inputEs.trim(), inputFr.trim()].filter(Boolean).join('\n\n')
     const msg = (voiceText ?? combinedInput).trim()
     if ((!msg && !pendingImage) || streamingRef.current || noProject) return
 
@@ -627,8 +646,7 @@ export default function ChatPage() {
       imageUrl: imageData || undefined,
     }
     setMessages(prev => [...prev, userMsg])
-    setInput('')
-    setInputZh('')
+    setInputEn(''); setInputZh(''); setInputEs(''); setInputFr('')
     setPendingImage(null)
     setPendingImageName(null)
     setStreaming(true)
@@ -961,64 +979,69 @@ export default function ChatPage() {
             </button>
           </div>
         )}
-        {/* Dual input boxes: Chinese (top) and English (bottom) */}
-        <div className="flex flex-col gap-2 w-full">
-          {/* Chinese input - always visible when recording or has content */}
-          {(isRecording || inputZh) && (
-            <div className="flex gap-2 items-end w-full min-w-0">
-              <span className="text-xs text-amber-500 font-medium shrink-0 pb-3">中文</span>
-              <div className="flex-1 min-w-0 relative">
-                <textarea
-                  value={inputZh}
-                  onChange={e => setInputZh(e.target.value)}
-                  placeholder="Chinese transcription..."
-                  disabled={streaming || noProject}
-                  rows={1}
-                  className="w-full bg-gray-900 border border-amber-800/50 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-600 resize-none disabled:opacity-50 transition-colors"
-                  style={{ minHeight: '48px', maxHeight: '120px' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement
-                    target.style.height = '48px'
-                    target.style.height = Math.min(target.scrollHeight, 120) + 'px'
-                  }}
-                />
+        {/* 4-Language Input Bars */}
+        <div className="flex flex-col gap-1 w-full">
+          {/* Translation indicator */}
+          {isTranslating && (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <div className="flex gap-0.5">
+                <span className="w-1 h-3 bg-violet-500 rounded-sm animate-pulse" />
+                <span className="w-1 h-3 bg-violet-500 rounded-sm animate-pulse" style={{ animationDelay: '100ms' }} />
+                <span className="w-1 h-3 bg-violet-500 rounded-sm animate-pulse" style={{ animationDelay: '200ms' }} />
               </div>
+              <span className="text-xs text-violet-400">Translating...</span>
             </div>
           )}
-          {/* English input */}
-          <div className="flex gap-2 items-end w-full min-w-0">
-            {(isRecording || inputZh) && (
-              <span className="text-xs text-violet-500 font-medium shrink-0 pb-3">EN</span>
-            )}
-            <div className="flex-1 min-w-0 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                placeholder={noProject ? 'Select a project to start chatting...' : streaming ? 'Synthia is responding...' : voiceMode ? 'Voice mode active — speak to chat...' : 'Message Synthia...'}
-                disabled={streaming || noProject || voiceMode}
-                rows={1}
-                className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-600 resize-none disabled:opacity-50 transition-colors"
-                style={{ minHeight: '48px', maxHeight: '120px' }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement
-                  target.style.height = '48px'
-                  target.style.height = Math.min(target.scrollHeight, 120) + 'px'
-                }}
-              />
-              {!voiceMode && (
-                <button
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={streaming}
-                  className="absolute right-2 bottom-2.5 text-gray-500 hover:text-gray-300 disabled:text-gray-700 p-1 transition-colors"
-                  title="Attach image"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+          {/* English */}
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs font-medium w-8 shrink-0 text-violet-400">EN</span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputEn}
+              onChange={e => setInputEn(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={noProject ? 'Select a project...' : 'English'}
+              disabled={streaming || noProject || voiceMode}
+              className="flex-1 bg-gray-900 border border-violet-800/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500 disabled:opacity-50"
+            />
+          </div>
+          {/* Chinese */}
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs font-medium w-8 shrink-0 text-amber-400">中文</span>
+            <input
+              type="text"
+              value={inputZh}
+              onChange={e => setInputZh(e.target.value)}
+              placeholder="Chinese"
+              disabled={streaming || noProject || voiceMode}
+              className="flex-1 bg-gray-900 border border-amber-800/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 disabled:opacity-50"
+            />
+          </div>
+          {/* Spanish */}
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs font-medium w-8 shrink-0 text-green-400">ES</span>
+            <input
+              type="text"
+              value={inputEs}
+              onChange={e => setInputEs(e.target.value)}
+              placeholder="Spanish"
+              disabled={streaming || noProject || voiceMode}
+              className="flex-1 bg-gray-900 border border-green-800/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-green-500 disabled:opacity-50"
+            />
+          </div>
+          {/* French */}
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs font-medium w-8 shrink-0 text-blue-400">FR</span>
+            <input
+              type="text"
+              value={inputFr}
+              onChange={e => setInputFr(e.target.value)}
+              placeholder="French"
+              disabled={streaming || noProject || voiceMode}
+              className="flex-1 bg-gray-900 border border-blue-800/50 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+            />
           </div>
         </div>
         {/* Action buttons row */}
@@ -1093,7 +1116,7 @@ export default function ChatPage() {
           )}
           <button
             onClick={() => handleSend()}
-            disabled={(!input.trim() && !inputZh.trim() && !pendingImage) || streaming || noProject || voiceMode}
+            disabled={(!inputEn.trim() && !inputZh.trim() && !inputEs.trim() && !inputFr.trim() && !pendingImage) || streaming || noProject || voiceMode}
             className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
           >
             <Send className="w-5 h-5" />

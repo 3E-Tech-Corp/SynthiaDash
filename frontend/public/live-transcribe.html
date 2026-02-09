@@ -37,9 +37,12 @@
     .lang-header .indicator { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-left: auto; display: none; }
     .lang-card.active .indicator { display: block; animation: pulse 1s infinite; }
     .lang-content { padding: 12px 16px; flex: 1; min-height: 50px; max-height: 120px; overflow-y: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .transcript-line { padding: 6px 10px; background: rgba(255,255,255,0.08); border-radius: 6px; border-left: 3px solid #a855f7; animation: fadeIn 0.3s; font-size: 0.95rem; }
-    .transcript-line.interim { opacity: 0.6; border-left-color: #888; font-style: italic; }
+    .transcript-line { padding: 6px 10px; border-radius: 6px; animation: fadeInOut 2s forwards; font-size: 0.95rem; }
+    .transcript-line.detected { background: rgba(168,85,247,0.3); border-left: 3px solid #a855f7; }
+    .transcript-line.translated { background: rgba(255,255,255,0.08); border-left: 3px solid #666; }
+    .transcript-line.interim { opacity: 0.6; background: rgba(100,100,100,0.2); border-left: 3px solid #888; font-style: italic; }
     .transcript-line .time { display: none; }
+    @keyframes fadeInOut { 0% { opacity: 0; transform: translateY(5px); } 10% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; } }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .empty-state { color: #555; font-style: italic; font-size: 0.9rem; }
     .footer { text-align: center; margin-top: 30px; color: #666; font-size: 0.8rem; }
@@ -79,15 +82,20 @@ function log(msg) {
 function setStatus(type, msg) { const el = document.getElementById('status'); el.className = 'status ' + type; el.textContent = msg; }
 function setActive(lang) { document.querySelectorAll('.lang-card').forEach(c => c.classList.remove('active')); document.getElementById('card-' + lang)?.classList.add('active'); }
 
-function addLine(lang, text, final) {
+function addLine(lang, text, final, isDetected = false) {
   const c = document.getElementById('content-' + lang); if (!c) return;
   c.querySelector('.empty-state')?.remove();
   c.querySelector('.interim')?.remove();
   const div = document.createElement('div');
-  div.className = 'transcript-line' + (final ? '' : ' interim');
-  div.innerHTML = '<div>' + text + '</div>' + (final ? '<div class="time">' + new Date().toLocaleTimeString() + '</div>' : '');
+  div.className = 'transcript-line' + (final ? (isDetected ? ' detected' : ' translated') : ' interim');
+  div.innerHTML = '<div>' + text + '</div>';
   c.appendChild(div);
   c.scrollTop = c.scrollHeight;
+  
+  // Auto-remove after 2 seconds (matches fadeInOut animation)
+  if (final) {
+    setTimeout(() => div.remove(), 2000);
+  }
 }
 
 async function translate(text, from, to) {
@@ -109,8 +117,8 @@ async function translate(text, from, to) {
 async function handleText(text, lang, final) {
   if (!text || !text.trim()) return;
   
-  // Show transcript in detected language box
-  addLine(lang, text, final);
+  // Show transcript in detected language box (highlighted as detected)
+  addLine(lang, text, final, true);
   setActive(lang);
   
   // Only translate final results
@@ -132,11 +140,11 @@ async function handleText(text, lang, final) {
     const d = await r.json();
     log('Translations: ' + JSON.stringify(d).substring(0, 200));
     
-    // Add translations to other language boxes
+    // Add translations to other language boxes (styled as translated)
     const translations = d.translations || {};
     for (const [toLang, translated] of Object.entries(translations)) {
       if (toLang !== lang && translated && translated.trim()) {
-        addLine(toLang, translated, true);
+        addLine(toLang, translated, true, false);
       }
     }
   } catch(e) {

@@ -275,7 +275,7 @@ export default function AboutPage() {
               
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <a
-                  href="/docs/Good-AI-Manifesto.pdf"
+                  href="/docs/Synthia-Manifesto.pdf"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium transition-all hover:shadow-lg hover:shadow-violet-600/25 text-white"

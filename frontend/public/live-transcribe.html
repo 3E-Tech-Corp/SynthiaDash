@@ -146,8 +146,8 @@ async function startCapture() {
       punctuate: 'true', interim_results: 'true'
     });
     
-    // Use backend proxy on IIS
-    const proxyUrl = `wss://synthia.bot/api/deepgram-proxy?${params}`;
+    // Use Linux proxy (IIS WebSocket not working) - fallback to gw.synthia.bot
+    const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
     log('Connecting to: ' + proxyUrl);
     socket = new WebSocket(proxyUrl);
     

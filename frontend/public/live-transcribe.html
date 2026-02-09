@@ -172,7 +172,11 @@ async function startCapture() {
     
     socket.onmessage = e => {
       try {
-        const d = JSON.parse(e.data);
+        // Handle both text and binary (ArrayBuffer) responses
+        const text = e.data instanceof ArrayBuffer 
+          ? new TextDecoder().decode(e.data) 
+          : e.data;
+        const d = JSON.parse(text);
         const t = d.channel?.alternatives?.[0]?.transcript;
         if (!t) return;
         const det = d.channel.alternatives[0].languages?.[0] || 'en';

@@ -69,7 +69,7 @@
     <div class="footer">CASEC 2026 Spring Gala • Live Transcription POC</div>
   </div>
 <script>
-let isCapturing = false, socket = null, stream = null, audioContext = null, analyser = null, processor = null;
+let isCapturing = false, socketZh = null, socketEn = null, stream = null, audioContext = null, analyser = null, processor = null;
 const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','zh-TW':'zh','cmn':'zh','yue':'zh','fr':'fr','fr-FR':'fr'};
 // Only EN/ES/ZH/FR supported - other languages ignored
 const langNames = {'en':'English','es':'Spanish','zh':'Chinese','fr':'French'};
@@ -195,80 +195,100 @@ async function startCapture() {
     source.connect(processor);
     processor.connect(audioContext.destination);
     
-    log('Connecting to Deepgram...');
-    setStatus('connecting', 'Connecting to Deepgram...');
+    log('Connecting to Deepgram (dual-stream: ZH + EN)...');
+    setStatus('connecting', 'Connecting...');
     
-    // Use nova-2 with Chinese - best support for Mandarin
-    const params = new URLSearchParams({
+    // Create two parallel connections - Chinese and English
+    const baseParams = {
       model: 'nova-2',
-      language: 'zh',
       encoding: 'linear16',
       sample_rate: '16000',
       channels: '1',
       punctuate: 'true',
       interim_results: 'true',
       smart_format: 'true'
-    });
+    };
     
-    const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
-    log('Connecting to: ' + proxyUrl);
-    socket = new WebSocket(proxyUrl);
+    const paramsZh = new URLSearchParams({...baseParams, language: 'zh'});
+    const paramsEn = new URLSearchParams({...baseParams, language: 'en'});
     
-    socket.binaryType = 'arraybuffer';
+    const urlZh = `wss://gw.synthia.bot/dgproxy?${paramsZh}`;
+    const urlEn = `wss://gw.synthia.bot/dgproxy?${paramsEn}`;
     
-    socket.onopen = () => {
-      log('✓ Connected!');
-      setStatus('listening', '🔴 Listening... Speak now!');
-      isCapturing = true;
-      document.getElementById('micBtn').className = 'mic-btn listening';
-      document.getElementById('micBtn').textContent = '⏹️';
-      monitorAudio();
-      
-      // Send raw PCM audio
-      processor.onaudioprocess = (e) => {
-        if (socket?.readyState === 1) {
+    log('ZH: ' + urlZh);
+    log('EN: ' + urlEn);
+    
+    socketZh = new WebSocket(urlZh);
+    socketEn = new WebSocket(urlEn);
+    socketZh.binaryType = 'arraybuffer';
+    socketEn.binaryType = 'arraybuffer';
+    
+    let zhReady = false, enReady = false;
+    
+    function checkBothReady() {
+      if (zhReady && enReady) {
+        log('✓ Both streams connected!');
+        setStatus('listening', '🔴 Listening... Speak now!');
+        isCapturing = true;
+        document.getElementById('micBtn').className = 'mic-btn listening';
+        document.getElementById('micBtn').textContent = '⏹️';
+        monitorAudio();
+        
+        // Send audio to BOTH streams
+        processor.onaudioprocess = (e) => {
           const inputData = e.inputBuffer.getChannelData(0);
           const pcmData = floatTo16BitPCM(inputData);
-          socket.send(pcmData.buffer);
-        }
-      };
-      log('Recording started');
-    };
+          if (socketZh?.readyState === 1) socketZh.send(pcmData.buffer);
+          if (socketEn?.readyState === 1) socketEn.send(pcmData.buffer);
+        };
+        log('Recording started (dual-stream)');
+      }
+    }
     
-    socket.onmessage = e => {
-      try {
-        const text = e.data instanceof ArrayBuffer 
-          ? new TextDecoder().decode(e.data) 
-          : e.data;
-        const d = JSON.parse(text);
-        log('DG: ' + JSON.stringify(d).substring(0, 150));
-        const alt = d.channel?.alternatives?.[0];
-        const t = alt?.transcript;
-        if (!t) return;
-        
-        // Check for Chinese characters in transcript (override detection)
-        const hasChinese = /[\u4e00-\u9fff]/.test(t);
-        const detectedLang = alt?.languages?.[0] || d.channel?.detected_language || 'en';
-        
-        // Force Chinese if transcript contains Chinese characters
-        // Otherwise map to our 4 languages, or "other" for unsupported
-        let lang = hasChinese ? 'zh' : (langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'other');
-        
-        log('Detected: ' + detectedLang + (hasChinese ? ' (has Chinese chars)' : '') + ' -> ' + lang);
-        handleText(t, lang, d.is_final);
-      } catch(err) { log('Parse err: ' + err); }
-    };
+    // Chinese stream handlers
+    socketZh.onopen = () => { log('ZH stream connected'); zhReady = true; checkBothReady(); };
+    socketZh.onmessage = e => handleDgMessage(e, 'zh');
+    socketZh.onerror = () => log('ZH stream error');
+    socketZh.onclose = e => { log('ZH closed: ' + e.code); if(isCapturing && !socketEn) stopCapture(); };
     
-    socket.onerror = e => { log('WS error'); setStatus('error', 'Connection error'); stopCapture(); };
-    socket.onclose = e => { log('WS closed: ' + e.code + ' ' + (e.reason||'')); if(isCapturing) { setStatus('error', 'Disconnected: ' + e.code); stopCapture(); }};
+    // English stream handlers  
+    socketEn.onopen = () => { log('EN stream connected'); enReady = true; checkBothReady(); };
+    socketEn.onmessage = e => handleDgMessage(e, 'en');
+    socketEn.onerror = () => log('EN stream error');
+    socketEn.onclose = e => { log('EN closed: ' + e.code); if(isCapturing && !socketZh) stopCapture(); };
     
   } catch(err) { log('Error: ' + err.message); setStatus('error', err.message); stopCapture(); }
+}
+
+// Handle messages from either stream
+function handleDgMessage(e, streamLang) {
+  try {
+    const text = e.data instanceof ArrayBuffer ? new TextDecoder().decode(e.data) : e.data;
+    const d = JSON.parse(text);
+    const alt = d.channel?.alternatives?.[0];
+    const t = alt?.transcript;
+    if (!t) return;
+    
+    // Determine language from content
+    const hasChinese = /[\u4e00-\u9fff]/.test(t);
+    let lang = hasChinese ? 'zh' : streamLang;
+    
+    // Only process if this is the right stream for the content
+    // Chinese text should come from ZH stream, English from EN stream
+    if ((hasChinese && streamLang !== 'zh') || (!hasChinese && streamLang !== 'en')) {
+      return; // Skip - let the other stream handle it
+    }
+    
+    log(streamLang.toUpperCase() + ': "' + t + '" -> ' + lang);
+    handleText(t, lang, d.is_final);
+  } catch(err) { log('Parse err: ' + err); }
 }
 
 function stopCapture() {
   isCapturing = false;
   if (processor) { processor.disconnect(); processor = null; }
-  socket?.close(); socket = null;
+  socketZh?.close(); socketZh = null;
+  socketEn?.close(); socketEn = null;
   stream?.getTracks().forEach(t => t.stop()); stream = null;
   audioContext?.close(); audioContext = null; analyser = null;
   document.getElementById('audioLevel').style.width = '0%';

@@ -188,16 +188,19 @@ async function startCapture() {
     log('Connecting to Deepgram...');
     setStatus('connecting', 'Connecting to Deepgram...');
     
-    const params = new URLSearchParams({
-      model: 'nova-2-general',  // Multilingual model - auto-detects language
-      language: 'multi',        // Enable multilingual mode
-      encoding: 'linear16',
-      sample_rate: '16000',
-      channels: '1', 
-      punctuate: 'true', 
-      interim_results: 'true',
-      smart_format: 'true'
-    });
+    // Build params with multiple language hints for better detection
+    const params = new URLSearchParams();
+    params.append('model', 'nova-2');
+    params.append('language', 'en');      // Hint: English
+    params.append('language', 'zh');      // Hint: Chinese
+    params.append('language', 'es');      // Hint: Spanish  
+    params.append('language', 'fr');      // Hint: French
+    params.append('encoding', 'linear16');
+    params.append('sample_rate', '16000');
+    params.append('channels', '1');
+    params.append('punctuate', 'true');
+    params.append('interim_results', 'true');
+    params.append('smart_format', 'true');
     
     const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
     log('Connecting to: ' + proxyUrl);

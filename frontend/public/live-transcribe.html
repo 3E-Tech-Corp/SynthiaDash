@@ -142,10 +142,10 @@ async function startCapture() {
     
     const params = new URLSearchParams({
       model: 'nova-2', language: 'multi', detect_language: 'true',
-      punctuate: 'true', interim_results: 'true'
+      punctuate: 'true', interim_results: 'true', token: DEEPGRAM_KEY
     });
     
-    socket = new WebSocket('wss://api.deepgram.com/v1/listen?' + params, ['token', DEEPGRAM_KEY]);
+    socket = new WebSocket('wss://api.deepgram.com/v1/listen?' + params);
     
     socket.binaryType = 'arraybuffer';
     

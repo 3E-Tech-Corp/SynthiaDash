@@ -108,25 +108,38 @@ async function translate(text, from, to) {
 async function handleText(text, lang, final) {
   if (!text || !text.trim()) return;
   
-  // Always show in English box (no language detection available)
-  addLine('en', text, final);
-  setActive('en');
+  // Show transcript in detected language box
+  addLine(lang, text, final);
+  setActive(lang);
   
   // Only translate final results
   if (!final) return;
   
-  log('Final transcript: ' + text);
+  log('Final transcript (' + lang + '): ' + text);
   
-  // Translate to other languages
-  for (const to of ['es', 'zh', 'fr']) {
-    try {
-      const tr = await translate(text, 'en', to);
-      if (tr && tr !== text) {
-        addLine(to, tr, true);
-      }
-    } catch(e) {
-      log('Translation failed for ' + to + ': ' + e);
+  // Translate to other 3 languages using the new translate endpoint
+  try {
+    const r = await fetch('/api/chat/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, sourceLanguage: lang })
+    });
+    if (!r.ok) {
+      log('Translate HTTP error: ' + r.status);
+      return;
     }
+    const d = await r.json();
+    log('Translations: ' + JSON.stringify(d).substring(0, 200));
+    
+    // Add translations to other language boxes
+    const translations = d.translations || {};
+    for (const [toLang, translated] of Object.entries(translations)) {
+      if (toLang !== lang && translated && translated.trim()) {
+        addLine(toLang, translated, true);
+      }
+    }
+  } catch(e) {
+    log('Translation error: ' + e);
   }
 }
 
@@ -182,7 +195,8 @@ async function startCapture() {
       channels: '1', 
       punctuate: 'true', 
       interim_results: 'true',
-      smart_format: 'true'
+      smart_format: 'true',
+      detect_language: 'true'
     });
     
     const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
@@ -219,8 +233,11 @@ async function startCapture() {
         log('DG: ' + JSON.stringify(d).substring(0, 100));
         const t = d.channel?.alternatives?.[0]?.transcript;
         if (!t) return;
-        const det = d.channel.alternatives[0].languages?.[0] || 'en';
-        handleText(t, langMap[det] || 'en', d.is_final);
+        // Use detected_language from Deepgram response
+        const detectedLang = d.channel?.detected_language || 'en';
+        const lang = langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'en';
+        log('Detected lang: ' + detectedLang + ' -> ' + lang);
+        handleText(t, lang, d.is_final);
       } catch(err) { log('Parse err: ' + err); }
     };
     

@@ -65,9 +65,7 @@
     <div class="footer">CASEC 2026 Spring Gala • Live Transcription POC</div>
   </div>
 <script>
-// Key is now server-side - we use a proxy
-const USE_PROXY = true;
-let isCapturing = false, mediaRecorder = null, socket = null, stream = null, audioContext = null, analyser = null;
+let isCapturing = false, socket = null, stream = null, audioContext = null, analyser = null, processor = null;
 const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','cmn':'zh','fr':'fr','fr-FR':'fr'};
 const langNames = {'en':'English','es':'Spanish','zh':'Chinese','fr':'French'};
 
@@ -124,32 +122,50 @@ function monitorAudio() {
   })();
 }
 
+// Convert Float32Array to Int16Array (linear16)
+function floatTo16BitPCM(float32Array) {
+  const int16 = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  return int16;
+}
+
 async function toggleCapture() { isCapturing ? stopCapture() : await startCapture(); }
 
 async function startCapture() {
   try {
     log('Requesting mic...');
     setStatus('connecting', 'Requesting microphone...');
-    stream = await navigator.mediaDevices.getUserMedia({audio: {channelCount: 1, sampleRate: 16000}});
+    stream = await navigator.mediaDevices.getUserMedia({audio: {channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true}});
     log('Mic granted');
     
     audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 16000});
+    const source = audioContext.createMediaStreamSource(stream);
+    
     analyser = audioContext.createAnalyser();
-    audioContext.createMediaStreamSource(stream).connect(analyser);
     analyser.fftSize = 256;
+    source.connect(analyser);
+    
+    // Use ScriptProcessorNode to get raw PCM data
+    processor = audioContext.createScriptProcessor(4096, 1, 1);
+    source.connect(processor);
+    processor.connect(audioContext.destination);
     
     log('Connecting to Deepgram...');
     setStatus('connecting', 'Connecting to Deepgram...');
     
     const params = new URLSearchParams({
-      model: 'nova-2', 
+      model: 'nova-2',
+      encoding: 'linear16',
+      sample_rate: '16000',
+      channels: '1', 
       punctuate: 'true', 
       interim_results: 'true',
       smart_format: 'true'
-      // Let Deepgram auto-detect webm/opus format
     });
     
-    // Use Linux proxy (IIS WebSocket not working) - fallback to gw.synthia.bot
     const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
     log('Connecting to: ' + proxyUrl);
     socket = new WebSocket(proxyUrl);
@@ -164,21 +180,24 @@ async function startCapture() {
       document.getElementById('micBtn').textContent = '⏹️';
       monitorAudio();
       
-      mediaRecorder = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'});
-      mediaRecorder.ondataavailable = e => {
-        if (e.data.size > 0 && socket?.readyState === 1) socket.send(e.data);
+      // Send raw PCM audio
+      processor.onaudioprocess = (e) => {
+        if (socket?.readyState === 1) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          const pcmData = floatTo16BitPCM(inputData);
+          socket.send(pcmData.buffer);
+        }
       };
-      mediaRecorder.start(150);
       log('Recording started');
     };
     
     socket.onmessage = e => {
       try {
-        // Handle both text and binary (ArrayBuffer) responses
         const text = e.data instanceof ArrayBuffer 
           ? new TextDecoder().decode(e.data) 
           : e.data;
         const d = JSON.parse(text);
+        log('DG: ' + JSON.stringify(d).substring(0, 100));
         const t = d.channel?.alternatives?.[0]?.transcript;
         if (!t) return;
         const det = d.channel.alternatives[0].languages?.[0] || 'en';
@@ -194,7 +213,7 @@ async function startCapture() {
 
 function stopCapture() {
   isCapturing = false;
-  mediaRecorder?.stop(); mediaRecorder = null;
+  if (processor) { processor.disconnect(); processor = null; }
   socket?.close(); socket = null;
   stream?.getTracks().forEach(t => t.stop()); stream = null;
   audioContext?.close(); audioContext = null; analyser = null;

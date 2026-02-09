@@ -39,7 +39,7 @@ public class FeedbackController : ControllerBase
             var feedback = await _feedbackService.CreateAsync(dto);
             return Ok(new { 
                 success = true, 
-                message = "Thank you for your feedback! It will be reviewed before being published.",
+                message = "Thank you for your feedback! It's now live.",
                 id = feedback.Id 
             });
         }
@@ -107,6 +107,28 @@ public class FeedbackController : ControllerBase
         {
             _logger.LogError(ex, "Error approving feedback {Id}", id);
             return StatusCode(500, new { error = "Failed to approve feedback" });
+        }
+    }
+
+    /// <summary>
+    /// Revoke/hide feedback from public display (admin only)
+    /// </summary>
+    [HttpPost("{id}/revoke")]
+    [Authorize(Roles = "admin,moderator")]
+    public async Task<IActionResult> Revoke(int id)
+    {
+        try
+        {
+            var success = await _feedbackService.RevokeAsync(id);
+            if (!success)
+                return NotFound(new { error = "Feedback not found" });
+            
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error revoking feedback {Id}", id);
+            return StatusCode(500, new { error = "Failed to revoke feedback" });
         }
     }
 

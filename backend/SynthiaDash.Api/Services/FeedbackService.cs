@@ -10,6 +10,7 @@ public interface IFeedbackService
     Task<List<FeedbackPublicDto>> GetApprovedPublicAsync(int limit = 20);
     Task<List<Feedback>> GetAllAsync();
     Task<bool> ApproveAsync(int id);
+    Task<bool> RevokeAsync(int id);
     Task<bool> DeleteAsync(int id);
 }
 
@@ -35,7 +36,7 @@ public class FeedbackService : IFeedbackService
             Email = dto.Email?.Trim(),
             Message = dto.Message.Trim(),
             Organization = dto.Organization?.Trim(),
-            IsApproved = false,
+            IsApproved = true,  // Auto-approve, admin can revoke later
             IsPublic = dto.AllowPublic,
             CreatedAt = DateTime.UtcNow
         };
@@ -77,6 +78,15 @@ public class FeedbackService : IFeedbackService
         using var db = new SqlConnection(_connectionString);
         var rows = await db.ExecuteAsync(
             "UPDATE GoodAiFeedback SET IsApproved = 1 WHERE Id = @Id",
+            new { Id = id });
+        return rows > 0;
+    }
+
+    public async Task<bool> RevokeAsync(int id)
+    {
+        using var db = new SqlConnection(_connectionString);
+        var rows = await db.ExecuteAsync(
+            "UPDATE GoodAiFeedback SET IsApproved = 0 WHERE Id = @Id",
             new { Id = id });
         return rows > 0;
     }

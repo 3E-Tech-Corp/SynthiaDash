@@ -665,11 +665,9 @@ public class ChatController : ControllerBase
     /// Translate text to multiple languages using Claude
     /// </summary>
     [HttpPost("translate")]
+    [AllowAnonymous]
     public async Task<IActionResult> Translate([FromBody] TranslateRequest request)
     {
-        var userId = GetUserId();
-        if (userId == null) return Unauthorized();
-
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Text is required" });
 

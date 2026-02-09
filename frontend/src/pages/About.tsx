@@ -101,6 +101,59 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* ── The Synthia Manifesto ──────────────────────── */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-gray-900/30 to-gray-950">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-gray-900/80 border border-violet-500/30 rounded-2xl p-8 sm:p-10 space-y-6 relative overflow-hidden">
+            {/* Background glow */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-violet-600/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-600/10 rounded-full blur-3xl" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{t('mission.title')}</h2>
+                  <p className="text-violet-400 text-sm font-medium">{t('mission.subtitle')}</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-300 leading-relaxed mb-4">
+                {t('mission.p1')}
+              </p>
+              <p className="text-gray-300 leading-relaxed mb-6">
+                {t('mission.p2')}
+              </p>
+              
+              <div className="bg-gray-950/50 border border-gray-800 rounded-xl p-5 mb-6">
+                <div className="text-center">
+                  <div className="text-violet-400 font-semibold text-lg mb-2">{t('mission.directive')}</div>
+                  <div className="text-white text-xl sm:text-2xl font-bold">
+                    "{t('mission.primeDirective')}"
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <a
+                  href="/docs/Synthia-Manifesto.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium transition-all hover:shadow-lg hover:shadow-violet-600/25 text-white"
+                >
+                  <FileText className="w-5 h-5" />
+                  {t('mission.readManifesto')}
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+                <span className="text-gray-500 text-sm">{t('mission.date')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Origin Story ───────────────────────────────── */}
       <section className="py-12 sm:py-16 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
@@ -237,59 +290,6 @@ export default function AboutPage() {
 
       {/* ── Soul Archive ──────────────────────────────── */}
       <SoulArchive />
-
-      {/* ── Good AI Mission ────────────────────────────── */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-gray-900/30 to-gray-950">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-900/80 border border-violet-500/30 rounded-2xl p-8 sm:p-10 space-y-6 relative overflow-hidden">
-            {/* Background glow */}
-            <div className="absolute -top-20 -right-20 w-40 h-40 bg-violet-600/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-600/10 rounded-full blur-3xl" />
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-violet-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{t('mission.title')}</h2>
-                  <p className="text-violet-400 text-sm font-medium">{t('mission.subtitle')}</p>
-                </div>
-              </div>
-              
-              <p className="text-gray-300 leading-relaxed mb-4">
-                {t('mission.p1')}
-              </p>
-              <p className="text-gray-300 leading-relaxed mb-6">
-                {t('mission.p2')}
-              </p>
-              
-              <div className="bg-gray-950/50 border border-gray-800 rounded-xl p-5 mb-6">
-                <div className="text-center">
-                  <div className="text-violet-400 font-semibold text-lg mb-2">{t('mission.directive')}</div>
-                  <div className="text-white text-xl sm:text-2xl font-bold">
-                    "{t('mission.primeDirective')}"
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <a
-                  href="/docs/Synthia-Manifesto.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-medium transition-all hover:shadow-lg hover:shadow-violet-600/25 text-white"
-                >
-                  <FileText className="w-5 h-5" />
-                  {t('mission.readManifesto')}
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-                <span className="text-gray-500 text-sm">{t('mission.date')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── Stats Bar ──────────────────────────────────── */}
       <section className="py-12 sm:py-16 px-4 sm:px-6">

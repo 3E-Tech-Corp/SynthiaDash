@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MessageSquare, Send, User, Building2, Mail, CheckCircle, Loader2 } from 'lucide-react'
-import { api } from '../services/api'
-
-interface PublicFeedback {
-  id: number
-  name: string
-  organization?: string
-  message: string
-  createdAt: string
-}
+import { api, FeedbackPublic } from '../services/api'
 
 export default function GoodAiFeedback() {
   const { t } = useTranslation('about')
@@ -21,12 +13,12 @@ export default function GoodAiFeedback() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
-  const [publicFeedback, setPublicFeedback] = useState<PublicFeedback[]>([])
+  const [publicFeedback, setPublicFeedback] = useState<FeedbackPublic[]>([])
 
   useEffect(() => {
     // Load approved public feedback
-    api.get<PublicFeedback[]>('/feedback/public?limit=10')
-      .then(res => setPublicFeedback(res.data))
+    api.getPublicFeedback(10)
+      .then(data => setPublicFeedback(data))
       .catch(() => {}) // Silently fail
   }, [])
 
@@ -41,10 +33,10 @@ export default function GoodAiFeedback() {
 
     setIsSubmitting(true)
     try {
-      await api.post('/feedback', {
+      await api.submitFeedback({
         name: name.trim(),
-        email: email.trim() || null,
-        organization: organization.trim() || null,
+        email: email.trim() || undefined,
+        organization: organization.trim() || undefined,
         message: message.trim(),
         allowPublic
       })
@@ -53,8 +45,15 @@ export default function GoodAiFeedback() {
       setEmail('')
       setOrganization('')
       setMessage('')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to submit feedback')
+      // Reload public feedback to show the new comment
+      if (allowPublic) {
+        api.getPublicFeedback(10)
+          .then(data => setPublicFeedback(data))
+          .catch(() => {})
+      }
+    } catch (err: unknown) {
+      const error = err as { message?: string }
+      setError(error.message || 'Failed to submit feedback')
     } finally {
       setIsSubmitting(false)
     }

@@ -342,6 +342,20 @@ export interface ProposalAdminView {
   valueEstimates?: { id: number; proposalId: number; userId?: number; isAnonymous: boolean; wouldPay: boolean; monthlyAmount?: number; weight: number; createdAt: string }[]
 }
 
+export interface FeedbackPublic {
+  id: number
+  name: string
+  organization?: string
+  message: string
+  createdAt: string
+}
+
+export interface Feedback extends FeedbackPublic {
+  email?: string
+  isApproved: boolean
+  isPublic: boolean
+}
+
 export const api = {
   // Auth
   login: (email: string, password: string) =>
@@ -856,4 +870,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ key, value }),
     }),
+
+  // Good AI Feedback
+  submitFeedback: (data: { name: string; email?: string; organization?: string; message: string; allowPublic: boolean }) =>
+    fetchApi<{ success: boolean; message: string; id: number }>('/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getPublicFeedback: (limit = 10) =>
+    fetchApi<FeedbackPublic[]>(`/feedback/public?limit=${limit}`),
+
+  getAllFeedback: () =>
+    fetchApi<Feedback[]>('/feedback/all'),
+
+  approveFeedback: (id: number) =>
+    fetchApi<{ success: boolean }>(`/feedback/${id}/approve`, { method: 'POST' }),
+
+  revokeFeedback: (id: number) =>
+    fetchApi<{ success: boolean }>(`/feedback/${id}/revoke`, { method: 'POST' }),
+
+  deleteFeedback: (id: number) =>
+    fetchApi<{ success: boolean }>(`/feedback/${id}`, { method: 'DELETE' }),
 };

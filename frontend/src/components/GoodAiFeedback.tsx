@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MessageSquare, Send, User, Building2, Mail, CheckCircle, Loader2 } from 'lucide-react'
-import { api, FeedbackPublic } from '../services/api'
+import { api } from '../services/api'
+import type { FeedbackPublic } from '../services/api'
 
 export default function GoodAiFeedback() {
   const { t } = useTranslation('about')

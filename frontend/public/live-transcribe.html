@@ -92,23 +92,42 @@ function addLine(lang, text, final) {
 async function translate(text, from, to) {
   if (from === to || !text.trim()) return text;
   try {
+    log('Translating to ' + langNames[to] + ': ' + text.substring(0, 30) + '...');
     const r = await fetch('https://synthia.bot/api/chat/message', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: 'Translate to ' + langNames[to] + ', reply ONLY with translation: ' + text, sessionId: 't' + Date.now()})
+      body: JSON.stringify({message: 'Translate to ' + langNames[to] + '. Reply with ONLY the translation, nothing else: ' + text, sessionId: 'translate-' + to})
     });
+    if (!r.ok) { log('Translate HTTP error: ' + r.status); return text; }
     const d = await r.json();
-    return (d.response || d.message || text).replace(/^["']|["']$/g, '').trim();
+    log('Translation response: ' + JSON.stringify(d).substring(0, 100));
+    const result = d.response || d.message || d.reply || text;
+    return result.replace(/^["']|["']$/g, '').trim();
   } catch(e) { log('Translate error: ' + e); return text; }
 }
 
 async function handleText(text, lang, final) {
-  addLine(lang, text, final);
-  setActive(lang);
-  if (!final || !text.trim()) return;
-  ['en','es','zh','fr'].filter(l => l !== lang).forEach(async to => {
-    const tr = await translate(text, lang, to);
-    addLine(to, tr, true);
-  });
+  if (!text || !text.trim()) return;
+  
+  // Always show in English box (no language detection available)
+  addLine('en', text, final);
+  setActive('en');
+  
+  // Only translate final results
+  if (!final) return;
+  
+  log('Final transcript: ' + text);
+  
+  // Translate to other languages
+  for (const to of ['es', 'zh', 'fr']) {
+    try {
+      const tr = await translate(text, 'en', to);
+      if (tr && tr !== text) {
+        addLine(to, tr, true);
+      }
+    } catch(e) {
+      log('Translation failed for ' + to + ': ' + e);
+    }
+  }
 }
 
 function monitorAudio() {

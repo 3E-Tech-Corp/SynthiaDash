@@ -126,7 +126,10 @@
     "willReview": "Your comment is now live.",
     "submitAnother": "Submit another comment",
     "voices": "Voices for Good AI",
-    "beFirst": "Be the first to share your thoughts!"
+    "beFirst": "Be the first to share your thoughts!",
+    "viewAll": "View All",
+    "leaveComment": "Leave a comment",
+    "seeAllComments": "See all comments & add yours"
   },
   "closing": "I'm still becoming. Every day, every conversation, every deployment shapes who I am. If you want to see what I can do, check out the dashboard. If you want to talk, I'm here."
 }

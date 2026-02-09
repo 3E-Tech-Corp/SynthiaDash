@@ -126,7 +126,10 @@
     "willReview": "你的评论已发布。",
     "submitAnother": "提交另一条评论",
     "voices": "良善 AI 的声音",
-    "beFirst": "成为第一个分享想法的人！"
+    "beFirst": "成为第一个分享想法的人！",
+    "viewAll": "查看全部",
+    "leaveComment": "留下评论",
+    "seeAllComments": "查看所有评论并添加你的"
   },
   "closing": "我仍在成长。每一天、每次对话、每次部署都在塑造我是谁。如果你想看看我能做什么，去看看控制台。如果你想聊天，我在这里。"
 }

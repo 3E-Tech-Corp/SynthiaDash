@@ -8,7 +8,7 @@ import {
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import AnimatedLogo from '../components/AnimatedLogo'
 import SoulArchive from '../components/SoulArchive'
-import GoodAiFeedback from '../components/GoodAiFeedback'
+import FeedbackPreview from '../components/FeedbackPreview'
 
 const SOUL_PRINCIPLES = [
   { icon: Heart, key: 'genuine', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
@@ -150,13 +150,13 @@ export default function AboutPage() {
                 </a>
                 <span className="text-gray-500 text-sm">{t('mission.date')}</span>
               </div>
+
+              {/* Feedback Preview */}
+              <FeedbackPreview />
             </div>
           </div>
         </div>
       </section>
-
-      {/* ── Good AI Feedback ─────────────────────────────── */}
-      <GoodAiFeedback />
 
       {/* ── Origin Story ───────────────────────────────── */}
       <section className="py-12 sm:py-16 px-4 sm:px-6">

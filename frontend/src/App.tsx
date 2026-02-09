@@ -16,6 +16,7 @@ import DemoRequests from './pages/DemoRequests'
 import NotificationSettings from './pages/NotificationSettings'
 import SettingsPage from './pages/Settings'
 import AboutPage from './pages/About'
+import GoodAiPage from './pages/GoodAi'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ProposalBrowse from './pages/ProposalBrowse'
@@ -72,6 +73,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/good-ai" element={<GoodAiPage />} />
       <Route path="/proposals" element={<ProposalBrowse />} />
       <Route path="/proposals/:shareToken" element={<ProposalPublic />} />
       <Route path="/" element={<RootRoute />}>

@@ -64,6 +64,7 @@
       <div class="lang-card" id="card-es"><div class="lang-header"><span class="flag">🇪🇸</span><span>Español</span><span class="indicator"></span></div><div class="lang-content" id="content-es"><div class="empty-state">Esperando...</div></div></div>
       <div class="lang-card" id="card-zh"><div class="lang-header"><span class="flag">🇨🇳</span><span>中文</span><span class="indicator"></span></div><div class="lang-content" id="content-zh"><div class="empty-state">等待...</div></div></div>
       <div class="lang-card" id="card-fr"><div class="lang-header"><span class="flag">🇫🇷</span><span>Français</span><span class="indicator"></span></div><div class="lang-content" id="content-fr"><div class="empty-state">En attente...</div></div></div>
+      <div class="lang-card" id="card-other"><div class="lang-header"><span class="flag">🌐</span><span>Other</span><span class="indicator"></span></div><div class="lang-content" id="content-other"><div class="empty-state">...</div></div></div>
     </div>
     <div class="footer">CASEC 2026 Spring Gala • Live Transcription POC</div>
   </div>
@@ -250,13 +251,8 @@ async function startCapture() {
         const detectedLang = alt?.languages?.[0] || d.channel?.detected_language || 'en';
         
         // Force Chinese if transcript contains Chinese characters
-        // Otherwise map to our 4 languages, ignore unsupported languages
-        let lang = hasChinese ? 'zh' : (langMap[detectedLang] || langMap[detectedLang.split('-')[0]]);
-        
-        if (!lang) {
-          log('Ignoring unsupported language: ' + detectedLang);
-          return;  // Skip languages we don't support
-        }
+        // Otherwise map to our 4 languages, or "other" for unsupported
+        let lang = hasChinese ? 'zh' : (langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'other');
         
         log('Detected: ' + detectedLang + (hasChinese ? ' (has Chinese chars)' : '') + ' -> ' + lang);
         handleText(t, lang, d.is_final);

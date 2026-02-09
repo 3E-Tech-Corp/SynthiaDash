@@ -687,20 +687,15 @@ public class ChatController : ControllerBase
             { "fr", "French" }
         };
 
-        var prompt = $@"Translate the following text to these languages: {string.Join(", ", targetLangs.Select(l => langNames.GetValueOrDefault(l, l)))}.
+        var prompt = $@"You are a professional translator. Translate this text naturally and accurately into all 4 languages.
 
-Text to translate:
-{request.Text}
+Source ({sourceLang}): {request.Text}
 
-Respond ONLY with a JSON object in this exact format, no other text:
-{{
-  ""en"": ""English translation"",
-  ""zh"": ""Chinese translation"",
-  ""es"": ""Spanish translation"",
-  ""fr"": ""French translation""
-}}
+Provide natural, fluent translations. For the source language, return the original text unchanged.
 
-If the source text is already in one of the target languages, include it as-is for that language.";
+Return ONLY valid JSON:
+{{""en"":""..English.."",""zh"":""..中文.."",""es"":""..Español.."",""fr"":""..Français..""}}";
+
 
         try
         {

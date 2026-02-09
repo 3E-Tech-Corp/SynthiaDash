@@ -1021,6 +1021,8 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
+        {/* Action buttons row */}
+        <div className="flex gap-2 items-end justify-end">
           <input
             ref={imageInputRef}
             type="file"
@@ -1091,7 +1093,7 @@ export default function ChatPage() {
           )}
           <button
             onClick={() => handleSend()}
-            disabled={(!input.trim() && !pendingImage) || streaming || noProject || voiceMode}
+            disabled={(!input.trim() && !inputZh.trim() && !pendingImage) || streaming || noProject || voiceMode}
             className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
           >
             <Send className="w-5 h-5" />

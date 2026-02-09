@@ -662,7 +662,7 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// Translate text to multiple languages using Claude
+    /// Translate text to multiple languages using OpenAI GPT-4
     /// </summary>
     [HttpPost("translate")]
     [AllowAnonymous]
@@ -671,21 +671,11 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Text is required" });
 
-        var anthropicKey = _configuration["Anthropic:ApiKey"];
-        if (string.IsNullOrEmpty(anthropicKey))
+        var openaiKey = _configuration["OpenAI:ApiKey"];
+        if (string.IsNullOrEmpty(openaiKey))
             return StatusCode(503, new { error = "Translation not configured" });
 
-        var targetLangs = request.TargetLanguages ?? new[] { "en", "zh", "es", "fr" };
         var sourceLang = request.SourceLanguage ?? "auto";
-
-        // Build prompt for Claude
-        var langNames = new Dictionary<string, string>
-        {
-            { "en", "English" },
-            { "zh", "Chinese (Simplified)" },
-            { "es", "Spanish" },
-            { "fr", "French" }
-        };
 
         var prompt = $@"You are a professional translator at a Chinese New Year's Gala celebration event (CASEC 2026 Spring Gala). Translate speeches and announcements naturally and accurately.
 
@@ -693,19 +683,18 @@ Source ({sourceLang}): {request.Text}
 
 Provide natural, fluent, culturally appropriate translations for a festive New Year celebration context. Keep the tone warm and celebratory. For the source language, return the original text unchanged.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON (no markdown, no code blocks):
 {{""en"":""..English.."",""zh"":""..中文.."",""es"":""..Español.."",""fr"":""..Français..""}}";
 
 
         try
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("x-api-key", anthropicKey);
-            client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {openaiKey}");
 
             var payload = new
             {
-                model = "claude-sonnet-4-20250514",
+                model = "gpt-4o-mini",
                 max_tokens = 1024,
                 messages = new[]
                 {
@@ -714,24 +703,25 @@ Return ONLY valid JSON:
             };
 
             var response = await client.PostAsync(
-                "https://api.anthropic.com/v1/messages",
+                "https://api.openai.com/v1/chat/completions",
                 new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"));
 
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Claude translation failed: {Status} {Body}", response.StatusCode, body);
+                _logger.LogError("OpenAI translation failed: {Status} {Body}", response.StatusCode, body);
                 return StatusCode(502, new { error = "Translation failed" });
             }
 
             var result = await response.Content.ReadAsStringAsync();
             var json = JsonDocument.Parse(result);
             var content = json.RootElement
-                .GetProperty("content")[0]
-                .GetProperty("text")
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
                 .GetString();
 
-            // Parse the JSON response from Claude
+            // Parse the JSON response from OpenAI
             var translations = JsonSerializer.Deserialize<Dictionary<string, string>>(content ?? "{}");
             return Ok(new { translations });
         }

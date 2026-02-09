@@ -189,14 +189,14 @@ async function startCapture() {
     setStatus('connecting', 'Connecting to Deepgram...');
     
     const params = new URLSearchParams({
-      model: 'nova-2',
+      model: 'nova-2-general',  // Multilingual model - auto-detects language
+      language: 'multi',        // Enable multilingual mode
       encoding: 'linear16',
       sample_rate: '16000',
       channels: '1', 
       punctuate: 'true', 
       interim_results: 'true',
-      smart_format: 'true',
-      detect_language: 'true'
+      smart_format: 'true'
     });
     
     const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;
@@ -230,11 +230,12 @@ async function startCapture() {
           ? new TextDecoder().decode(e.data) 
           : e.data;
         const d = JSON.parse(text);
-        log('DG: ' + JSON.stringify(d).substring(0, 100));
-        const t = d.channel?.alternatives?.[0]?.transcript;
+        log('DG: ' + JSON.stringify(d).substring(0, 150));
+        const alt = d.channel?.alternatives?.[0];
+        const t = alt?.transcript;
         if (!t) return;
-        // Use detected_language from Deepgram response
-        const detectedLang = d.channel?.detected_language || 'en';
+        // Nova-2 multilingual returns language in alternatives[0].languages[0]
+        const detectedLang = alt?.languages?.[0] || d.channel?.detected_language || 'en';
         const lang = langMap[detectedLang] || langMap[detectedLang.split('-')[0]] || 'en';
         log('Detected lang: ' + detectedLang + ' -> ' + lang);
         handleText(t, lang, d.is_final);

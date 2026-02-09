@@ -549,13 +549,6 @@ export const api = {
   getDeepgramToken: () =>
     fetchApi<{ token: string }>('/chat/deepgram-token'),
 
-  translate: (text: string, sourceLanguage?: string) =>
-    fetchApi<{ translations: Record<string, string> }>('/chat/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, sourceLanguage }),
-    }),
-
   clearChatHistory: (projectId?: number) => {
     const params = projectId ? `?projectId=${projectId}` : '';
     return fetchApi<{ message: string }>(`/chat/history${params}`, { method: 'DELETE' });

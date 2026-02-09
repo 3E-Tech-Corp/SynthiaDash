@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Live Transcription POC</title>
-  <script src="https://cdn.jsdelivr.net/npm/@deepgram/sdk@3.0.0/dist/browser/deepgram.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -15,446 +14,184 @@
       padding: 20px;
     }
     .container { max-width: 1200px; margin: 0 auto; }
-    h1 {
-      text-align: center;
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-      background: linear-gradient(90deg, #a855f7, #ec4899);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+    h1 { text-align: center; font-size: 1.8rem; margin-bottom: 10px; background: linear-gradient(90deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .subtitle { text-align: center; color: #888; margin-bottom: 20px; }
-    
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    
-    .mic-btn {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      font-size: 2.5rem;
-      transition: all 0.3s;
-    }
+    .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
+    .mic-btn { width: 100px; height: 100px; border-radius: 50%; border: none; cursor: pointer; font-size: 2.5rem; transition: all 0.3s; }
     .mic-btn.idle { background: linear-gradient(135deg, #22c55e, #16a34a); }
     .mic-btn.listening { background: linear-gradient(135deg, #ef4444, #dc2626); animation: pulse 1s infinite; }
     .mic-btn:hover { transform: scale(1.05); }
-    
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-      50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-    }
-    
-    .status {
-      text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } }
+    .status { text-align: center; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
     .status.idle { background: rgba(100,100,100,0.3); }
     .status.connecting { background: rgba(234,179,8,0.3); color: #fbbf24; }
     .status.listening { background: rgba(34,197,94,0.3); color: #4ade80; }
     .status.error { background: rgba(239,68,68,0.3); color: #f87171; }
-    
-    .audio-level {
-      height: 8px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 4px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    .audio-level-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #22c55e, #fbbf24, #ef4444);
-      transition: width 0.1s;
-    }
-    
-    .languages {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 15px;
-    }
-    
-    .lang-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: all 0.3s;
-    }
-    .lang-card.active {
-      border-color: #a855f7;
-      box-shadow: 0 0 20px rgba(168,85,247,0.3);
-    }
-    
-    .lang-header {
-      padding: 12px 16px;
-      background: rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 600;
-    }
+    .audio-level { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
+    .audio-level-bar { height: 100%; background: linear-gradient(90deg, #22c55e, #fbbf24, #ef4444); transition: width 0.1s; }
+    .languages { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+    .lang-card { background: rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
+    .lang-card.active { border-color: #a855f7; box-shadow: 0 0 20px rgba(168,85,247,0.3); }
+    .lang-header { padding: 12px 16px; background: rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; font-weight: 600; }
     .lang-header .flag { font-size: 1.5rem; }
-    .lang-header .indicator {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #22c55e;
-      margin-left: auto;
-      display: none;
-    }
+    .lang-header .indicator { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-left: auto; display: none; }
     .lang-card.active .indicator { display: block; animation: pulse 1s infinite; }
-    
-    .lang-content {
-      padding: 16px;
-      min-height: 200px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    
-    .transcript-line {
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 8px;
-      margin-bottom: 8px;
-      border-left: 3px solid #a855f7;
-      animation: fadeIn 0.3s;
-    }
-    .transcript-line.interim {
-      opacity: 0.6;
-      border-left-color: #888;
-      font-style: italic;
-    }
-    .transcript-line .time {
-      font-size: 0.7rem;
-      color: #888;
-      margin-top: 5px;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .empty-state {
-      color: #666;
-      text-align: center;
-      padding: 40px 20px;
-    }
-    
-    .footer {
-      text-align: center;
-      margin-top: 30px;
-      color: #666;
-      font-size: 0.8rem;
-    }
+    .lang-content { padding: 16px; min-height: 200px; max-height: 400px; overflow-y: auto; }
+    .transcript-line { padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #a855f7; animation: fadeIn 0.3s; }
+    .transcript-line.interim { opacity: 0.6; border-left-color: #888; font-style: italic; }
+    .transcript-line .time { font-size: 0.7rem; color: #888; margin-top: 5px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .empty-state { color: #666; text-align: center; padding: 40px 20px; }
+    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 0.8rem; }
+    .debug { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; margin-bottom: 20px; font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>🎙️ Live Transcription POC</h1>
     <p class="subtitle">Speak in English, Spanish, Chinese, or French</p>
-    
     <div class="controls">
       <button class="mic-btn idle" id="micBtn" onclick="toggleCapture()">🎤</button>
     </div>
-    
     <div class="status idle" id="status">Tap the microphone to start</div>
-    
-    <div class="audio-level">
-      <div class="audio-level-bar" id="audioLevel" style="width: 0%"></div>
-    </div>
-    
+    <div class="debug" id="debug">Ready...</div>
+    <div class="audio-level"><div class="audio-level-bar" id="audioLevel" style="width: 0%"></div></div>
     <div class="languages">
-      <div class="lang-card" id="card-en">
-        <div class="lang-header">
-          <span class="flag">🇺🇸</span>
-          <span>English</span>
-          <span class="indicator"></span>
-        </div>
-        <div class="lang-content" id="content-en">
-          <div class="empty-state">Waiting for speech...</div>
-        </div>
-      </div>
-      
-      <div class="lang-card" id="card-es">
-        <div class="lang-header">
-          <span class="flag">🇪🇸</span>
-          <span>Español</span>
-          <span class="indicator"></span>
-        </div>
-        <div class="lang-content" id="content-es">
-          <div class="empty-state">Esperando...</div>
-        </div>
-      </div>
-      
-      <div class="lang-card" id="card-zh">
-        <div class="lang-header">
-          <span class="flag">🇨🇳</span>
-          <span>中文</span>
-          <span class="indicator"></span>
-        </div>
-        <div class="lang-content" id="content-zh">
-          <div class="empty-state">等待语音...</div>
-        </div>
-      </div>
-      
-      <div class="lang-card" id="card-fr">
-        <div class="lang-header">
-          <span class="flag">🇫🇷</span>
-          <span>Français</span>
-          <span class="indicator"></span>
-        </div>
-        <div class="lang-content" id="content-fr">
-          <div class="empty-state">En attente...</div>
-        </div>
-      </div>
+      <div class="lang-card" id="card-en"><div class="lang-header"><span class="flag">🇺🇸</span><span>English</span><span class="indicator"></span></div><div class="lang-content" id="content-en"><div class="empty-state">Waiting...</div></div></div>
+      <div class="lang-card" id="card-es"><div class="lang-header"><span class="flag">🇪🇸</span><span>Español</span><span class="indicator"></span></div><div class="lang-content" id="content-es"><div class="empty-state">Esperando...</div></div></div>
+      <div class="lang-card" id="card-zh"><div class="lang-header"><span class="flag">🇨🇳</span><span>中文</span><span class="indicator"></span></div><div class="lang-content" id="content-zh"><div class="empty-state">等待...</div></div></div>
+      <div class="lang-card" id="card-fr"><div class="lang-header"><span class="flag">🇫🇷</span><span>Français</span><span class="indicator"></span></div><div class="lang-content" id="content-fr"><div class="empty-state">En attente...</div></div></div>
     </div>
-    
-    <div class="footer">
-      CASEC 2026 Spring Gala • Live Transcription & Translation POC
-    </div>
+    <div class="footer">CASEC 2026 Spring Gala • Live Transcription POC</div>
   </div>
+<script>
+const DEEPGRAM_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7';
+let isCapturing = false, mediaRecorder = null, socket = null, stream = null, audioContext = null, analyser = null;
+const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','cmn':'zh','fr':'fr','fr-FR':'fr'};
+const langNames = {'en':'English','es':'Spanish','zh':'Chinese','fr':'French'};
 
-  <script>
-    const DEEPGRAM_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7';
-    
-    let isCapturing = false;
-    let mediaRecorder = null;
-    let socket = null;
-    let stream = null;
-    let audioContext = null;
-    let analyser = null;
-    
-    const langMap = {
-      'en': 'en', 'en-US': 'en', 'en-GB': 'en',
-      'es': 'es', 'es-ES': 'es', 'es-MX': 'es',
-      'zh': 'zh', 'zh-CN': 'zh', 'zh-TW': 'zh', 'cmn': 'zh', 'yue': 'zh',
-      'fr': 'fr', 'fr-FR': 'fr', 'fr-CA': 'fr'
-    };
-    
-    const langNames = {
-      'en': 'English', 'es': 'Spanish', 'zh': 'Chinese', 'fr': 'French'
-    };
-    
-    function setStatus(type, message) {
-      const el = document.getElementById('status');
-      el.className = 'status ' + type;
-      el.textContent = message;
-    }
-    
-    function setActiveLanguage(langCode) {
-      document.querySelectorAll('.lang-card').forEach(card => card.classList.remove('active'));
-      const card = document.getElementById('card-' + langCode);
-      if (card) card.classList.add('active');
-    }
-    
-    function addTranscript(langCode, text, isFinal) {
-      const content = document.getElementById('content-' + langCode);
-      if (!content) return;
-      
-      const emptyState = content.querySelector('.empty-state');
-      if (emptyState) emptyState.remove();
-      
-      const prevInterim = content.querySelector('.interim');
-      if (prevInterim) prevInterim.remove();
-      
-      const div = document.createElement('div');
-      div.className = 'transcript-line' + (isFinal ? '' : ' interim');
-      div.innerHTML = `<div>${text}</div>${isFinal ? `<div class="time">${new Date().toLocaleTimeString()}</div>` : ''}`;
-      content.appendChild(div);
-      content.scrollTop = content.scrollHeight;
-    }
-    
-    async function translateText(text, sourceLang, targetLang) {
-      if (sourceLang === targetLang || !text.trim()) return text;
-      
-      try {
-        const response = await fetch('https://synthia.bot/api/chat/message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: `Translate to ${langNames[targetLang]}, reply ONLY with translation: ${text}`,
-            sessionId: 'tr-' + Date.now()
-          })
-        });
-        const data = await response.json();
-        return (data.response || data.message || text).replace(/^["']|["']$/g, '').trim();
-      } catch (err) {
-        console.error('Translation error:', err);
-        return text;
-      }
-    }
-    
-    async function handleTranscription(text, sourceLang, isFinal) {
-      addTranscript(sourceLang, text, isFinal);
-      setActiveLanguage(sourceLang);
-      
-      if (!isFinal || !text.trim()) return;
-      
-      // Translate to other languages
-      const others = ['en', 'es', 'zh', 'fr'].filter(l => l !== sourceLang);
-      others.forEach(async lang => {
-        const translated = await translateText(text, sourceLang, lang);
-        addTranscript(lang, translated, true);
-      });
-    }
-    
-    function monitorAudio() {
-      if (!analyser) return;
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      function update() {
-        if (!analyser || !isCapturing) return;
-        analyser.getByteFrequencyData(data);
-        const avg = data.reduce((a, b) => a + b) / data.length;
-        document.getElementById('audioLevel').style.width = (avg / 255 * 100) + '%';
-        requestAnimationFrame(update);
-      }
-      update();
-    }
-    
-    async function toggleCapture() {
-      if (isCapturing) {
-        stopCapture();
-      } else {
-        await startCapture();
-      }
-    }
-    
-    async function startCapture() {
-      try {
-        setStatus('connecting', 'Requesting microphone...');
-        
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
-        });
-        
-        setStatus('connecting', 'Connecting to Deepgram...');
-        
-        // Audio monitoring
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        analyser = audioContext.createAnalyser();
-        const source = audioContext.createMediaStreamSource(stream);
-        source.connect(analyser);
-        analyser.fftSize = 256;
-        
-        // Connect to Deepgram via WebSocket with proper auth
-        const wsUrl = 'wss://api.deepgram.com/v1/listen?' + new URLSearchParams({
-          model: 'nova-2',
-          language: 'multi',
-          detect_language: 'true',
-          punctuate: 'true',
-          interim_results: 'true',
-          encoding: 'opus',
-          channels: '1'
-        }).toString();
-        
-        socket = new WebSocket(wsUrl, ['token', DEEPGRAM_KEY]);
-        
-        socket.onopen = () => {
-          console.log('✓ Deepgram connected');
-          setStatus('listening', '🔴 Listening... Speak now!');
-          isCapturing = true;
-          
-          document.getElementById('micBtn').className = 'mic-btn listening';
-          document.getElementById('micBtn').textContent = '⏹️';
-          
-          monitorAudio();
-          
-          // Start MediaRecorder
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-          mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-              socket.send(e.data);
-            }
-          };
-          mediaRecorder.start(100); // Send every 100ms
-        };
-        
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            const alt = data.channel?.alternatives?.[0];
-            if (!alt?.transcript) return;
-            
-            const text = alt.transcript;
-            const detected = alt.languages?.[0] || data.metadata?.detected_language || 'en';
-            const lang = langMap[detected] || 'en';
-            
-            handleTranscription(text, lang, data.is_final);
-          } catch (e) {
-            console.error('Parse error:', e);
-          }
-        };
-        
-        socket.onerror = (err) => {
-          console.error('WebSocket error:', err);
-          setStatus('error', 'Connection failed. Check console.');
-          stopCapture();
-        };
-        
-        socket.onclose = (e) => {
-          console.log('WebSocket closed:', e.code, e.reason);
-          if (isCapturing) {
-            setStatus('error', `Disconnected (${e.code})`);
-            stopCapture();
-          }
-        };
-        
-      } catch (err) {
-        console.error('Start error:', err);
-        setStatus('error', err.message || 'Microphone access denied');
-        stopCapture();
-      }
-    }
-    
-    function stopCapture() {
-      isCapturing = false;
-      
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-      }
-      mediaRecorder = null;
-      
-      if (socket) {
-        socket.close();
-        socket = null;
-      }
-      
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-      
-      if (audioContext) {
-        audioContext.close().catch(() => {});
-        audioContext = null;
-        analyser = null;
-      }
-      
-      document.getElementById('audioLevel').style.width = '0%';
-      document.getElementById('micBtn').className = 'mic-btn idle';
-      document.getElementById('micBtn').textContent = '🎤';
-      
-      const statusEl = document.getElementById('status');
-      if (!statusEl.classList.contains('error')) {
-        setStatus('idle', 'Tap the microphone to start');
-      }
-    }
-    
-    // Handle page visibility
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && isCapturing) {
-        console.log('Page hidden, stopping capture');
-        stopCapture();
-      }
+function log(msg) { 
+  console.log(msg); 
+  const d = document.getElementById('debug');
+  d.textContent = new Date().toLocaleTimeString() + ' ' + msg + '\n' + d.textContent.split('\n').slice(0,5).join('\n');
+}
+
+function setStatus(type, msg) { const el = document.getElementById('status'); el.className = 'status ' + type; el.textContent = msg; }
+function setActive(lang) { document.querySelectorAll('.lang-card').forEach(c => c.classList.remove('active')); document.getElementById('card-' + lang)?.classList.add('active'); }
+
+function addLine(lang, text, final) {
+  const c = document.getElementById('content-' + lang); if (!c) return;
+  c.querySelector('.empty-state')?.remove();
+  c.querySelector('.interim')?.remove();
+  const div = document.createElement('div');
+  div.className = 'transcript-line' + (final ? '' : ' interim');
+  div.innerHTML = '<div>' + text + '</div>' + (final ? '<div class="time">' + new Date().toLocaleTimeString() + '</div>' : '');
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+async function translate(text, from, to) {
+  if (from === to || !text.trim()) return text;
+  try {
+    const r = await fetch('https://synthia.bot/api/chat/message', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: 'Translate to ' + langNames[to] + ', reply ONLY with translation: ' + text, sessionId: 't' + Date.now()})
     });
-  </script>
+    const d = await r.json();
+    return (d.response || d.message || text).replace(/^["']|["']$/g, '').trim();
+  } catch(e) { log('Translate error: ' + e); return text; }
+}
+
+async function handleText(text, lang, final) {
+  addLine(lang, text, final);
+  setActive(lang);
+  if (!final || !text.trim()) return;
+  ['en','es','zh','fr'].filter(l => l !== lang).forEach(async to => {
+    const tr = await translate(text, lang, to);
+    addLine(to, tr, true);
+  });
+}
+
+function monitorAudio() {
+  if (!analyser) return;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  (function update() {
+    if (!analyser || !isCapturing) return;
+    analyser.getByteFrequencyData(data);
+    document.getElementById('audioLevel').style.width = (data.reduce((a,b)=>a+b)/data.length/255*100) + '%';
+    requestAnimationFrame(update);
+  })();
+}
+
+async function toggleCapture() { isCapturing ? stopCapture() : await startCapture(); }
+
+async function startCapture() {
+  try {
+    log('Requesting mic...');
+    setStatus('connecting', 'Requesting microphone...');
+    stream = await navigator.mediaDevices.getUserMedia({audio: {channelCount: 1, sampleRate: 16000}});
+    log('Mic granted');
+    
+    audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 16000});
+    analyser = audioContext.createAnalyser();
+    audioContext.createMediaStreamSource(stream).connect(analyser);
+    analyser.fftSize = 256;
+    
+    log('Connecting to Deepgram...');
+    setStatus('connecting', 'Connecting to Deepgram...');
+    
+    const params = new URLSearchParams({
+      model: 'nova-2', language: 'multi', detect_language: 'true',
+      punctuate: 'true', interim_results: 'true'
+    });
+    
+    socket = new WebSocket('wss://api.deepgram.com/v1/listen?' + params, ['token', DEEPGRAM_KEY]);
+    
+    socket.binaryType = 'arraybuffer';
+    
+    socket.onopen = () => {
+      log('✓ Connected!');
+      setStatus('listening', '🔴 Listening... Speak now!');
+      isCapturing = true;
+      document.getElementById('micBtn').className = 'mic-btn listening';
+      document.getElementById('micBtn').textContent = '⏹️';
+      monitorAudio();
+      
+      mediaRecorder = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'});
+      mediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0 && socket?.readyState === 1) socket.send(e.data);
+      };
+      mediaRecorder.start(150);
+      log('Recording started');
+    };
+    
+    socket.onmessage = e => {
+      try {
+        const d = JSON.parse(e.data);
+        const t = d.channel?.alternatives?.[0]?.transcript;
+        if (!t) return;
+        const det = d.channel.alternatives[0].languages?.[0] || 'en';
+        handleText(t, langMap[det] || 'en', d.is_final);
+      } catch(err) { log('Parse err: ' + err); }
+    };
+    
+    socket.onerror = e => { log('WS error'); setStatus('error', 'Connection error'); stopCapture(); };
+    socket.onclose = e => { log('WS closed: ' + e.code + ' ' + (e.reason||'')); if(isCapturing) { setStatus('error', 'Disconnected: ' + e.code); stopCapture(); }};
+    
+  } catch(err) { log('Error: ' + err.message); setStatus('error', err.message); stopCapture(); }
+}
+
+function stopCapture() {
+  isCapturing = false;
+  mediaRecorder?.stop(); mediaRecorder = null;
+  socket?.close(); socket = null;
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  audioContext?.close(); audioContext = null; analyser = null;
+  document.getElementById('audioLevel').style.width = '0%';
+  document.getElementById('micBtn').className = 'mic-btn idle';
+  document.getElementById('micBtn').textContent = '🎤';
+  log('Stopped');
+}
+</script>
 </body>
 </html>

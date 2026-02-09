@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MessageSquare, Send, User, Building2, Mail, CheckCircle, Loader2 } from 'lucide-react'
-import api from '../services/api'
+import { api } from '../services/api'
 
 interface PublicFeedback {
   id: number
@@ -25,7 +25,7 @@ export default function GoodAiFeedback() {
 
   useEffect(() => {
     // Load approved public feedback
-    api.get('/feedback/public?limit=10')
+    api.get<PublicFeedback[]>('/feedback/public?limit=10')
       .then(res => setPublicFeedback(res.data))
       .catch(() => {}) // Silently fail
   }, [])

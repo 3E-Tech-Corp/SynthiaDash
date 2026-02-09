@@ -198,16 +198,15 @@ async function startCapture() {
     log('Connecting to Deepgram...');
     setStatus('connecting', 'Connecting to Deepgram...');
     
-    // Nova-3 has native multilingual support with code-switching
+    // Use whisper model for better multilingual support including Chinese
     const params = new URLSearchParams({
-      model: 'nova-3',
-      language: 'multi',
+      model: 'whisper-large',
+      language: 'zh',  // Default to Chinese, will also pick up other languages
       encoding: 'linear16',
       sample_rate: '16000',
       channels: '1',
       punctuate: 'true',
-      interim_results: 'true',
-      smart_format: 'true'
+      interim_results: 'true'
     });
     
     const proxyUrl = `wss://gw.synthia.bot/dgproxy?${params}`;

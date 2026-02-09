@@ -372,8 +372,9 @@ export default function ChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Open Deepgram WebSocket with tuned VAD parameters
+    // detect_language=true lets Deepgram auto-detect Chinese, English, etc.
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     const ws = new WebSocket(dgUrl, ['token', token])
     deepgramWsRef.current = ws

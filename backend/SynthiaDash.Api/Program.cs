@@ -404,8 +404,83 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseCors();
+app.UseWebSockets();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Deepgram WebSocket proxy (browser can't send auth headers directly)
+app.Map("/api/deepgram-proxy", async context =>
+{
+    if (!context.WebSockets.IsWebSocketRequest)
+    {
+        context.Response.StatusCode = 400;
+        await context.Response.WriteAsync("WebSocket required");
+        return;
+    }
+    
+    var deepgramKey = app.Configuration["Deepgram:ApiKey"];
+    if (string.IsNullOrEmpty(deepgramKey))
+    {
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsync("Deepgram API key not configured");
+        return;
+    }
+    
+    using var clientWs = await context.WebSockets.AcceptWebSocketAsync();
+    using var httpClient = new HttpClient();
+    
+    // Build Deepgram URL with query params from original request
+    var query = context.Request.QueryString.Value ?? "";
+    var dgUrl = $"wss://api.deepgram.com/v1/listen{query}";
+    
+    using var dgClient = new System.Net.WebSockets.ClientWebSocket();
+    dgClient.Options.SetRequestHeader("Authorization", $"Token {deepgramKey}");
+    
+    try
+    {
+        await dgClient.ConnectAsync(new Uri(dgUrl), CancellationToken.None);
+        
+        // Bidirectional proxy
+        var clientToServer = Task.Run(async () =>
+        {
+            var buffer = new byte[8192];
+            while (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
+            {
+                var result = await clientWs.ReceiveAsync(buffer, CancellationToken.None);
+                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
+                    break;
+                await dgClient.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count), 
+                    result.MessageType, result.EndOfMessage, CancellationToken.None);
+            }
+        });
+        
+        var serverToClient = Task.Run(async () =>
+        {
+            var buffer = new byte[8192];
+            while (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
+            {
+                var result = await dgClient.ReceiveAsync(buffer, CancellationToken.None);
+                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
+                    break;
+                await clientWs.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count),
+                    result.MessageType, result.EndOfMessage, CancellationToken.None);
+            }
+        });
+        
+        await Task.WhenAny(clientToServer, serverToClient);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Deepgram proxy error");
+    }
+    finally
+    {
+        if (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
+            await clientWs.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        if (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
+            await dgClient.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+    }
+});
 
 app.Run();

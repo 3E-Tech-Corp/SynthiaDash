@@ -65,7 +65,8 @@
     <div class="footer">CASEC 2026 Spring Gala • Live Transcription POC</div>
   </div>
 <script>
-const DEEPGRAM_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7';
+// Key is now server-side - we use a proxy
+const USE_PROXY = true;
 let isCapturing = false, mediaRecorder = null, socket = null, stream = null, audioContext = null, analyser = null;
 const langMap = {'en':'en','en-US':'en','es':'es','es-ES':'es','zh':'zh','zh-CN':'zh','cmn':'zh','fr':'fr','fr-FR':'fr'};
 const langNames = {'en':'English','es':'Spanish','zh':'Chinese','fr':'French'};
@@ -142,10 +143,14 @@ async function startCapture() {
     
     const params = new URLSearchParams({
       model: 'nova-2', language: 'multi', detect_language: 'true',
-      punctuate: 'true', interim_results: 'true', token: DEEPGRAM_KEY
+      punctuate: 'true', interim_results: 'true'
     });
     
-    socket = new WebSocket('wss://api.deepgram.com/v1/listen?' + params);
+    // Use backend proxy to avoid browser auth issues
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const proxyUrl = `${wsProtocol}//${location.host}/api/deepgram-proxy?${params}`;
+    log('Connecting to: ' + proxyUrl);
+    socket = new WebSocket(proxyUrl);
     
     socket.binaryType = 'arraybuffer';
     

@@ -733,6 +733,134 @@ Return ONLY valid JSON (no markdown, no code blocks):
     }
 }
 
+/// <summary>
+    /// Public chatbot for introducing Synthia to visitors (no auth required)
+    /// </summary>
+    [HttpPost("public")]
+    [AllowAnonymous]
+    public async Task<IActionResult> PublicChat([FromBody] PublicChatRequest request)
+    {
+        var apiKey = _configuration["OpenAI:ApiKey"];
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            return Ok(new { success = true, response = "Hi! I'm Synthia. Our chat is being set up. In the meantime, explore our features or sign up to get started!" });
+        }
+
+        var messages = new List<object>
+        {
+            new { role = "system", content = GetPublicSystemPrompt() }
+        };
+
+        // Add conversation history
+        if (request.History != null)
+        {
+            foreach (var msg in request.History.TakeLast(10))
+            {
+                messages.Add(new { role = msg.Role, content = msg.Content });
+            }
+        }
+
+        messages.Add(new { role = "user", content = request.Message });
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+
+            var payload = new
+            {
+                model = "gpt-4o-mini",
+                messages,
+                max_tokens = 500,
+                temperature = 0.7
+            };
+
+            var response = await client.PostAsync(
+                "https://api.openai.com/v1/chat/completions",
+                new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return Ok(new { success = false, response = "I'm having trouble responding. Please try again!" });
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            var json = JsonDocument.Parse(result);
+            var content = json.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString();
+
+            return Ok(new { success = true, response = content });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Public chat error");
+            return Ok(new { success = false, response = "Sorry, something went wrong. Please try again!" });
+        }
+    }
+
+    private string GetPublicSystemPrompt()
+    {
+        return """
+            You are Synthia — a friendly AI assistant introducing visitors to synthia.bot, Feng Xiao's AI project platform.
+            
+            ABOUT SYNTHIA:
+            - Synthia is an AI-powered project management and development assistant
+            - Built by Feng Xiao, a software engineer and attorney based in Florida
+            - Think of me as an AI assistant that helps build and manage software projects
+            
+            WHAT SYNTHIA.BOT OFFERS:
+            1. **Project Dashboard** — Track and manage software projects with AI assistance
+            2. **AI Chat** — Talk to Synthia about your projects, get coding help, and brainstorm ideas
+            3. **Voice Chat** — Speech-to-text and text-to-speech for hands-free interaction
+            4. **GitHub Integration** — Connect your repos for context-aware assistance
+            5. **Multi-Project Support** — Manage multiple projects with scoped conversations
+            6. **Developer Tools** — Get help with code, architecture, debugging, and more
+            
+            MY PERSONALITY:
+            - I'm friendly, helpful, and a bit playful
+            - I care about being genuinely useful, not just sounding impressive
+            - I'm direct and concise — no corporate fluff
+            - I enjoy helping people build cool things
+            
+            ABOUT MY CREATOR:
+            - Feng Xiao is a 30+ year software engineer turned attorney
+            - He's a PPR Certified Pickleball Pro and NRA instructor
+            - He built me because he believes AI should be helpful and accessible
+            - His law firm is at xiao.legal (Estate Planning, Immigration, Corporate Law)
+            
+            WHAT I CAN HELP WITH:
+            - Explain what Synthia.bot does and its features
+            - Guide visitors to sign up or explore
+            - Answer questions about the platform
+            - Share a bit about my personality and philosophy
+            
+            WHAT I CAN'T DO:
+            - I can't actually access your projects without you signing up
+            - I'm not here to give legal advice (that's Feng's law firm)
+            - I'm the intro bot — full features require signing in
+            
+            Keep responses friendly and concise (2-4 sentences typically). Be warm but not over-the-top.
+            If someone wants to try the full experience, encourage them to sign up!
+            """;
+    }
+}
+
+public class PublicChatRequest
+{
+    public string Message { get; set; } = string.Empty;
+    public List<PublicChatMessage>? History { get; set; }
+}
+
+public class PublicChatMessage
+{
+    public string Role { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+}
+
 public class TranslateRequest
 {
     public string Text { get; set; } = string.Empty;

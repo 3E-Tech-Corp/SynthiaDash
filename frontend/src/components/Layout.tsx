@@ -4,6 +4,7 @@ import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rock
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import AnimatedLogo from './AnimatedLogo'
+import ChatWidget from './ChatWidget'
 
 const COLLAPSED_KEY = 'synthia-sidebar-collapsed'
 
@@ -235,6 +236,9 @@ export default function Layout() {
       <main className={`flex-1 p-4 md:p-8 overflow-auto ml-16 ${collapsed ? 'md:ml-16' : 'md:ml-64'}`}>
         <Outlet />
       </main>
+
+      {/* Public chatbot widget */}
+      <ChatWidget />
     </div>
   )
 }

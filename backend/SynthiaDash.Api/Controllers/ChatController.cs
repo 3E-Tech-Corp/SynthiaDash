@@ -731,9 +731,8 @@ Return ONLY valid JSON (no markdown, no code blocks):
             return StatusCode(500, new { error = "Translation failed" });
         }
     }
-}
 
-/// <summary>
+    /// <summary>
     /// Public chatbot for introducing Synthia to visitors (no auth required)
     /// </summary>
     [HttpPost("public")]

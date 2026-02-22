@@ -243,7 +243,9 @@ export default function FullChatPage() {
     try {
       const resp = await api.getDeepgramToken()
       token = resp.token
-    } catch {
+      console.log('Deepgram token received, length:', token?.length)
+    } catch (err) {
+      console.error('Failed to get Deepgram token:', err)
       setVoiceError('语音服务不可用 / Speech service unavailable')
       return
     }
@@ -270,6 +272,7 @@ export default function FullChatPage() {
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
       'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
+    console.log('Connecting to Deepgram WebSocket...')
     const ws = new WebSocket(dgUrl, ['token', token])
     deepgramWsRef.current = ws
 
@@ -349,7 +352,8 @@ export default function FullChatPage() {
       }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (event) => {
+      console.error('Deepgram WebSocket error:', event)
       if (recordingRef.current) {
         setVoiceError('语音连接错误 / Voice connection error')
         stopRecording()

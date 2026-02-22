@@ -269,11 +269,13 @@ export default function FullChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Deepgram with multi-language support (auto-detect Chinese/English)
+    // Use query param auth instead of subprotocol for better mobile compatibility
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true' +
+      '&token=' + encodeURIComponent(token)
 
     console.log('Connecting to Deepgram WebSocket...')
-    const ws = new WebSocket(dgUrl, ['token', token])
+    const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws
 
     ws.onopen = () => {

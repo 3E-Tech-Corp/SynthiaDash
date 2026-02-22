@@ -372,10 +372,12 @@ export default function ChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Open Deepgram WebSocket with tuned VAD parameters
+    // Use query param auth instead of subprotocol for better mobile compatibility
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true' +
+      '&token=' + encodeURIComponent(token)
 
-    const ws = new WebSocket(dgUrl, ['token', token])
+    const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws
 
     ws.onopen = () => {

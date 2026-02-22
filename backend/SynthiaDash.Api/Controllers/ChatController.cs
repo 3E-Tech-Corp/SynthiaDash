@@ -96,10 +96,11 @@ public class ChatController : ControllerBase
         if (userId == null) return Unauthorized();
 
         var apiKey = _configuration["Deepgram:ApiKey"];
+        // Fallback to hardcoded key if not configured (temporary fix)
         if (string.IsNullOrEmpty(apiKey))
         {
-            _logger.LogWarning("Deepgram API key not configured");
-            return StatusCode(503, new { error = "Speech-to-text not configured" });
+            apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
+            _logger.LogWarning("Using fallback Deepgram API key");
         }
 
         return Ok(new { token = apiKey });
@@ -118,8 +119,12 @@ public class ChatController : ControllerBase
             return BadRequest(new { error = "Text is required" });
 
         var apiKey = _configuration["Deepgram:ApiKey"];
+        // Fallback to hardcoded key if not configured (temporary fix)
         if (string.IsNullOrEmpty(apiKey))
-            return StatusCode(503, new { error = "TTS not configured" });
+        {
+            apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
+            _logger.LogWarning("Using fallback Deepgram API key for TTS");
+        }
 
         var model = request.Voice ?? "aura-asteria-en"; // asteria = female voice
         var client = _httpClientFactory.CreateClient();

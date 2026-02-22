@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, FolderGit2, Bot, LogOut, User, Users, TicketIcon, Rocket, Menu, X, MessageCircle, Star, Settings, ChevronsLeft, ChevronsRight, UserPlus, Bell, Sparkles, Lightbulb, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,10 +8,18 @@ import ChatWidget from './ChatWidget'
 
 const COLLAPSED_KEY = 'synthia-sidebar-collapsed'
 
+// Routes where the chat widget should be hidden (user is already on a chat page)
+const CHAT_ROUTES = ['/chat', '/synthia']
+
 export default function Layout() {
   const { user, logout } = useAuth()
   const { t } = useTranslation('nav')
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // Hide chat widget on chat pages
+  const hideChatWidget = CHAT_ROUTES.some(route => location.pathname === route || location.pathname.startsWith(route + '/'))
+  
   // Desktop collapsed state (persisted)
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === '1' } catch { return false }
@@ -237,8 +245,8 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      {/* Public chatbot widget */}
-      <ChatWidget />
+      {/* Public chatbot widget (hidden on chat pages) */}
+      {!hideChatWidget && <ChatWidget />}
     </div>
   )
 }

@@ -410,6 +410,66 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// Debug endpoint: test Deepgram connection from server
+app.MapGet("/deepgram-test", async context =>
+{
+    var deepgramKey = app.Configuration["Deepgram:ApiKey"];
+    if (string.IsNullOrEmpty(deepgramKey))
+        deepgramKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
+    
+    var results = new List<string>();
+    results.Add($"Testing Deepgram connection from server...");
+    
+    try
+    {
+        using var dgClient = new System.Net.WebSockets.ClientWebSocket();
+        dgClient.Options.SetRequestHeader("Authorization", $"Token {deepgramKey}");
+        
+        var dgUrl = "wss://api.deepgram.com/v1/listen?model=nova-2&encoding=linear16&sample_rate=16000&channels=1";
+        results.Add($"Connecting to: {dgUrl}");
+        
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await dgClient.ConnectAsync(new Uri(dgUrl), cts.Token);
+        results.Add($"Connected! State: {dgClient.State}");
+        
+        // Send some silent audio (16-bit PCM silence)
+        var silence = new byte[8192]; // ~256ms of silence at 16kHz
+        await dgClient.SendAsync(new ArraySegment<byte>(silence), System.Net.WebSockets.WebSocketMessageType.Binary, true, cts.Token);
+        results.Add("Sent 8KB of silence");
+        
+        // Wait for response
+        var buffer = new byte[4096];
+        var receiveTask = dgClient.ReceiveAsync(buffer, cts.Token);
+        var completed = await Task.WhenAny(receiveTask, Task.Delay(3000, cts.Token));
+        
+        if (completed == receiveTask)
+        {
+            var result = await receiveTask;
+            results.Add($"Received: {result.MessageType}, {result.Count} bytes");
+            if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Text)
+            {
+                var text = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
+                results.Add($"Response: {text[..Math.Min(text.Length, 500)]}");
+            }
+        }
+        else
+        {
+            results.Add("No response within 3 seconds (normal for silence)");
+        }
+        
+        // Close properly
+        await dgClient.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        results.Add($"Closed. Final state: {dgClient.State}");
+    }
+    catch (Exception ex)
+    {
+        results.Add($"ERROR: {ex.GetType().Name}: {ex.Message}");
+    }
+    
+    context.Response.ContentType = "text/plain";
+    await context.Response.WriteAsync(string.Join("\n", results));
+});
+
 // Deepgram WebSocket proxy (browser can't send auth headers directly)
 app.Map("/deepgram-proxy", async context =>
 {

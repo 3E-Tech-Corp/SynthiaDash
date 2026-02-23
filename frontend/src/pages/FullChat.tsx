@@ -267,22 +267,13 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Get Deepgram token from backend
-    let deepgramToken: string
-    try {
-      const tokenResp = await api.getDeepgramToken()
-      deepgramToken = tokenResp.token
-    } catch {
-      setVoiceError('无法获取语音服务凭证 / Could not get voice credentials')
-      return
-    }
-
-    // Use Linear16 PCM like CASEC (more reliable than WebM/Opus)
-    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+    // Use backend proxy for auth + Linear16 PCM for audio (like CASEC)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
       'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram directly (Linear16 PCM)...')
-    const ws = new WebSocket(dgUrl, ['token', deepgramToken])
+    console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')
+    const ws = new WebSocket(dgUrl)
     ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
 

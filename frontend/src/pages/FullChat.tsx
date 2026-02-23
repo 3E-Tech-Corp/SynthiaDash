@@ -268,13 +268,27 @@ export default function FullChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Deepgram with multi-language support (auto-detect Chinese/English)
-    // Browser WebSocket can't send auth headers, so we proxy through our backend
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
-      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+    // Direct connection with subprotocol auth + webm/opus encoding
+    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+      'model=nova-2&encoding=opus&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram WebSocket via backend proxy...')
-    const ws = new WebSocket(dgUrl)
+    // Get token from backend for auth
+    let dgToken: string
+    try {
+      const tokenResp = await fetch('/api/chat/deepgram-token', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      const tokenData = await tokenResp.json()
+      dgToken = tokenData.token
+    } catch {
+      setVoiceError('语音服务不可用 / Speech service unavailable')
+      stopRecording()
+      return
+    }
+
+    console.log('Connecting to Deepgram directly with subprotocol auth...')
+    const ws = new WebSocket(dgUrl, ['token', dgToken])
+    ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
 
     ws.onopen = () => {
@@ -286,6 +300,7 @@ export default function FullChatPage() {
       }
 
       try {
+        // Use MediaRecorder with webm/opus (simpler than ScriptProcessor PCM conversion)
         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
           : MediaRecorder.isTypeSupported('audio/webm')
@@ -301,7 +316,12 @@ export default function FullChatPage() {
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
             console.log('Sending audio chunk:', e.data.size, 'bytes')
-            ws.send(e.data)
+            // Send as blob (Deepgram accepts webm/opus)
+            e.data.arrayBuffer().then(buffer => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(buffer)
+              }
+            })
           }
         }
 

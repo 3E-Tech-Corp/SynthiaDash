@@ -343,8 +343,6 @@ export default function FullChatPage() {
       }
     }
     
-    // Override stopRecording to include AudioContext cleanup
-    const originalWsClose = ws.onclose
     ws.onclose = (event) => {
       console.log('WebSocket closed, code:', event.code, 'reason:', event.reason)
       cleanupAudio()

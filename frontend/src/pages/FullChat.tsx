@@ -275,9 +275,8 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Use backend proxy for auth + Linear16 PCM for audio (like CASEC)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
+    // Use direct API subdomain (bypasses Cloudflare) for WebSocket
+    const dgUrl = 'wss://api.synthia.bot/deepgram-proxy?' +
       'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')

@@ -447,6 +447,7 @@ app.Map("/deepgram-proxy", async context =>
         var clientToServer = Task.Run(async () =>
         {
             var buffer = new byte[8192];
+            var messageCount = 0;
             try
             {
                 while (clientWs.State == System.Net.WebSockets.WebSocketState.Open && 
@@ -454,11 +455,15 @@ app.Map("/deepgram-proxy", async context =>
                        !cts.Token.IsCancellationRequested)
                 {
                     var result = await clientWs.ReceiveAsync(buffer, cts.Token);
+                    messageCount++;
                     if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
                     {
-                        app.Logger.LogInformation("Client sent close");
+                        app.Logger.LogInformation("Client sent close after {Count} messages", messageCount);
                         break;
                     }
+                    // Log what we're receiving from client
+                    app.Logger.LogInformation("Client msg #{Count}: {Type}, {Bytes} bytes", 
+                        messageCount, result.MessageType, result.Count);
                     if (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
                     {
                         await dgClient.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count), 
@@ -485,8 +490,16 @@ app.Map("/deepgram-proxy", async context =>
                     var result = await dgClient.ReceiveAsync(buffer, cts.Token);
                     if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
                     {
-                        app.Logger.LogInformation("Deepgram sent close");
+                        var closeStatus = dgClient.CloseStatus;
+                        var closeDesc = dgClient.CloseStatusDescription;
+                        app.Logger.LogInformation("Deepgram sent close: {Status} {Desc}", closeStatus, closeDesc);
                         break;
+                    }
+                    // Log text messages from Deepgram (for debugging)
+                    if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Text)
+                    {
+                        var text = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
+                        app.Logger.LogInformation("Deepgram message: {Text}", text.Length > 200 ? text[..200] : text);
                     }
                     if (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
                     {

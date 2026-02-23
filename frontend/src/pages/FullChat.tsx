@@ -285,14 +285,19 @@ export default function FullChatPage() {
         return
       }
 
-      // Send keepalive every 8 seconds to prevent Deepgram timeout
+      // Send immediate KeepAlive to signal we're ready
+      console.log('Sending initial KeepAlive')
+      ws.send(JSON.stringify({ type: 'KeepAlive' }))
+
+      // Send keepalive every 5 seconds to prevent Deepgram timeout
       const keepAliveInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
+          console.log('Sending periodic KeepAlive')
           ws.send(JSON.stringify({ type: 'KeepAlive' }))
         } else {
           clearInterval(keepAliveInterval)
         }
-      }, 8000)
+      }, 5000)
 
       try {
         // Use MediaRecorder with webm/opus (simpler than ScriptProcessor PCM conversion)
@@ -354,8 +359,18 @@ export default function FullChatPage() {
     }
 
     ws.onmessage = (event) => {
+      console.log('WebSocket message received:', typeof event.data === 'string' ? event.data.slice(0, 200) : '[binary]')
       try {
         const data = JSON.parse(event.data)
+        console.log('Parsed message type:', data.type)
+        
+        // Log errors from Deepgram
+        if (data.type === 'Error' || data.error) {
+          console.error('Deepgram error:', data)
+          setVoiceError(data.message || data.error || 'Deepgram error')
+          return
+        }
+        
         if (data.type === 'Results') {
           const alt = data.channel?.alternatives?.[0]
           const transcript = alt?.transcript || ''
@@ -392,8 +407,8 @@ export default function FullChatPage() {
             }, 0)
           }
         }
-      } catch {
-        // Ignore parse errors
+      } catch (e) {
+        console.warn('Failed to parse WebSocket message:', e)
       }
     }
 

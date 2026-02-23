@@ -267,9 +267,6 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Deepgram with multi-language support (auto-detect Chinese/English)
-    // Use backend proxy (browser subprotocol auth doesn't work reliably)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     // Try direct connection to Deepgram with token auth
     // Get the token from backend first
     let deepgramToken: string

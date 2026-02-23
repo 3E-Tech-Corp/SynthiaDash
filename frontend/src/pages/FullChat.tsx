@@ -268,27 +268,13 @@ export default function FullChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Deepgram with multi-language support (auto-detect Chinese/English)
-    // Direct connection with subprotocol auth + webm/opus encoding
-    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&encoding=opus&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+    // Use backend proxy (browser subprotocol auth doesn't work reliably)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
+      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    // Get token from backend for auth
-    let dgToken: string
-    try {
-      const tokenResp = await fetch('/api/chat/deepgram-token', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      })
-      const tokenData = await tokenResp.json()
-      dgToken = tokenData.token
-    } catch {
-      setVoiceError('语音服务不可用 / Speech service unavailable')
-      stopRecording()
-      return
-    }
-
-    console.log('Connecting to Deepgram directly with subprotocol auth...')
-    const ws = new WebSocket(dgUrl, ['token', dgToken])
-    ws.binaryType = 'arraybuffer'
+    console.log('Connecting to Deepgram via backend proxy...')
+    const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws
 
     ws.onopen = () => {
@@ -316,12 +302,7 @@ export default function FullChatPage() {
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
             console.log('Sending audio chunk:', e.data.size, 'bytes')
-            // Send as blob (Deepgram accepts webm/opus)
-            e.data.arrayBuffer().then(buffer => {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(buffer)
-              }
-            })
+            ws.send(e.data)
           }
         }
 

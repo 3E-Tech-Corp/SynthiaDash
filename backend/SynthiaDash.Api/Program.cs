@@ -411,7 +411,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Deepgram WebSocket proxy (browser can't send auth headers directly)
-app.Map("/api/deepgram-proxy", async context =>
+app.Map("/deepgram-proxy", async context =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {

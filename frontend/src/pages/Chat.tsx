@@ -383,6 +383,15 @@ export default function ChatPage() {
         return
       }
 
+      // Send keepalive every 8 seconds to prevent Deepgram timeout
+      const keepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'KeepAlive' }))
+        } else {
+          clearInterval(keepAliveInterval)
+        }
+      }, 8000)
+
       // Start MediaRecorder to capture audio chunks
       try {
         // Prefer webm/opus (Deepgram auto-detects), fall back to whatever is available
@@ -394,16 +403,39 @@ export default function ChatPage() {
 
         const recorder = new MediaRecorder(stream, {
           ...(mimeType ? { mimeType } : {}),
-          audioBitsPerSecond: 64000
+          audioBitsPerSecond: 128000 // Increased bitrate
         })
+
+        // Buffer to accumulate small chunks
+        let chunkBuffer: Blob[] = []
+        let totalBufferSize = 0
+        const MIN_CHUNK_SIZE = 1000 // Don't send chunks smaller than 1KB
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(e.data)
+            chunkBuffer.push(e.data)
+            totalBufferSize += e.data.size
+            
+            // Send when we have enough data
+            if (totalBufferSize >= MIN_CHUNK_SIZE) {
+              const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
+              ws.send(combinedBlob)
+              chunkBuffer = []
+              totalBufferSize = 0
+            }
           }
         }
 
-        recorder.start(250) // Send chunks every 250ms
+        recorder.onstop = () => {
+          // Send any remaining buffered data
+          if (chunkBuffer.length > 0 && ws.readyState === WebSocket.OPEN) {
+            const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
+            ws.send(combinedBlob)
+          }
+          clearInterval(keepAliveInterval)
+        }
+
+        recorder.start(100) // Smaller timeslice, but we buffer before sending
         mediaRecorderRef.current = recorder
       } catch {
         setVoiceError('Could not start audio recording')

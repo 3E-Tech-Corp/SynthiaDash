@@ -285,6 +285,15 @@ export default function FullChatPage() {
         return
       }
 
+      // Send keepalive every 8 seconds to prevent Deepgram timeout
+      const keepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'KeepAlive' }))
+        } else {
+          clearInterval(keepAliveInterval)
+        }
+      }, 8000)
+
       try {
         // Use MediaRecorder with webm/opus (simpler than ScriptProcessor PCM conversion)
         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
@@ -296,13 +305,27 @@ export default function FullChatPage() {
 
         const recorder = new MediaRecorder(stream, {
           ...(mimeType ? { mimeType } : {}),
-          audioBitsPerSecond: 64000
+          audioBitsPerSecond: 128000 // Increased bitrate for better quality
         })
+
+        // Buffer to accumulate small chunks
+        let chunkBuffer: Blob[] = []
+        let totalBufferSize = 0
+        const MIN_CHUNK_SIZE = 1000 // Don't send chunks smaller than 1KB
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            console.log('Sending audio chunk:', e.data.size, 'bytes')
-            ws.send(e.data)
+            chunkBuffer.push(e.data)
+            totalBufferSize += e.data.size
+            
+            // Send when we have enough data
+            if (totalBufferSize >= MIN_CHUNK_SIZE) {
+              const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
+              console.log('Sending audio chunk:', combinedBlob.size, 'bytes')
+              ws.send(combinedBlob)
+              chunkBuffer = []
+              totalBufferSize = 0
+            }
           }
         }
 
@@ -310,7 +333,17 @@ export default function FullChatPage() {
           console.error('MediaRecorder error:', e)
         }
 
-        recorder.start(250)
+        recorder.onstop = () => {
+          // Send any remaining buffered data
+          if (chunkBuffer.length > 0 && ws.readyState === WebSocket.OPEN) {
+            const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
+            console.log('Sending final chunk:', combinedBlob.size, 'bytes')
+            ws.send(combinedBlob)
+          }
+          clearInterval(keepAliveInterval)
+        }
+
+        recorder.start(100) // Smaller timeslice, but we buffer before sending
         console.log('MediaRecorder started')
         mediaRecorderRef.current = recorder
       } catch (err) {

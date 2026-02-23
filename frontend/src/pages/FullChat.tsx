@@ -286,19 +286,15 @@ export default function FullChatPage() {
         return
       }
 
-      // Send immediate KeepAlive to signal we're ready
-      console.log('Sending initial KeepAlive')
-      ws.send(JSON.stringify({ type: 'KeepAlive' }))
-
-      // Send keepalive every 5 seconds to prevent Deepgram timeout
+      // Send keepalive every 8 seconds to prevent timeout (only after audio has started)
+      let audioStarted = false
       const keepAliveInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          console.log('Sending periodic KeepAlive')
+        if (ws.readyState === WebSocket.OPEN && audioStarted) {
           ws.send(JSON.stringify({ type: 'KeepAlive' }))
-        } else {
+        } else if (ws.readyState !== WebSocket.OPEN) {
           clearInterval(keepAliveInterval)
         }
-      }, 5000)
+      }, 8000)
 
       try {
         // Use MediaRecorder with webm/opus (simpler than ScriptProcessor PCM conversion)
@@ -316,6 +312,7 @@ export default function FullChatPage() {
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            audioStarted = true
             console.log('Sending audio chunk:', e.data.size, 'bytes')
             ws.send(e.data)
           }

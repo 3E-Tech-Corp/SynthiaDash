@@ -307,8 +307,12 @@ export default function FullChatPage() {
         source.connect(processor)
         processor.connect(audioContext.destination)
         
+        let audioChunkCount = 0
         processor.onaudioprocess = (e) => {
-          if (ws.readyState !== WebSocket.OPEN) return
+          if (ws.readyState !== WebSocket.OPEN) {
+            console.log('WebSocket not open, skipping audio chunk')
+            return
+          }
           
           const inputData = e.inputBuffer.getChannelData(0)
           const int16Data = new Int16Array(inputData.length)
@@ -319,6 +323,10 @@ export default function FullChatPage() {
             int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
           }
           
+          audioChunkCount++
+          if (audioChunkCount <= 5 || audioChunkCount % 20 === 0) {
+            console.log(`Sending audio chunk #${audioChunkCount}: ${int16Data.buffer.byteLength} bytes`)
+          }
           ws.send(int16Data.buffer)
         }
         

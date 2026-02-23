@@ -423,53 +423,95 @@ app.Map("/deepgram-proxy", async context =>
     var deepgramKey = app.Configuration["Deepgram:ApiKey"];
     if (string.IsNullOrEmpty(deepgramKey))
     {
-        // Fallback to hardcoded key
         deepgramKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
         app.Logger.LogWarning("Using fallback Deepgram API key for WebSocket proxy");
     }
     
     using var clientWs = await context.WebSockets.AcceptWebSocketAsync();
-    using var httpClient = new HttpClient();
     
-    // Build Deepgram URL with query params from original request
     var query = context.Request.QueryString.Value ?? "";
     var dgUrl = $"wss://api.deepgram.com/v1/listen{query}";
     
     using var dgClient = new System.Net.WebSockets.ClientWebSocket();
     dgClient.Options.SetRequestHeader("Authorization", $"Token {deepgramKey}");
     
+    var cts = new CancellationTokenSource();
+    
     try
     {
-        await dgClient.ConnectAsync(new Uri(dgUrl), CancellationToken.None);
+        app.Logger.LogInformation("Connecting to Deepgram: {Url}", dgUrl);
+        await dgClient.ConnectAsync(new Uri(dgUrl), cts.Token);
+        app.Logger.LogInformation("Connected to Deepgram successfully");
         
-        // Bidirectional proxy
+        // Bidirectional proxy with proper error handling
         var clientToServer = Task.Run(async () =>
         {
             var buffer = new byte[8192];
-            while (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
+            try
             {
-                var result = await clientWs.ReceiveAsync(buffer, CancellationToken.None);
-                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
-                    break;
-                await dgClient.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count), 
-                    result.MessageType, result.EndOfMessage, CancellationToken.None);
+                while (clientWs.State == System.Net.WebSockets.WebSocketState.Open && 
+                       dgClient.State == System.Net.WebSockets.WebSocketState.Open &&
+                       !cts.Token.IsCancellationRequested)
+                {
+                    var result = await clientWs.ReceiveAsync(buffer, cts.Token);
+                    if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
+                    {
+                        app.Logger.LogInformation("Client sent close");
+                        break;
+                    }
+                    if (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
+                    {
+                        await dgClient.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count), 
+                            result.MessageType, result.EndOfMessage, cts.Token);
+                    }
+                }
             }
-        });
+            catch (OperationCanceledException) { }
+            catch (System.Net.WebSockets.WebSocketException ex)
+            {
+                app.Logger.LogWarning("Client->Deepgram WebSocket error: {Message}", ex.Message);
+            }
+        }, cts.Token);
         
         var serverToClient = Task.Run(async () =>
         {
             var buffer = new byte[8192];
-            while (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
+            try
             {
-                var result = await dgClient.ReceiveAsync(buffer, CancellationToken.None);
-                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
-                    break;
-                await clientWs.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count),
-                    result.MessageType, result.EndOfMessage, CancellationToken.None);
+                while (dgClient.State == System.Net.WebSockets.WebSocketState.Open && 
+                       clientWs.State == System.Net.WebSockets.WebSocketState.Open &&
+                       !cts.Token.IsCancellationRequested)
+                {
+                    var result = await dgClient.ReceiveAsync(buffer, cts.Token);
+                    if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
+                    {
+                        app.Logger.LogInformation("Deepgram sent close");
+                        break;
+                    }
+                    if (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
+                    {
+                        await clientWs.SendAsync(new ArraySegment<byte>(buffer, 0, result.Count),
+                            result.MessageType, result.EndOfMessage, cts.Token);
+                    }
+                }
             }
-        });
+            catch (OperationCanceledException) { }
+            catch (System.Net.WebSockets.WebSocketException ex)
+            {
+                app.Logger.LogWarning("Deepgram->Client WebSocket error: {Message}", ex.Message);
+            }
+        }, cts.Token);
         
+        // Wait for either direction to complete
         await Task.WhenAny(clientToServer, serverToClient);
+        app.Logger.LogInformation("One direction completed, cancelling...");
+        cts.Cancel();
+        
+        // Give the other task a moment to complete gracefully
+        await Task.WhenAll(
+            Task.WhenAny(clientToServer, Task.Delay(1000)),
+            Task.WhenAny(serverToClient, Task.Delay(1000))
+        );
     }
     catch (Exception ex)
     {
@@ -477,10 +519,20 @@ app.Map("/deepgram-proxy", async context =>
     }
     finally
     {
-        if (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
-            await clientWs.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
-        if (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
-            await dgClient.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        cts.Cancel();
+        try
+        {
+            if (clientWs.State == System.Net.WebSockets.WebSocketState.Open)
+                await clientWs.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        }
+        catch { }
+        try
+        {
+            if (dgClient.State == System.Net.WebSockets.WebSocketState.Open)
+                await dgClient.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        }
+        catch { }
+        app.Logger.LogInformation("Deepgram proxy session ended");
     }
 });
 

@@ -278,7 +278,9 @@ export default function FullChatPage() {
     deepgramWsRef.current = ws
 
     ws.onopen = () => {
+      console.log('WebSocket opened, recordingRef:', recordingRef.current)
       if (!recordingRef.current) {
+        console.log('Recording not active, closing WebSocket')
         ws.close()
         return
       }
@@ -289,6 +291,7 @@ export default function FullChatPage() {
           : MediaRecorder.isTypeSupported('audio/webm')
             ? 'audio/webm'
             : ''
+        console.log('Using mimeType:', mimeType || 'default')
 
         const recorder = new MediaRecorder(stream, {
           ...(mimeType ? { mimeType } : {}),
@@ -297,13 +300,20 @@ export default function FullChatPage() {
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            console.log('Sending audio chunk:', e.data.size, 'bytes')
             ws.send(e.data)
           }
         }
 
+        recorder.onerror = (e) => {
+          console.error('MediaRecorder error:', e)
+        }
+
         recorder.start(250)
+        console.log('MediaRecorder started')
         mediaRecorderRef.current = recorder
-      } catch {
+      } catch (err) {
+        console.error('MediaRecorder setup error:', err)
         setVoiceError('无法启动录音 / Could not start recording')
         stopRecording()
       }
@@ -364,7 +374,8 @@ export default function FullChatPage() {
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('WebSocket closed, code:', event.code, 'reason:', event.reason)
       if (recordingRef.current) {
         stopRecording()
         if (voiceModeRef.current && !streamingRef.current) {

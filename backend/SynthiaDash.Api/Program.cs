@@ -516,8 +516,9 @@ app.Map("/deepgram-proxy", async context =>
         }, cts.Token);
         
         // Wait for either direction to complete
-        await Task.WhenAny(clientToServer, serverToClient);
-        app.Logger.LogInformation("One direction completed, cancelling...");
+        var completedTask = await Task.WhenAny(clientToServer, serverToClient);
+        var taskName = completedTask == clientToServer ? "clientToServer" : "serverToClient";
+        app.Logger.LogInformation("Task {TaskName} completed first, cancelling...", taskName);
         cts.Cancel();
         
         // Give the other task a moment to complete gracefully

@@ -270,9 +270,9 @@ export default function FullChatPage() {
     // Deepgram with multi-language support (auto-detect Chinese/English)
     // Use backend proxy (browser subprotocol auth doesn't work reliably)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    // Note: encoding=opus tells Deepgram to expect Opus audio in WebM container
+    // Let Deepgram auto-detect WebM container format
     const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
-      'model=nova-2&encoding=opus&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     console.log('Connecting to Deepgram via backend proxy...')
     const ws = new WebSocket(dgUrl)

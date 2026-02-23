@@ -270,12 +270,23 @@ export default function FullChatPage() {
     // Deepgram with multi-language support (auto-detect Chinese/English)
     // Use backend proxy (browser subprotocol auth doesn't work reliably)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    // Let Deepgram auto-detect WebM container format
-    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
+    // Try direct connection to Deepgram with token auth
+    // Get the token from backend first
+    let deepgramToken: string
+    try {
+      const tokenResp = await api.getDeepgramToken()
+      deepgramToken = tokenResp.token
+    } catch {
+      setVoiceError('无法获取语音服务凭证 / Could not get voice credentials')
+      return
+    }
+
+    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
       'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram via backend proxy...')
-    const ws = new WebSocket(dgUrl)
+    console.log('Connecting to Deepgram directly...')
+    // Use subprotocol auth - pass token as subprotocol
+    const ws = new WebSocket(dgUrl, ['token', deepgramToken])
     deepgramWsRef.current = ws
 
     ws.onopen = () => {

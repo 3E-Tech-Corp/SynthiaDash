@@ -269,11 +269,13 @@ export default function FullChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Deepgram with multi-language support (auto-detect Chinese/English)
-    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+    // Browser WebSocket can't send auth headers, so we proxy through our backend
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
       'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram WebSocket with subprotocol auth...')
-    const ws = new WebSocket(dgUrl, ['token', token])
+    console.log('Connecting to Deepgram WebSocket via backend proxy...')
+    const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws
 
     ws.onopen = () => {

@@ -371,11 +371,12 @@ export default function ChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Open Deepgram WebSocket with tuned VAD parameters
-    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+    // Open Deepgram WebSocket via backend proxy (handles auth server-side)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const dgUrl = `${wsProtocol}//${window.location.host}/api/deepgram-proxy?` +
       'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    const ws = new WebSocket(dgUrl, ['token', token])
+    const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws
 
     ws.onopen = () => {

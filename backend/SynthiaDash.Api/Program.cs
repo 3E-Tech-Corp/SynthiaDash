@@ -423,9 +423,9 @@ app.Map("/api/deepgram-proxy", async context =>
     var deepgramKey = app.Configuration["Deepgram:ApiKey"];
     if (string.IsNullOrEmpty(deepgramKey))
     {
-        context.Response.StatusCode = 500;
-        await context.Response.WriteAsync("Deepgram API key not configured");
-        return;
+        // Fallback to hardcoded key
+        deepgramKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
+        app.Logger.LogWarning("Using fallback Deepgram API key for WebSocket proxy");
     }
     
     using var clientWs = await context.WebSockets.AcceptWebSocketAsync();

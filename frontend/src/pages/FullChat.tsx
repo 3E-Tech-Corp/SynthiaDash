@@ -251,7 +251,15 @@ export default function FullChatPage() {
 
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Request 16kHz mono audio like CASEC
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+        }
+      })
     } catch (err: any) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setVoiceError('麦克风权限被拒绝 / Microphone permission denied')

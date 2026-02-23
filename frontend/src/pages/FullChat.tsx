@@ -267,8 +267,7 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Try direct connection to Deepgram with token auth
-    // Get the token from backend first
+    // Get Deepgram token from backend
     let deepgramToken: string
     try {
       const tokenResp = await api.getDeepgramToken()
@@ -278,13 +277,18 @@ export default function FullChatPage() {
       return
     }
 
+    // Use Linear16 PCM like CASEC (more reliable than WebM/Opus)
     const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
-      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram directly...')
-    // Use subprotocol auth - pass token as subprotocol
+    console.log('Connecting to Deepgram directly (Linear16 PCM)...')
     const ws = new WebSocket(dgUrl, ['token', deepgramToken])
+    ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
+
+    // Set up AudioContext for PCM conversion (like CASEC)
+    let audioContext: AudioContext | null = null
+    let processor: ScriptProcessorNode | null = null
 
     ws.onopen = () => {
       console.log('WebSocket opened, recordingRef:', recordingRef.current)
@@ -294,53 +298,61 @@ export default function FullChatPage() {
         return
       }
 
-      // Send keepalive every 8 seconds to prevent timeout (only after audio has started)
-      let audioStarted = false
-      const keepAliveInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN && audioStarted) {
-          ws.send(JSON.stringify({ type: 'KeepAlive' }))
-        } else if (ws.readyState !== WebSocket.OPEN) {
-          clearInterval(keepAliveInterval)
-        }
-      }, 8000)
-
       try {
-        // Use MediaRecorder with webm/opus (simpler than ScriptProcessor PCM conversion)
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : MediaRecorder.isTypeSupported('audio/webm')
-            ? 'audio/webm'
-            : ''
-        console.log('Using mimeType:', mimeType || 'default')
-
-        const recorder = new MediaRecorder(stream, {
-          ...(mimeType ? { mimeType } : {}),
-          audioBitsPerSecond: 128000 // Increased bitrate for better quality
-        })
-
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            audioStarted = true
-            console.log('Sending audio chunk:', e.data.size, 'bytes')
-            ws.send(e.data)
+        // Create AudioContext at 16kHz for Deepgram
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 })
+        const source = audioContext.createMediaStreamSource(stream)
+        
+        // Create ScriptProcessor for PCM conversion
+        processor = audioContext.createScriptProcessor(4096, 1, 1)
+        source.connect(processor)
+        processor.connect(audioContext.destination)
+        
+        processor.onaudioprocess = (e) => {
+          if (ws.readyState !== WebSocket.OPEN) return
+          
+          const inputData = e.inputBuffer.getChannelData(0)
+          const int16Data = new Int16Array(inputData.length)
+          
+          // Convert float32 to int16
+          for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]))
+            int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
           }
+          
+          ws.send(int16Data.buffer)
         }
-
-        recorder.onerror = (e) => {
-          console.error('MediaRecorder error:', e)
-        }
-
-        recorder.onstop = () => {
-          clearInterval(keepAliveInterval)
-        }
-
-        recorder.start(250) // Send chunks every 250ms
-        console.log('MediaRecorder started')
-        mediaRecorderRef.current = recorder
+        
+        console.log('AudioContext + ScriptProcessor started (Linear16 PCM @ 16kHz)')
       } catch (err) {
-        console.error('MediaRecorder setup error:', err)
+        console.error('AudioContext setup error:', err)
         setVoiceError('无法启动录音 / Could not start recording')
         stopRecording()
+      }
+    }
+    
+    // Store cleanup function
+    const cleanupAudio = () => {
+      if (processor) {
+        processor.disconnect()
+        processor = null
+      }
+      if (audioContext) {
+        audioContext.close()
+        audioContext = null
+      }
+    }
+    
+    // Override stopRecording to include AudioContext cleanup
+    const originalWsClose = ws.onclose
+    ws.onclose = (event) => {
+      console.log('WebSocket closed, code:', event.code, 'reason:', event.reason)
+      cleanupAudio()
+      if (recordingRef.current) {
+        stopRecording()
+        if (voiceModeRef.current && !streamingRef.current) {
+          setTimeout(() => { autoResumeRef.current = true }, 1000)
+        }
       }
     }
 

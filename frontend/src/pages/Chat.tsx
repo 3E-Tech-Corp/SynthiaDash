@@ -342,11 +342,9 @@ export default function ChatPage() {
   const startRecording = useCallback(async () => {
     setVoiceError(null)
 
-    // Get Deepgram token from backend
-    let token: string
+    // Verify user has access to speech services (proxy handles actual auth)
     try {
-      const resp = await api.getDeepgramToken()
-      token = resp.token
+      await api.getDeepgramToken()
     } catch {
       setVoiceError('Speech-to-text not available')
       return

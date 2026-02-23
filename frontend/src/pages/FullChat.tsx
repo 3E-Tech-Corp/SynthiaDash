@@ -239,13 +239,12 @@ export default function FullChatPage() {
   const startRecording = useCallback(async () => {
     setVoiceError(null)
 
-    let token: string
+    // Verify user has access to speech services (proxy handles actual auth)
     try {
-      const resp = await api.getDeepgramToken()
-      token = resp.token
-      console.log('Deepgram token received, length:', token?.length)
+      await api.getDeepgramToken()
+      console.log('Speech service access verified')
     } catch (err) {
-      console.error('Failed to get Deepgram token:', err)
+      console.error('Failed to verify speech service access:', err)
       setVoiceError('语音服务不可用 / Speech service unavailable')
       return
     }

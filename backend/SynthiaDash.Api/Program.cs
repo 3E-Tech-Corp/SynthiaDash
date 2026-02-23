@@ -500,8 +500,13 @@ app.Map("/deepgram-proxy", async context =>
     try
     {
         app.Logger.LogInformation("Connecting to Deepgram: {Url}", dgUrl);
-        await dgClient.ConnectAsync(new Uri(dgUrl), cts.Token);
-        app.Logger.LogInformation("Connected to Deepgram successfully");
+        
+        var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await dgClient.ConnectAsync(new Uri(dgUrl), connectCts.Token);
+        app.Logger.LogInformation("Connected to Deepgram successfully. DG State: {State}", dgClient.State);
+        
+        // Give the browser a moment to set up AudioContext
+        await Task.Delay(100);
         
         // Bidirectional proxy with proper error handling
         var clientToServer = Task.Run(async () =>
@@ -531,11 +536,19 @@ app.Map("/deepgram-proxy", async context =>
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) 
+            { 
+                app.Logger.LogInformation("clientToServer cancelled");
+            }
             catch (System.Net.WebSockets.WebSocketException ex)
             {
                 app.Logger.LogWarning("Client->Deepgram WebSocket error: {Message}", ex.Message);
             }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "clientToServer unexpected error");
+            }
+            app.Logger.LogInformation("clientToServer task ending. ClientWS: {C}, DgWS: {D}", clientWs.State, dgClient.State);
         }, cts.Token);
         
         var serverToClient = Task.Run(async () =>
@@ -568,11 +581,19 @@ app.Map("/deepgram-proxy", async context =>
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) 
+            { 
+                app.Logger.LogInformation("serverToClient cancelled");
+            }
             catch (System.Net.WebSockets.WebSocketException ex)
             {
                 app.Logger.LogWarning("Deepgram->Client WebSocket error: {Message}", ex.Message);
             }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "serverToClient unexpected error");
+            }
+            app.Logger.LogInformation("serverToClient task ending. ClientWS: {C}, DgWS: {D}", clientWs.State, dgClient.State);
         }, cts.Token);
         
         // Wait for either direction to complete

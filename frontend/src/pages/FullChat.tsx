@@ -314,24 +314,10 @@ export default function FullChatPage() {
           audioBitsPerSecond: 128000 // Increased bitrate for better quality
         })
 
-        // Buffer to accumulate small chunks
-        let chunkBuffer: Blob[] = []
-        let totalBufferSize = 0
-        const MIN_CHUNK_SIZE = 1000 // Don't send chunks smaller than 1KB
-
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            chunkBuffer.push(e.data)
-            totalBufferSize += e.data.size
-            
-            // Send when we have enough data
-            if (totalBufferSize >= MIN_CHUNK_SIZE) {
-              const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
-              console.log('Sending audio chunk:', combinedBlob.size, 'bytes')
-              ws.send(combinedBlob)
-              chunkBuffer = []
-              totalBufferSize = 0
-            }
+            console.log('Sending audio chunk:', e.data.size, 'bytes')
+            ws.send(e.data)
           }
         }
 
@@ -340,16 +326,10 @@ export default function FullChatPage() {
         }
 
         recorder.onstop = () => {
-          // Send any remaining buffered data
-          if (chunkBuffer.length > 0 && ws.readyState === WebSocket.OPEN) {
-            const combinedBlob = new Blob(chunkBuffer, { type: mimeType || 'audio/webm' })
-            console.log('Sending final chunk:', combinedBlob.size, 'bytes')
-            ws.send(combinedBlob)
-          }
           clearInterval(keepAliveInterval)
         }
 
-        recorder.start(100) // Smaller timeslice, but we buffer before sending
+        recorder.start(250) // Send chunks every 250ms
         console.log('MediaRecorder started')
         mediaRecorderRef.current = recorder
       } catch (err) {

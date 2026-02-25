@@ -659,7 +659,7 @@ export const api = {
 
   streamFullChat: async (
     message: string,
-    history: { role: string; content: string }[],
+    history: { role: string; content: string; imageUrl?: string }[],
     onChunk: (text: string) => void,
     onDone: () => void,
     onError?: (error: string) => void

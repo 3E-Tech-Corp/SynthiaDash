@@ -511,17 +511,79 @@ public class ChatController : ControllerBase
             // Build messages array
             var messages = new List<object>();
 
+            // Helper to format message with optional image
+            object FormatMessage(string role, string content, string? imageUrl)
+            {
+                if (string.IsNullOrEmpty(imageUrl))
+                {
+                    return new { role, content };
+                }
+
+                // Convert image URL to base64 data URL for AI vision
+                string? dataUrl = null;
+                try
+                {
+                    // Handle relative URLs (uploaded images)
+                    if (imageUrl.StartsWith("/api/chat/image/"))
+                    {
+                        var parts = imageUrl.Replace("/api/chat/image/", "").Split('/');
+                        if (parts.Length == 2)
+                        {
+                            var filePath = Path.Combine(AppContext.BaseDirectory, "uploads", "chat-images", parts[0], parts[1]);
+                            if (System.IO.File.Exists(filePath))
+                            {
+                                var bytes = System.IO.File.ReadAllBytes(filePath);
+                                var ext = Path.GetExtension(parts[1]).ToLower();
+                                var mimeType = ext switch
+                                {
+                                    ".jpg" or ".jpeg" => "image/jpeg",
+                                    ".png" => "image/png",
+                                    ".gif" => "image/gif",
+                                    ".webp" => "image/webp",
+                                    _ => "image/jpeg"
+                                };
+                                dataUrl = $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
+                            }
+                        }
+                    }
+                    else if (imageUrl.StartsWith("data:"))
+                    {
+                        // Already a data URL
+                        dataUrl = imageUrl;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load image: {ImageUrl}", imageUrl);
+                }
+
+                if (dataUrl == null)
+                {
+                    // Fallback to text-only if image can't be loaded
+                    return new { role, content = content + "\n[Image could not be loaded]" };
+                }
+
+                // OpenAI vision format
+                var contentParts = new List<object>();
+                if (!string.IsNullOrEmpty(content))
+                {
+                    contentParts.Add(new { type = "text", text = content });
+                }
+                contentParts.Add(new { type = "image_url", image_url = new { url = dataUrl } });
+                return new { role, content = (object)contentParts };
+            }
+
             // Add history from request if provided
             if (request.History != null)
             {
                 foreach (var msg in request.History)
                 {
-                    messages.Add(new { role = msg.Role, content = msg.Content });
+                    messages.Add(FormatMessage(msg.Role, msg.Content, msg.ImageUrl));
                 }
             }
 
             // Add current message
-            messages.Add(new { role = "user", content = request.Message });
+            messages.Add(FormatMessage("user", request.Message, null));
 
             // Build request to Clawdbot gateway
             // Agent is configurable: FullChat:AgentId (default: "vip" for compartmentalized workspace)

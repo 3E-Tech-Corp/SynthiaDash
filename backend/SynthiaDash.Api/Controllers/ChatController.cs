@@ -573,6 +573,12 @@ public class ChatController : ControllerBase
                 return new { role, content = (object)contentParts };
             }
 
+            // Add user identity as system context (so VIP Synthia knows who she's talking to)
+            var userIdentity = !string.IsNullOrEmpty(displayName) && displayName != email
+                ? $"[VIP User: {displayName} | {email}]"
+                : $"[VIP User: {email}]";
+            messages.Add(new { role = "system", content = userIdentity });
+
             // Add history from request if provided
             if (request.History != null)
             {

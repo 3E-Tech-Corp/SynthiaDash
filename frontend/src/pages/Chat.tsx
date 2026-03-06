@@ -461,26 +461,28 @@ export default function ChatPage() {
             setInterimText(transcript)
           }
         } else if (data.type === 'UtteranceEnd') {
-          // Auto-send when speaker pauses (voice mode continuous flow)
+          // Auto-send when speaker pauses (works in both voice mode and regular recording)
           const finalText = finalTranscriptRef.current.trim()
-          if (finalText && voiceModeRef.current) {
-            // Check for voice commands to exit
-            const lower = finalText.toLowerCase()
-            if (lower === 'stop' || lower === 'exit voice mode' || lower === 'stop listening') {
-              setTimeout(() => {
-                voiceModeRef.current = false
-                setVoiceMode(false)
-                setVoiceModeStatus(null)
-                stopRecording()
-                setInput('')
-                finalTranscriptRef.current = ''
-              }, 0)
-              return
+          if (finalText) {
+            // Check for voice commands to exit (voice mode only)
+            if (voiceModeRef.current) {
+              const lower = finalText.toLowerCase()
+              if (lower === 'stop' || lower === 'exit voice mode' || lower === 'stop listening') {
+                setTimeout(() => {
+                  voiceModeRef.current = false
+                  setVoiceMode(false)
+                  setVoiceModeStatus(null)
+                  stopRecording()
+                  setInput('')
+                  finalTranscriptRef.current = ''
+                }, 0)
+                return
+              }
             }
             // Defer to avoid closing WebSocket inside onmessage handler
             setTimeout(() => {
               stopRecording()
-              setVoiceModeStatus('processing')
+              if (voiceModeRef.current) setVoiceModeStatus('processing')
               finalTranscriptRef.current = ''
               setInput('')
               handleSendRef.current(finalText)

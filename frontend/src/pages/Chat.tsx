@@ -371,7 +371,7 @@ export default function ChatPage() {
 
     // Open Deepgram WebSocket via backend proxy (handles auth server-side)
     const dgUrl = 'wss://api.synthia.bot/deepgram-proxy?' +
-      'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+      'model=nova-2&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     const ws = new WebSocket(dgUrl)
     deepgramWsRef.current = ws

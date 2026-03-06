@@ -304,7 +304,9 @@ public class ChatController : ControllerBase
             if (!gatewayResponse.IsSuccessStatusCode)
             {
                 var errorBody = await gatewayResponse.Content.ReadAsStringAsync();
+                var errorMsg = $"Gateway returned {gatewayResponse.StatusCode}: {errorBody.Substring(0, Math.Min(200, errorBody.Length))}";
                 _logger.LogError("Gateway returned {Status}: {Body}", gatewayResponse.StatusCode, errorBody);
+                LogChatError(userId.Value, "send", errorMsg, new Exception(errorBody));
                 await Response.WriteAsync($"data: {{\"error\": \"Gateway error: {gatewayResponse.StatusCode}\"}}\n\n");
                 await Response.WriteAsync("data: [DONE]\n\n");
                 await Response.Body.FlushAsync();
@@ -365,10 +367,30 @@ public class ChatController : ControllerBase
                 await _chatService.SaveMessage(userId.Value, sessionKey, "assistant", fullResponse.ToString());
             }
         }
+        catch (HttpRequestException ex)
+        {
+            var errorMsg = $"Gateway connection failed: {ex.Message}";
+            _logger.LogError(ex, "Gateway connection error for user {UserId}: {Message}", userId, ex.Message);
+            LogChatError(userId.Value, "send", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{EscapeJson(errorMsg)}\"}}\n\n");
+            await Response.WriteAsync("data: [DONE]\n\n");
+            await Response.Body.FlushAsync();
+        }
+        catch (TaskCanceledException ex)
+        {
+            var errorMsg = "Gateway request timed out";
+            _logger.LogError(ex, "Gateway timeout for user {UserId}", userId);
+            LogChatError(userId.Value, "send", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{errorMsg}\"}}\n\n");
+            await Response.WriteAsync("data: [DONE]\n\n");
+            await Response.Body.FlushAsync();
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error streaming chat for user {UserId}", userId);
-            await Response.WriteAsync($"data: {{\"error\": \"Internal error\"}}\n\n");
+            var errorMsg = $"Chat error: {ex.GetType().Name}";
+            _logger.LogError(ex, "Error streaming chat for user {UserId}: {Message}", userId, ex.Message);
+            LogChatError(userId.Value, "send", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{EscapeJson(errorMsg)}\"}}\n\n");
             await Response.WriteAsync("data: [DONE]\n\n");
             await Response.Body.FlushAsync();
         }
@@ -453,6 +475,115 @@ public class ChatController : ControllerBase
             return userId;
         return null;
     }
+
+    private static string EscapeJson(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+
+    private void LogChatError(int userId, string endpoint, string errorMsg, Exception ex)
+    {
+        try
+        {
+            var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            Directory.CreateDirectory(logDir);
+            var logFile = Path.Combine(logDir, $"chat-errors-{DateTime.UtcNow:yyyy-MM-dd}.log");
+            var userEmail = User.FindFirst("email")?.Value ?? "unknown";
+            var logEntry = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] User:{userId} ({userEmail}) Endpoint:{endpoint} Error:{errorMsg} Exception:{ex.GetType().Name}: {ex.Message}\n";
+            System.IO.File.AppendAllText(logFile, logEntry);
+        }
+        catch
+        {
+            // Don't let logging failures break the response
+        }
+    }
+
+    #region Diagnostics
+
+    /// <summary>
+    /// Get recent chat errors (admin only)
+    /// </summary>
+    [HttpGet("errors")]
+    [Authorize(Policy = "Admin")]
+    public IActionResult GetChatErrors([FromQuery] int lines = 50, [FromQuery] string? date = null)
+    {
+        try
+        {
+            var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            var targetDate = string.IsNullOrEmpty(date) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : date;
+            var logFile = Path.Combine(logDir, $"chat-errors-{targetDate}.log");
+
+            if (!System.IO.File.Exists(logFile))
+            {
+                return Ok(new { date = targetDate, errors = Array.Empty<string>(), message = "No errors logged for this date" });
+            }
+
+            var allLines = System.IO.File.ReadAllLines(logFile);
+            var recentLines = allLines.TakeLast(lines).ToArray();
+            return Ok(new { date = targetDate, count = allLines.Length, errors = recentLines });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Test gateway connectivity
+    /// </summary>
+    [HttpGet("diagnostics")]
+    [Authorize(Policy = "Admin")]
+    public async Task<IActionResult> GetDiagnostics()
+    {
+        var results = new Dictionary<string, object>();
+
+        // Check gateway config
+        var gatewayUrl = _configuration["Gateway:Url"] ?? _configuration["Gateway:BaseUrl"] ?? "not configured";
+        var hasToken = !string.IsNullOrEmpty(_configuration["Gateway:Token"]);
+        results["gatewayUrl"] = gatewayUrl;
+        results["hasToken"] = hasToken;
+
+        // Test gateway connectivity
+        try
+        {
+            var gatewayClient = _httpClientFactory.CreateClient("Gateway");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var response = await gatewayClient.GetAsync("/");
+            sw.Stop();
+            results["gatewayReachable"] = response.IsSuccessStatusCode;
+            results["gatewayStatus"] = (int)response.StatusCode;
+            results["gatewayLatencyMs"] = sw.ElapsedMilliseconds;
+        }
+        catch (Exception ex)
+        {
+            results["gatewayReachable"] = false;
+            results["gatewayError"] = ex.Message;
+        }
+
+        // List available error logs
+        try
+        {
+            var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            if (Directory.Exists(logDir))
+            {
+                var logs = Directory.GetFiles(logDir, "chat-errors-*.log")
+                    .Select(f => new { file = Path.GetFileName(f), size = new FileInfo(f).Length })
+                    .OrderByDescending(f => f.file)
+                    .Take(7)
+                    .ToList();
+                results["errorLogs"] = logs;
+            }
+            else
+            {
+                results["errorLogs"] = Array.Empty<object>();
+            }
+        }
+        catch
+        {
+            results["errorLogs"] = "error reading logs";
+        }
+
+        return Ok(results);
+    }
+
+    #endregion
 
     #region Full Chat (Direct Synthia Access)
 
@@ -622,7 +753,9 @@ public class ChatController : ControllerBase
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
+                var errorMsg = $"Gateway returned {response.StatusCode}: {errorBody.Substring(0, Math.Min(200, errorBody.Length))}";
                 _logger.LogError("Gateway returned {StatusCode}: {Body}", response.StatusCode, errorBody);
+                LogChatError(userId.Value, "full-stream", errorMsg, new Exception(errorBody));
                 await Response.WriteAsync($"data: {{\"error\": \"Gateway error: {response.StatusCode}\"}}\n\n");
                 await Response.WriteAsync("data: [DONE]\n\n");
                 return;
@@ -643,10 +776,30 @@ public class ChatController : ControllerBase
                 if (line == "data: [DONE]") break;
             }
         }
+        catch (HttpRequestException ex)
+        {
+            var errorMsg = $"Gateway connection failed: {ex.Message}";
+            _logger.LogError(ex, "Gateway connection error in full chat for user {UserId}: {Message}", userId, ex.Message);
+            LogChatError(userId.Value, "full-stream", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{EscapeJson(errorMsg)}\"}}\n\n");
+            await Response.WriteAsync("data: [DONE]\n\n");
+            await Response.Body.FlushAsync();
+        }
+        catch (TaskCanceledException ex)
+        {
+            var errorMsg = "Gateway request timed out";
+            _logger.LogError(ex, "Gateway timeout in full chat for user {UserId}", userId);
+            LogChatError(userId.Value, "full-stream", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{errorMsg}\"}}\n\n");
+            await Response.WriteAsync("data: [DONE]\n\n");
+            await Response.Body.FlushAsync();
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in full chat stream for user {UserId}", userId);
-            await Response.WriteAsync($"data: {{\"error\": \"Internal error\"}}\n\n");
+            var errorMsg = $"Chat error: {ex.GetType().Name}";
+            _logger.LogError(ex, "Error in full chat stream for user {UserId}: {Message}", userId, ex.Message);
+            LogChatError(userId.Value, "full-stream", errorMsg, ex);
+            await Response.WriteAsync($"data: {{\"error\": \"{EscapeJson(errorMsg)}\"}}\n\n");
             await Response.WriteAsync("data: [DONE]\n\n");
             await Response.Body.FlushAsync();
         }

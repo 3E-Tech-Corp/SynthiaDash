@@ -370,7 +370,6 @@ export default function ChatPage() {
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
     // Open Deepgram WebSocket via backend proxy (handles auth server-side)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const dgUrl = 'wss://api.synthia.bot/deepgram-proxy?' +
       'model=nova-2&language=en&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 

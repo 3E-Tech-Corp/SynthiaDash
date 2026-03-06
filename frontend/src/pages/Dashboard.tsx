@@ -4,7 +4,7 @@ import {
   Zap, Bug, Users, TicketCheck, Bot,
   Clock, CheckCircle, PlayCircle, XCircle, Loader2,
   Package, ArrowRight, AlertCircle,
-  ExternalLink
+  ExternalLink, LogOut, Settings
 } from 'lucide-react'
 import StatusCard from '../components/StatusCard'
 import TodoPanel from '../components/TodoPanel'
@@ -102,7 +102,7 @@ function TaskStatusBadge({ status }: { status: string }) {
 // ── Main Dashboard ───────────────────────────────────────
 
 export default function Dashboard() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, user, logout } = useAuth()
   const navigate = useNavigate()
 
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -188,7 +188,7 @@ export default function Dashboard() {
           alt="Mission Control"
           className="w-full h-40 md:h-52 object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/60 to-transparent flex items-center px-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-950/90 via-gray-950/60 to-transparent flex items-center justify-between px-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <AnimatedLogo className="h-12" interval={10000} />
@@ -197,6 +197,31 @@ export default function Dashboard() {
             </div>
             <p className="text-gray-400 text-sm">Monitor deployments, manage tickets, and track agent tasks</p>
           </div>
+          {/* User Profile Card */}
+          {user && (
+            <div className="hidden md:flex items-center gap-3 bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-xl px-4 py-3">
+              <div className="text-right">
+                <div className="text-sm font-medium text-white">{user.displayName}</div>
+                <div className="text-xs text-gray-400 capitalize">{user.role}</div>
+              </div>
+              <div className="flex items-center gap-1 border-l border-gray-700 pl-3">
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="p-2 text-gray-400 hover:text-violet-400 rounded-lg hover:bg-gray-800 transition-colors"
+                  title="Settings"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={logout}
+                  className="p-2 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-800 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

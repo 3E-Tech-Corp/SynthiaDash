@@ -387,7 +387,7 @@ export const api = {
       body: JSON.stringify({ email, displayName, password, role }),
     }),
 
-  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string; fullChatAccess?: boolean; maxProjects?: number; displayName?: string }) =>
+  updateUser: (id: number, patch: { role?: string; repos?: string; isActive?: boolean; bugAccess?: string; featureAccess?: string; chatAccess?: string; fullChatAccess?: boolean; studioAccess?: boolean; maxProjects?: number; displayName?: string }) =>
     fetchApi<{ message: string }>(`/auth/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(patch),

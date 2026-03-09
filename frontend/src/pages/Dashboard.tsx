@@ -308,6 +308,18 @@ export default function Dashboard() {
             <div className="text-sm font-medium">Projects</div>
             <div className="text-xs text-gray-500">Manage projects</div>
           </a>
+          {user?.studioAccess && (
+            <a
+              href="https://studio.synthia.bot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-gradient-to-br from-pink-900/50 to-violet-900/50 hover:from-pink-800/50 hover:to-violet-800/50 border border-pink-500/30 rounded-lg p-4 text-center transition-colors"
+            >
+              <div className="text-2xl mb-2">🎬</div>
+              <div className="text-sm font-medium">Studio</div>
+              <div className="text-xs text-pink-300">AI Video Factory</div>
+            </a>
+          )}
           {isAdmin && (
             <a
               href="/gala-seats.html"

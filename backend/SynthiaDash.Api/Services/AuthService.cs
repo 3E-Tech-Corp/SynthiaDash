@@ -46,6 +46,7 @@ public class UserDto
     public string FeatureAccess { get; set; } = "none";
     public string ChatAccess { get; set; } = "none";
     public bool FullChatAccess { get; set; } = false;
+    public bool StudioAccess { get; set; } = false;  // Access to studio.synthia.bot
     public int MaxProjects { get; set; } = 1;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -237,7 +238,8 @@ public class AuthService : IAuthService
             new Claim("email", user.Email),
             new Claim(ClaimTypes.Name, user.DisplayName),
             new Claim(ClaimTypes.Role, user.Role),
-            new Claim("userId", user.Id.ToString())
+            new Claim("userId", user.Id.ToString()),
+            new Claim("studioAccess", user.StudioAccess.ToString().ToLower())
         };
 
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
@@ -384,6 +386,7 @@ public class AuthService : IAuthService
         public string FeatureAccess { get; set; } = "none";
         public string ChatAccess { get; set; } = "none";
         public bool FullChatAccess { get; set; } = false;
+        public bool StudioAccess { get; set; } = false;
         public int MaxProjects { get; set; } = 1;
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }

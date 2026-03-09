@@ -276,7 +276,7 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.DisplayName))
             return BadRequest(new { error = "Display name is required" });
 
-        var success = await _authService.UpdateUserAsync(userId.Value, null, null, null, null, null, null, null, null, null, request.DisplayName);
+        var success = await _authService.UpdateUserAsync(userId.Value, null, null, null, null, null, null, null, null, null, null, request.DisplayName);
         if (!success) return NotFound();
         return Ok(new { message = "Profile updated" });
     }

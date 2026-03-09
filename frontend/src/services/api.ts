@@ -135,6 +135,7 @@ export interface User {
   featureAccess: string // none, submit, execute
   chatAccess: string // none, guide, bug, developer
   fullChatAccess: boolean // direct Synthia access
+  studioAccess: boolean // access to studio.synthia.bot
   maxProjects: number
   isActive: boolean
   createdAt: string

@@ -167,8 +167,8 @@ public class AuthService : IAuthService
 
     public async Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
         string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
-        string? chatAccess = null, bool? fullChatAccess = null, int? maxProjects = null,
-        string? displayName = null)
+        string? chatAccess = null, bool? fullChatAccess = null, bool? studioAccess = null,
+        int? maxProjects = null, string? displayName = null)
     {
         using var db = new SqlConnection(_connectionString);
         var updates = new List<string>();
@@ -183,6 +183,7 @@ public class AuthService : IAuthService
         if (featureAccess != null) { updates.Add("FeatureAccess = @FeatureAccess"); parameters.Add("FeatureAccess", featureAccess); }
         if (chatAccess != null) { updates.Add("ChatAccess = @ChatAccess"); parameters.Add("ChatAccess", chatAccess); }
         if (fullChatAccess.HasValue) { updates.Add("FullChatAccess = @FullChatAccess"); parameters.Add("FullChatAccess", fullChatAccess.Value); }
+        if (studioAccess.HasValue) { updates.Add("StudioAccess = @StudioAccess"); parameters.Add("StudioAccess", studioAccess.Value); }
         if (maxProjects.HasValue) { updates.Add("MaxProjects = @MaxProjects"); parameters.Add("MaxProjects", maxProjects.Value); }
         if (displayName != null) { updates.Add("DisplayName = @DisplayName"); parameters.Add("DisplayName", displayName); }
 
@@ -366,6 +367,7 @@ public class AuthService : IAuthService
         FeatureAccess = user.FeatureAccess,
         ChatAccess = user.ChatAccess,
         FullChatAccess = user.FullChatAccess,
+        StudioAccess = user.StudioAccess,
         MaxProjects = user.MaxProjects,
         IsActive = user.IsActive,
         CreatedAt = user.CreatedAt,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2, KeyRound, Zap } from 'lucide-react'
+import { Users as UsersIcon, Plus, Shield, Eye, Code, X, Check, Loader2, FolderGit2, KeyRound, Zap, Video } from 'lucide-react'
 import { api } from '../services/api'
 import type { User, RepoStatus } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -51,6 +51,7 @@ interface EditState {
   featureAccess: string
   chatAccess: string
   fullChatAccess: boolean
+  studioAccess: boolean
   maxProjects: number
   isActive: boolean
   displayName: string
@@ -136,6 +137,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
     featureAccess: user.featureAccess || 'none',
     chatAccess: user.chatAccess || 'none',
     fullChatAccess: user.fullChatAccess || false,
+    studioAccess: user.studioAccess || false,
     maxProjects: user.maxProjects ?? 1,
     isActive: user.isActive,
     displayName: user.displayName,
@@ -151,6 +153,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
         featureAccess: edit.featureAccess,
         chatAccess: edit.chatAccess,
         fullChatAccess: edit.fullChatAccess,
+        studioAccess: edit.studioAccess,
         maxProjects: edit.maxProjects,
         isActive: edit.isActive,
         displayName: edit.displayName !== user.displayName ? edit.displayName : undefined,
@@ -165,7 +168,7 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
   }
 
   const handleCancel = () => {
-    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', fullChatAccess: user.fullChatAccess || false, maxProjects: user.maxProjects ?? 1, isActive: user.isActive, displayName: user.displayName })
+    setEdit({ role: user.role, repos: user.repos || '', bugAccess: user.bugAccess || 'none', featureAccess: user.featureAccess || 'none', chatAccess: user.chatAccess || 'none', fullChatAccess: user.fullChatAccess || false, studioAccess: user.studioAccess || false, maxProjects: user.maxProjects ?? 1, isActive: user.isActive, displayName: user.displayName })
     setEditing(false)
   }
 
@@ -392,6 +395,25 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             </div>
           </div>
 
+          {/* Studio Access toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setEdit({ ...edit, studioAccess: !edit.studioAccess })}
+              className={`w-10 h-5 rounded-full transition-colors relative ${
+                edit.studioAccess ? 'bg-pink-600' : 'bg-gray-700'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                edit.studioAccess ? 'translate-x-5' : 'translate-x-0.5'
+              }`} />
+            </button>
+            <div className="flex items-center gap-1.5">
+              <Video className={`w-4 h-4 ${edit.studioAccess ? 'text-pink-400' : 'text-gray-600'}`} />
+              <label className="text-xs font-medium text-gray-400">Studio Access</label>
+              <span className="text-[10px] text-gray-600">(studio.synthia.bot)</span>
+            </div>
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-medium text-gray-400">Active</label>
@@ -436,6 +458,9 @@ function UserRow({ user, onUpdate, allRepos }: { user: User; onUpdate: () => voi
             }>{user.chatAccess || 'none'}</span>
             {user.fullChatAccess && (
               <> · <Zap className="w-3 h-3 inline text-violet-400" /> <span className="text-violet-400">Synthia</span></>
+            )}
+            {user.studioAccess && (
+              <> · <Video className="w-3 h-3 inline text-pink-400" /> <span className="text-pink-400">Studio</span></>
             )}
             {' · '}
             🚀 <span className="text-emerald-400">{user.maxProjects ?? 1}</span> project{(user.maxProjects ?? 1) !== 1 ? 's' : ''}

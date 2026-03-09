@@ -239,12 +239,14 @@ export default function FullChatPage() {
   const startRecording = useCallback(async () => {
     setVoiceError(null)
 
-    // Verify user has access to speech services (proxy handles actual auth)
+    // Get Deepgram API key from backend
+    let deepgramToken: string
     try {
-      await api.getDeepgramToken()
-      console.log('Speech service access verified')
+      const tokenResponse = await api.getDeepgramToken()
+      deepgramToken = tokenResponse.token
+      console.log('Got Deepgram token')
     } catch (err) {
-      console.error('Failed to verify speech service access:', err)
+      console.error('Failed to get Deepgram token:', err)
       setVoiceError('语音服务不可用 / Speech service unavailable')
       return
     }
@@ -275,12 +277,12 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Use direct API subdomain (bypasses Cloudflare) for WebSocket
-    const dgUrl = 'wss://api.synthia.bot/deepgram-proxy?' +
+    // Direct connection to Deepgram (like CASEC) - bypasses broken proxy
+    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
       'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')
-    const ws = new WebSocket(dgUrl)
+    console.log('Connecting to Deepgram directly (Linear16 PCM)...')
+    const ws = new WebSocket(dgUrl, ['token', deepgramToken])
     ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
 
@@ -849,15 +851,15 @@ export default function FullChatPage() {
           className="hidden"
         />
 
-        <div className="flex gap-2 items-end w-full min-w-0">
+        <div className="flex gap-2 items-center w-full min-w-0">
           {/* Image attach button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={streaming || voiceMode || uploadingImage}
-            className="flex-shrink-0 p-3 md:p-3 rounded-xl transition-colors bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600"
+            className="flex-shrink-0 w-12 h-12 rounded-xl transition-colors bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600 flex items-center justify-center"
             title="附加图片 / Attach image"
           >
-            <Paperclip className="w-5 h-5 md:w-5 md:h-5" />
+            <Paperclip className="w-5 h-5" />
           </button>
 
           <div className="flex-1 min-w-0 relative">
@@ -869,11 +871,11 @@ export default function FullChatPage() {
               placeholder={streaming ? 'Synthia 正在回复...' : voiceMode ? '语音模式...' : '输入消息... / Type a message...'}
               disabled={streaming || voiceMode}
               rows={1}
-              className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 py-3.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-gray-900 resize-none disabled:opacity-50 transition-all shadow-inner"
-              style={{ minHeight: '52px', maxHeight: '120px' }}
+              className="w-full h-12 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-base text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:bg-gray-900 resize-none disabled:opacity-50 transition-all"
+              style={{ minHeight: '48px', maxHeight: '120px' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement
-                target.style.height = '52px'
+                target.style.height = '48px'
                 target.style.height = Math.min(target.scrollHeight, 120) + 'px'
               }}
             />
@@ -884,7 +886,7 @@ export default function FullChatPage() {
               <button
                 onClick={toggleVoiceMode}
                 disabled={(streaming && !voiceMode)}
-                className={`flex-shrink-0 p-3 rounded-xl transition-all ${
+                className={`flex-shrink-0 w-12 h-12 rounded-xl transition-all flex items-center justify-center ${
                   voiceMode
                     ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/30'
                     : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
@@ -898,7 +900,7 @@ export default function FullChatPage() {
                 <button
                   onClick={isSpeaking ? stopSpeaking : toggleRecording}
                   disabled={streaming}
-                  className={`flex-shrink-0 p-3 rounded-xl transition-colors ${
+                  className={`flex-shrink-0 w-12 h-12 rounded-xl transition-colors flex items-center justify-center ${
                     isRecording
                       ? 'mic-recording text-white'
                       : isSpeaking
@@ -920,7 +922,7 @@ export default function FullChatPage() {
                       autoResumeRef.current = true
                     }
                   }}
-                  className="flex-shrink-0 p-3 rounded-xl transition-colors bg-violet-600 hover:bg-violet-500 text-white"
+                  className="flex-shrink-0 w-12 h-12 rounded-xl transition-colors bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center"
                   title="停止播放并继续聆听 / Stop speaking & resume listening"
                 >
                   <Volume2 className="w-5 h-5 animate-pulse" />
@@ -932,7 +934,7 @@ export default function FullChatPage() {
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || streaming || voiceMode}
-            className="flex-shrink-0 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white p-3 rounded-xl transition-colors"
+            className="flex-shrink-0 w-12 h-12 bg-violet-600 hover:bg-violet-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-xl transition-colors flex items-center justify-center"
           >
             <Send className="w-5 h-5" />
           </button>

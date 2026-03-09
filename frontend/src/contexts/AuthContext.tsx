@@ -8,6 +8,7 @@ interface User {
   role: string
   repos?: string
   isActive: boolean
+  studioAccess?: boolean
   defaultLandingPage?: string
 }
 

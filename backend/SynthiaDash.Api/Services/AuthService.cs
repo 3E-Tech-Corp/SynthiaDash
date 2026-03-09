@@ -16,8 +16,8 @@ public interface IAuthService
     Task<List<UserDto>> GetAllUsersAsync();
     Task<bool> UpdateUserAsync(int id, string? role, string? repos, bool? isActive,
         string? ticketAccess = null, string? bugAccess = null, string? featureAccess = null,
-        string? chatAccess = null, bool? fullChatAccess = null, int? maxProjects = null,
-        string? displayName = null);
+        string? chatAccess = null, bool? fullChatAccess = null, bool? studioAccess = null,
+        int? maxProjects = null, string? displayName = null);
     Task<bool> UpdateLastLoginAsync(string email);
     Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     Task<bool> ResetPasswordAsync(int userId, string newPassword);

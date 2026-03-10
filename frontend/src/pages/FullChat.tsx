@@ -113,7 +113,7 @@ export default function FullChatPage() {
   const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
   const [pendingImage, setPendingImage] = useState<{ file: File; preview: string } | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [voiceLang, setVoiceLang] = useState<'auto' | 'en' | 'zh'>('auto') // Voice input language
+  const [voiceLang, setVoiceLang] = useState<'auto' | 'en' | 'zh'>('en') // Voice input language - default to English (auto-detect can be flaky)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

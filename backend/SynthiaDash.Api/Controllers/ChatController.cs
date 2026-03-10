@@ -99,7 +99,7 @@ public class ChatController : ControllerBase
         // Fallback to hardcoded key if not configured (temporary fix)
         if (string.IsNullOrEmpty(apiKey))
         {
-            apiKey = "b0386b077897b5bf0d0b5986718084046fcb8fcb";
+            apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
             _logger.LogWarning("Using fallback Deepgram API key");
         }
 
@@ -122,7 +122,7 @@ public class ChatController : ControllerBase
         // Fallback to hardcoded key if not configured (temporary fix)
         if (string.IsNullOrEmpty(apiKey))
         {
-            apiKey = "b0386b077897b5bf0d0b5986718084046fcb8fcb";
+            apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
             _logger.LogWarning("Using fallback Deepgram API key for TTS");
         }
 

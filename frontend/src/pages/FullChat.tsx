@@ -113,7 +113,11 @@ export default function FullChatPage() {
   const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
   const [pendingImage, setPendingImage] = useState<{ file: File; preview: string } | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [voiceLang, setVoiceLang] = useState<'auto' | 'en' | 'zh'>('en') // Voice input language - default to English (auto-detect can be flaky)
+  const [voiceLang, setVoiceLang] = useState<'auto' | 'en' | 'zh'>(() => {
+    // Load saved preference from localStorage, default to 'en'
+    const saved = localStorage.getItem('synthia-voice-lang')
+    return (saved === 'auto' || saved === 'en' || saved === 'zh') ? saved : 'en'
+  })
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -138,6 +142,11 @@ export default function FullChatPage() {
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
+
+  // Save voice language preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('synthia-voice-lang', voiceLang)
+  }, [voiceLang])
 
   // TTS: speak text via Deepgram Aura
   const speakText = useCallback(async (text: string) => {
@@ -921,6 +930,22 @@ export default function FullChatPage() {
                 <Headphones className="w-5 h-5" />
               </button>
 
+              {/* Language selector - always visible when not in voice mode */}
+              {!voiceMode && !isRecording && (
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setVoiceLang('en')}
+                    className={`px-1.5 py-1 text-xs rounded-l ${voiceLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                    title="English"
+                  >EN</button>
+                  <button
+                    onClick={() => setVoiceLang('zh')}
+                    className={`px-1.5 py-1 text-xs rounded-r ${voiceLang === 'zh' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                    title="中文"
+                  >中</button>
+                </div>
+              )}
+
               {!voiceMode && (
                 <button
                   onClick={isSpeaking ? stopSpeaking : toggleRecording}
@@ -932,7 +957,7 @@ export default function FullChatPage() {
                         ? 'bg-violet-600 hover:bg-violet-500 text-white'
                         : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white disabled:bg-gray-800 disabled:text-gray-600'
                   }`}
-                  title={isRecording ? '停止录音 / Stop recording' : isSpeaking ? '停止播放 / Stop speaking' : '语音输入 / Voice input'}
+                  title={isRecording ? '停止录音 / Stop recording' : isSpeaking ? '停止播放 / Stop speaking' : `语音输入 (${voiceLang === 'en' ? 'EN' : '中'}) / Voice input`}
                 >
                   {isRecording ? <Square className="w-5 h-5" /> : isSpeaking ? <Volume2 className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
                 </button>

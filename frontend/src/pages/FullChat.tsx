@@ -512,8 +512,13 @@ export default function FullChatPage() {
   }, [])
 
   const handleSend = async (voiceText?: string) => {
-    const msg = (voiceText ?? input).trim()
+    let msg = (voiceText ?? input).trim()
     if ((!msg && !pendingImage) || streamingRef.current) return
+    
+    // If voice input, add language instruction for Synthia to respond in same language
+    if (voiceText && voiceLang === 'zh') {
+      msg = `[请用中文回复] ${msg}`
+    }
 
     // Upload image if pending
     let imageUrl: string | undefined

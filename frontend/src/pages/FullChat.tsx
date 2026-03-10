@@ -118,6 +118,11 @@ export default function FullChatPage() {
     const saved = localStorage.getItem('synthia-voice-lang')
     return (saved === 'auto' || saved === 'en' || saved === 'zh') ? saved : 'en'
   })
+  const [ttsVoice, setTtsVoice] = useState<'nova' | 'shimmer' | 'alloy' | 'echo'>(() => {
+    // Load saved TTS voice preference, default to 'nova' (female, good for Chinese)
+    const saved = localStorage.getItem('synthia-tts-voice')
+    return (saved === 'nova' || saved === 'shimmer' || saved === 'alloy' || saved === 'echo') ? saved : 'nova'
+  })
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -148,20 +153,27 @@ export default function FullChatPage() {
     localStorage.setItem('synthia-voice-lang', voiceLang)
   }, [voiceLang])
 
-  // TTS: speak text via Deepgram Aura
+  // Save TTS voice preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('synthia-tts-voice', ttsVoice)
+  }, [ttsVoice])
+
+  // TTS: speak text via OpenAI TTS
   const speakText = useCallback(async (text: string) => {
     if (!text.trim()) return
     try {
       setIsSpeaking(true)
       if (voiceModeRef.current) setVoiceModeStatus('speaking')
       const token = localStorage.getItem('token')
+      // Get current voice from localStorage (useCallback doesn't capture state changes)
+      const currentVoice = localStorage.getItem('synthia-tts-voice') || 'nova'
       const resp = await fetch('/api/chat/tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text: text.slice(0, 4000) }),
+        body: JSON.stringify({ text: text.slice(0, 4000), voice: currentVoice }),
       })
       if (!resp.ok) throw new Error('TTS failed')
       const blob = await resp.blob()
@@ -935,19 +947,35 @@ export default function FullChatPage() {
                 <Headphones className="w-5 h-5" />
               </button>
 
-              {/* Language selector - always visible when not in voice mode */}
+              {/* Language & Voice selectors - always visible when not in voice mode */}
               {!voiceMode && !isRecording && (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    onClick={() => setVoiceLang('en')}
-                    className={`px-1.5 py-1 text-xs rounded-l ${voiceLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                    title="English"
-                  >EN</button>
-                  <button
-                    onClick={() => setVoiceLang('zh')}
-                    className={`px-1.5 py-1 text-xs rounded-r ${voiceLang === 'zh' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-                    title="中文"
-                  >中</button>
+                <div className="flex items-center gap-2">
+                  {/* Input language */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setVoiceLang('en')}
+                      className={`px-1.5 py-1 text-xs rounded-l ${voiceLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                      title="English input"
+                    >EN</button>
+                    <button
+                      onClick={() => setVoiceLang('zh')}
+                      className={`px-1.5 py-1 text-xs rounded-r ${voiceLang === 'zh' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                      title="中文 input"
+                    >中</button>
+                  </div>
+                  {/* TTS voice - female (nova/shimmer) or male (alloy/echo) */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setTtsVoice('nova')}
+                      className={`px-1.5 py-1 text-xs rounded-l ${ttsVoice === 'nova' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                      title="Nova (female, expressive)"
+                    >♀</button>
+                    <button
+                      onClick={() => setTtsVoice('alloy')}
+                      className={`px-1.5 py-1 text-xs rounded-r ${ttsVoice === 'alloy' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                      title="Alloy (neutral)"
+                    >⚪</button>
+                  </div>
                 </div>
               )}
 

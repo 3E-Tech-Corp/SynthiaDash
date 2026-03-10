@@ -29,7 +29,6 @@ public class DeepgramProxyMiddleware
         if (context.Request.Path.StartsWithSegments("/deepgram-proxy") && context.WebSockets.IsWebSocketRequest)
         {
             // For WebSocket, check for token in query string since headers aren't available
-            // The token should be passed as ?token=xxx by the frontend
             var token = context.Request.Query["token"].FirstOrDefault();
             var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
             
@@ -39,10 +38,6 @@ public class DeepgramProxyMiddleware
                 context.Response.StatusCode = 401;
                 return;
             }
-
-            // TODO: Validate token if provided via query string
-            // For now, we trust if user is authenticated OR provides a token
-            // In production, validate the JWT token here
 
             await HandleWebSocketProxy(context);
         }
@@ -62,104 +57,157 @@ public class DeepgramProxyMiddleware
 
         // Parse query params for Deepgram options, stripping our auth token
         var queryParams = context.Request.Query
-            .Where(kv => kv.Key != "token") // Don't forward our JWT to Deepgram
+            .Where(kv => kv.Key != "token")
             .Select(kv => $"{kv.Key}={kv.Value}");
         var queryString = string.Join("&", queryParams);
         if (!string.IsNullOrEmpty(queryString)) queryString = "?" + queryString;
         var deepgramUrl = $"wss://api.deepgram.com/v1/listen{queryString}";
         
-        _logger.LogInformation("Opening Deepgram proxy connection to {Url}", deepgramUrl);
+        _logger.LogInformation("Deepgram proxy: Opening connection to {Url}", deepgramUrl);
 
-        // Accept the browser WebSocket
-        using var browserSocket = await context.WebSockets.AcceptWebSocketAsync();
-        
-        // Connect to Deepgram with Authorization header
-        using var deepgramClient = new ClientWebSocket();
-        deepgramClient.Options.SetRequestHeader("Authorization", $"Token {apiKey}");
+        WebSocket? browserSocket = null;
+        ClientWebSocket? deepgramClient = null;
         
         try
         {
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await deepgramClient.ConnectAsync(new Uri(deepgramUrl), cts.Token);
-            _logger.LogInformation("Connected to Deepgram");
-
-            // Proxy data in both directions
-            var browserToDeepgram = ProxyAsync(browserSocket, deepgramClient, "Browser->Deepgram", context.RequestAborted);
-            var deepgramToBrowser = ProxyAsync(deepgramClient, browserSocket, "Deepgram->Browser", context.RequestAborted);
-
-            // Wait for either direction to complete (connection closed)
-            await Task.WhenAny(browserToDeepgram, deepgramToBrowser);
+            // Accept the browser WebSocket
+            browserSocket = await context.WebSockets.AcceptWebSocketAsync();
+            _logger.LogInformation("Deepgram proxy: Browser connected");
             
-            _logger.LogInformation("Deepgram proxy session ended");
+            // Connect to Deepgram with Authorization header
+            deepgramClient = new ClientWebSocket();
+            deepgramClient.Options.SetRequestHeader("Authorization", $"Token {apiKey}");
+            
+            using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await deepgramClient.ConnectAsync(new Uri(deepgramUrl), connectCts.Token);
+            _logger.LogInformation("Deepgram proxy: Connected to Deepgram, state: {State}", deepgramClient.State);
+
+            // Create a linked cancellation token that cancels when either side closes
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+
+            // Run both directions concurrently
+            var browserToDeepgramTask = Task.Run(async () =>
+            {
+                var buffer = new byte[8192];
+                var chunkCount = 0;
+                try
+                {
+                    while (browserSocket.State == WebSocketState.Open && 
+                           deepgramClient.State == WebSocketState.Open &&
+                           !cts.Token.IsCancellationRequested)
+                    {
+                        var result = await browserSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                        
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            _logger.LogInformation("Deepgram proxy: Browser sent close");
+                            break;
+                        }
+
+                        if (result.Count > 0 && deepgramClient.State == WebSocketState.Open)
+                        {
+                            chunkCount++;
+                            if (chunkCount <= 3 || chunkCount % 50 == 0)
+                                _logger.LogInformation("Deepgram proxy: Forwarding chunk #{Count} ({Bytes} bytes) to Deepgram", chunkCount, result.Count);
+                            
+                            await deepgramClient.SendAsync(
+                                new ArraySegment<byte>(buffer, 0, result.Count),
+                                result.MessageType,
+                                result.EndOfMessage,
+                                cts.Token);
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (WebSocketException ex)
+                {
+                    _logger.LogWarning("Deepgram proxy: Browser->Deepgram error: {Message}", ex.Message);
+                }
+                _logger.LogInformation("Deepgram proxy: Browser->Deepgram task ended (sent {Count} chunks)", chunkCount);
+            });
+
+            var deepgramToBrowserTask = Task.Run(async () =>
+            {
+                var buffer = new byte[8192];
+                var messageCount = 0;
+                try
+                {
+                    while (deepgramClient.State == WebSocketState.Open && 
+                           browserSocket.State == WebSocketState.Open &&
+                           !cts.Token.IsCancellationRequested)
+                    {
+                        var result = await deepgramClient.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                        
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            _logger.LogInformation("Deepgram proxy: Deepgram sent close");
+                            break;
+                        }
+
+                        if (result.Count > 0 && browserSocket.State == WebSocketState.Open)
+                        {
+                            messageCount++;
+                            var text = result.MessageType == WebSocketMessageType.Text 
+                                ? Encoding.UTF8.GetString(buffer, 0, Math.Min(result.Count, 200)) 
+                                : "(binary)";
+                            _logger.LogInformation("Deepgram proxy: Forwarding message #{Count} to browser: {Text}...", messageCount, text);
+                            
+                            await browserSocket.SendAsync(
+                                new ArraySegment<byte>(buffer, 0, result.Count),
+                                result.MessageType,
+                                result.EndOfMessage,
+                                cts.Token);
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (WebSocketException ex)
+                {
+                    _logger.LogWarning("Deepgram proxy: Deepgram->Browser error: {Message}", ex.Message);
+                }
+                _logger.LogInformation("Deepgram proxy: Deepgram->Browser task ended (received {Count} messages)", messageCount);
+            });
+
+            // Wait for both tasks or until one fails
+            await Task.WhenAny(browserToDeepgramTask, deepgramToBrowserTask);
+            
+            // Give the other task a moment to finish gracefully
+            cts.Cancel();
+            await Task.WhenAll(
+                Task.WhenAny(browserToDeepgramTask, Task.Delay(1000)),
+                Task.WhenAny(deepgramToBrowserTask, Task.Delay(1000))
+            );
+
+            _logger.LogInformation("Deepgram proxy: Session ended");
         }
         catch (WebSocketException ex)
         {
-            _logger.LogError(ex, "WebSocket error in Deepgram proxy");
+            _logger.LogError(ex, "Deepgram proxy: WebSocket error");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Deepgram proxy connection timed out or cancelled");
+            _logger.LogInformation("Deepgram proxy: Cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Deepgram proxy: Unexpected error");
         }
         finally
         {
             // Clean up
-            if (browserSocket.State == WebSocketState.Open)
+            if (browserSocket?.State == WebSocketState.Open)
             {
-                try
-                {
-                    await browserSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Proxy closed", CancellationToken.None);
-                }
+                try { await browserSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Proxy closed", CancellationToken.None); }
                 catch { }
             }
+            browserSocket?.Dispose();
             
-            if (deepgramClient.State == WebSocketState.Open)
+            if (deepgramClient?.State == WebSocketState.Open)
             {
-                try
-                {
-                    await deepgramClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Proxy closed", CancellationToken.None);
-                }
+                try { await deepgramClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "Proxy closed", CancellationToken.None); }
                 catch { }
             }
-        }
-    }
-
-    private async Task ProxyAsync(WebSocket source, WebSocket destination, string direction, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[8192];
-        
-        try
-        {
-            while (source.State == WebSocketState.Open && destination.State == WebSocketState.Open)
-            {
-                var result = await source.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-                
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    _logger.LogInformation("{Direction}: Close received", direction);
-                    break;
-                }
-
-                if (destination.State == WebSocketState.Open)
-                {
-                    await destination.SendAsync(
-                        new ArraySegment<byte>(buffer, 0, result.Count),
-                        result.MessageType,
-                        result.EndOfMessage,
-                        cancellationToken);
-                }
-            }
-        }
-        catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
-        {
-            _logger.LogInformation("{Direction}: Connection closed", direction);
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal cancellation
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "{Direction}: Proxy error", direction);
+            deepgramClient?.Dispose();
         }
     }
 }

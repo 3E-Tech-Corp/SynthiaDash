@@ -457,9 +457,10 @@ export default function FullChatPage() {
   // Auto-resume recording after TTS in voice mode
   useEffect(() => {
     const interval = setInterval(() => {
-      if (autoResumeRef.current && !recordingRef.current && !streamingRef.current) {
+      // Only auto-resume if in voice mode
+      if (voiceModeRef.current && autoResumeRef.current && !recordingRef.current && !streamingRef.current) {
         autoResumeRef.current = false
-        if (voiceModeRef.current) setVoiceModeStatus('listening')
+        setVoiceModeStatus('listening')
         startRecording()
       }
     }, 300)

@@ -113,6 +113,7 @@ export default function FullChatPage() {
   const [voiceModeStatus, setVoiceModeStatus] = useState<'listening' | 'processing' | 'speaking' | null>(null)
   const [pendingImage, setPendingImage] = useState<{ file: File; preview: string } | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [voiceLang, setVoiceLang] = useState<'auto' | 'en' | 'zh'>('auto') // Voice input language
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -268,7 +269,11 @@ export default function FullChatPage() {
     // Direct connection to Deepgram (like CASEC) - use same working API key
     const DEEPGRAM_API_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7'
     // endpointing + utterance_end_ms for auto-send on pause
-    const dgParams = 'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true&smart_format=true&language=en&endpointing=300&utterance_end_ms=1500&vad_events=true'
+    // Language: auto-detect, English, or Chinese
+    const langParam = voiceLang === 'auto' 
+      ? 'detect_language=true' 
+      : `language=${voiceLang}`
+    const dgParams = `model=nova-2&encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true&smart_format=true&${langParam}&endpointing=300&utterance_end_ms=1500&vad_events=true`
     const dgUrl = `wss://api.deepgram.com/v1/listen?${dgParams}`
 
     console.log('Connecting to Deepgram directly (like CASEC)...')
@@ -426,7 +431,7 @@ export default function FullChatPage() {
         }
       }
     }
-  }, [input, stopRecording])
+  }, [input, stopRecording, voiceLang])
 
   // Auto-resume recording after TTS in voice mode
   useEffect(() => {
@@ -790,6 +795,21 @@ export default function FullChatPage() {
               )}
             </div>
             <span className="text-xs text-gray-600">说"停止"或点击 🎧 退出 / Say "stop" or tap 🎧</span>
+            {/* Language selector */}
+            <div className="flex items-center gap-1 ml-2">
+              <button
+                onClick={() => setVoiceLang('auto')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'auto' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >Auto</button>
+              <button
+                onClick={() => setVoiceLang('en')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >EN</button>
+              <button
+                onClick={() => setVoiceLang('zh')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'zh' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >中</button>
+            </div>
           </div>
         )}
 
@@ -798,6 +818,21 @@ export default function FullChatPage() {
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             <span className="text-xs text-red-400 font-medium">正在聆听... / Listening...</span>
             {interimText && <span className="text-xs text-gray-500 italic truncate">{interimText}</span>}
+            {/* Language selector */}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={() => setVoiceLang('auto')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'auto' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >Auto</button>
+              <button
+                onClick={() => setVoiceLang('en')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >EN</button>
+              <button
+                onClick={() => setVoiceLang('zh')}
+                className={`px-2 py-0.5 text-xs rounded ${voiceLang === 'zh' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+              >中</button>
+            </div>
           </div>
         )}
 

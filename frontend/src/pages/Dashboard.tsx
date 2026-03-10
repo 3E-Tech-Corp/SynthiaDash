@@ -308,7 +308,7 @@ export default function Dashboard() {
             <div className="text-sm font-medium">Projects</div>
             <div className="text-xs text-gray-500">Manage projects</div>
           </a>
-          {user?.studioAccess && (
+          {(isAdmin || user?.studioAccess) && (
             <a
               href="https://studio.synthia.bot"
               target="_blank"

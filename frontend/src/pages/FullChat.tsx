@@ -267,7 +267,9 @@ export default function FullChatPage() {
 
     // Connect through our backend proxy (handles Deepgram auth server-side)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const jwtToken = localStorage.getItem('token') || ''
     const proxyUrl = `${protocol}//${window.location.host}/api/deepgram-proxy?` +
+      `token=${encodeURIComponent(jwtToken)}&` +
       'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
     console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')

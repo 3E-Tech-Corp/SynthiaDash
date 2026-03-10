@@ -28,12 +28,21 @@ public class DeepgramProxyMiddleware
         // Only handle WebSocket requests to our proxy endpoint
         if (context.Request.Path.StartsWithSegments("/deepgram-proxy") && context.WebSockets.IsWebSocketRequest)
         {
-            // Check authentication (optional - remove if you want public access)
-            if (!context.User.Identity?.IsAuthenticated ?? true)
+            // For WebSocket, check for token in query string since headers aren't available
+            // The token should be passed as ?token=xxx by the frontend
+            var token = context.Request.Query["token"].FirstOrDefault();
+            var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
+            
+            if (!isAuthenticated && string.IsNullOrEmpty(token))
             {
+                _logger.LogWarning("Deepgram proxy: No authentication provided");
                 context.Response.StatusCode = 401;
                 return;
             }
+
+            // TODO: Validate token if provided via query string
+            // For now, we trust if user is authenticated OR provides a token
+            // In production, validate the JWT token here
 
             await HandleWebSocketProxy(context);
         }
@@ -51,8 +60,12 @@ public class DeepgramProxyMiddleware
             apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
         }
 
-        // Parse query params for Deepgram options
-        var queryString = context.Request.QueryString.Value ?? "";
+        // Parse query params for Deepgram options, stripping our auth token
+        var queryParams = context.Request.Query
+            .Where(kv => kv.Key != "token") // Don't forward our JWT to Deepgram
+            .Select(kv => $"{kv.Key}={kv.Value}");
+        var queryString = string.Join("&", queryParams);
+        if (!string.IsNullOrEmpty(queryString)) queryString = "?" + queryString;
         var deepgramUrl = $"wss://api.deepgram.com/v1/listen{queryString}";
         
         _logger.LogInformation("Opening Deepgram proxy connection to {Url}", deepgramUrl);

@@ -265,15 +265,13 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Connect through our backend proxy (handles Deepgram auth server-side)
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const jwtToken = localStorage.getItem('token') || ''
-    const proxyUrl = `${protocol}//${window.location.host}/api/deepgram-proxy?` +
-      `token=${encodeURIComponent(jwtToken)}&` +
-      'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
+    // Direct connection to Deepgram (like CASEC) - use same working API key
+    const DEEPGRAM_API_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7'
+    const dgParams = 'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true&smart_format=true&language=en'
+    const dgUrl = `wss://api.deepgram.com/v1/listen?${dgParams}`
 
-    console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')
-    const ws = new WebSocket(proxyUrl)
+    console.log('Connecting to Deepgram directly (like CASEC)...')
+    const ws = new WebSocket(dgUrl, ['token', DEEPGRAM_API_KEY])
     ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
 

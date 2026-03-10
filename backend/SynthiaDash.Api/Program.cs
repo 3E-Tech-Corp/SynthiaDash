@@ -408,6 +408,7 @@ app.UseCors();
 app.UseWebSockets();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseDeepgramProxy(); // WebSocket proxy for Deepgram STT
 app.MapControllers();
 
 // Debug endpoint: test Deepgram connection from server

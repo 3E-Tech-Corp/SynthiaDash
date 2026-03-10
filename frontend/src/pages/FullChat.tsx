@@ -239,18 +239,6 @@ export default function FullChatPage() {
   const startRecording = useCallback(async () => {
     setVoiceError(null)
 
-    // Get Deepgram API key from backend
-    let deepgramToken: string
-    try {
-      const tokenResponse = await api.getDeepgramToken()
-      deepgramToken = tokenResponse.token
-      console.log('Got Deepgram token')
-    } catch (err) {
-      console.error('Failed to get Deepgram token:', err)
-      setVoiceError('语音服务不可用 / Speech service unavailable')
-      return
-    }
-
     let stream: MediaStream
     try {
       // Request 16kHz mono audio like CASEC
@@ -277,12 +265,13 @@ export default function FullChatPage() {
     recordingRef.current = true
     if (voiceModeRef.current) setVoiceModeStatus('listening')
 
-    // Direct connection to Deepgram (like CASEC) - bypasses broken proxy
-    const dgUrl = 'wss://api.deepgram.com/v1/listen?' +
+    // Connect through our backend proxy (handles Deepgram auth server-side)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const proxyUrl = `${protocol}//${window.location.host}/api/deepgram-proxy?` +
       'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&detect_language=true&smart_format=true&interim_results=true&endpointing=300&utterance_end_ms=2000&vad_events=true'
 
-    console.log('Connecting to Deepgram directly (Linear16 PCM)...')
-    const ws = new WebSocket(dgUrl, ['token', deepgramToken])
+    console.log('Connecting to Deepgram via proxy (Linear16 PCM)...')
+    const ws = new WebSocket(proxyUrl)
     ws.binaryType = 'arraybuffer'
     deepgramWsRef.current = ws
 

@@ -107,7 +107,7 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// Text-to-speech via Deepgram Aura. Returns audio/mpeg stream.
+    /// Text-to-speech via OpenAI TTS (supports Chinese + English).
     /// </summary>
     [HttpPost("tts")]
     public async Task<IActionResult> TextToSpeech([FromBody] TtsRequest request)
@@ -118,30 +118,36 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Text is required" });
 
-        var apiKey = _configuration["Deepgram:ApiKey"];
-        // Fallback to hardcoded key if not configured (temporary fix)
+        var apiKey = _configuration["OpenAI:ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
         {
-            apiKey = "7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7";
-            _logger.LogWarning("Using fallback Deepgram API key for TTS");
+            _logger.LogError("OpenAI API key not configured for TTS");
+            return StatusCode(500, new { error = "TTS not configured" });
         }
 
-        var model = request.Voice ?? "aura-asteria-en"; // asteria = female voice
+        // OpenAI voices: alloy, echo, fable, onyx, nova, shimmer
+        // nova and shimmer work well for Chinese
+        var voice = request.Voice ?? "nova";
         var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("Authorization", $"Token {apiKey}");
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
 
         var payload = new StringContent(
-            System.Text.Json.JsonSerializer.Serialize(new { text = request.Text }),
+            System.Text.Json.JsonSerializer.Serialize(new { 
+                model = "tts-1",
+                input = request.Text,
+                voice = voice,
+                response_format = "mp3"
+            }),
             System.Text.Encoding.UTF8, "application/json");
 
         var response = await client.PostAsync(
-            $"https://api.deepgram.com/v1/speak?model={model}&encoding=mp3",
+            "https://api.openai.com/v1/audio/speech",
             payload);
 
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync();
-            _logger.LogError("Deepgram TTS failed: {Status} {Body}", response.StatusCode, body);
+            _logger.LogError("OpenAI TTS failed: {Status} {Body}", response.StatusCode, body);
             return StatusCode(502, new { error = "TTS failed" });
         }
 

@@ -267,7 +267,8 @@ export default function FullChatPage() {
 
     // Direct connection to Deepgram (like CASEC) - use same working API key
     const DEEPGRAM_API_KEY = '7b6dcb8a7b12b97ab4196cec7ee1163ac8f792c7'
-    const dgParams = 'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true&smart_format=true&language=en'
+    // endpointing + utterance_end_ms for auto-send on pause
+    const dgParams = 'model=nova-2&encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true&smart_format=true&language=en&endpointing=300&utterance_end_ms=1500&vad_events=true'
     const dgUrl = `wss://api.deepgram.com/v1/listen?${dgParams}`
 
     console.log('Connecting to Deepgram directly (like CASEC)...')

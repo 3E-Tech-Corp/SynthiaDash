@@ -411,6 +411,20 @@ app.UseAuthorization();
 app.UseDeepgramProxy(); // WebSocket proxy for Deepgram STT
 app.MapControllers();
 
+// Debug endpoint: check proxy path matching
+app.MapGet("/deepgram-proxy-debug", context =>
+{
+    var info = new
+    {
+        path = context.Request.Path.Value,
+        pathBase = context.Request.PathBase.Value,
+        query = context.Request.QueryString.Value,
+        isWebSocket = context.WebSockets.IsWebSocketRequest,
+        webSocketsAvailable = context.WebSockets.WebSocketRequestedProtocols
+    };
+    return context.Response.WriteAsJsonAsync(info);
+});
+
 // Debug endpoint: test Deepgram connection from server
 app.MapGet("/deepgram-test", async context =>
 {

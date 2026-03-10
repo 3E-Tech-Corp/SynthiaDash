@@ -26,8 +26,13 @@ public class DeepgramProxyMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         // Only handle WebSocket requests to our proxy endpoint
-        if (context.Request.Path.StartsWithSegments("/deepgram-proxy") && context.WebSockets.IsWebSocketRequest)
+        // Check both with and without /api prefix (IIS virtual app may or may not strip it)
+        var path = context.Request.Path.Value ?? "";
+        var isProxyPath = path.Contains("deepgram-proxy", StringComparison.OrdinalIgnoreCase);
+        
+        if (isProxyPath && context.WebSockets.IsWebSocketRequest)
         {
+            _logger.LogInformation("Deepgram proxy: Matched path {Path}", path);
             // For WebSocket, check for token in query string since headers aren't available
             var token = context.Request.Query["token"].FirstOrDefault();
             var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;

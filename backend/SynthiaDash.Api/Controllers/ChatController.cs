@@ -107,7 +107,9 @@ public class ChatController : ControllerBase
     }
 
     /// <summary>
-    /// Text-to-speech via OpenAI TTS (supports Chinese + English).
+    /// Text-to-speech with language detection.
+    /// Chinese → Edge TTS (小艺/Xiaoyi - native voice)
+    /// English → OpenAI TTS (Nova - fast, warm)
     /// </summary>
     [HttpPost("tts")]
     public async Task<IActionResult> TextToSpeech([FromBody] TtsRequest request)
@@ -118,6 +120,102 @@ public class ChatController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Text is required" });
 
+        // Detect if text is primarily Chinese
+        var isChinese = ContainsChinese(request.Text);
+        
+        if (isChinese)
+        {
+            // Use Edge TTS for Chinese (小艺 - native, natural)
+            return await EdgeTtsAsync(request.Text, "zh-CN-XiaoyiNeural");
+        }
+        else
+        {
+            // Use OpenAI TTS for English (Nova - fast, warm)
+            return await OpenAiTtsAsync(request.Text, request.Voice ?? "nova");
+        }
+    }
+
+    /// <summary>
+    /// Check if text contains Chinese characters (> 10% threshold)
+    /// </summary>
+    private static bool ContainsChinese(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return false;
+        int chineseCount = 0;
+        int totalChars = 0;
+        foreach (char c in text)
+        {
+            if (char.IsWhiteSpace(c) || char.IsPunctuation(c)) continue;
+            totalChars++;
+            // CJK Unified Ideographs range
+            if (c >= 0x4E00 && c <= 0x9FFF) chineseCount++;
+        }
+        return totalChars > 0 && (double)chineseCount / totalChars > 0.1;
+    }
+
+    /// <summary>
+    /// Edge TTS via edge-tts CLI (Python package)
+    /// </summary>
+    private async Task<IActionResult> EdgeTtsAsync(string text, string voice)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"tts-{Guid.NewGuid()}.mp3");
+        try
+        {
+            // Escape text for command line
+            var escapedText = text.Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", "");
+            
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "edge-tts",
+                Arguments = $"--voice \"{voice}\" --text \"{escapedText}\" --write-media \"{tempFile}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(psi);
+            if (process == null)
+            {
+                _logger.LogError("Failed to start edge-tts process");
+                // Fallback to OpenAI
+                return await OpenAiTtsAsync(text, "nova");
+            }
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0 || !System.IO.File.Exists(tempFile))
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                _logger.LogWarning("Edge TTS failed (exit {Code}): {Error}, falling back to OpenAI", 
+                    process.ExitCode, error);
+                // Fallback to OpenAI
+                return await OpenAiTtsAsync(text, "nova");
+            }
+
+            var audioBytes = await System.IO.File.ReadAllBytesAsync(tempFile);
+            return File(audioBytes, "audio/mpeg");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Edge TTS exception, falling back to OpenAI");
+            return await OpenAiTtsAsync(text, "nova");
+        }
+        finally
+        {
+            // Cleanup temp file
+            if (System.IO.File.Exists(tempFile))
+            {
+                try { System.IO.File.Delete(tempFile); } catch { }
+            }
+        }
+    }
+
+    /// <summary>
+    /// OpenAI TTS (Nova voice)
+    /// </summary>
+    private async Task<IActionResult> OpenAiTtsAsync(string text, string voice)
+    {
         var apiKey = _configuration["OpenAI:ApiKey"];
         if (string.IsNullOrEmpty(apiKey))
         {
@@ -125,16 +223,13 @@ public class ChatController : ControllerBase
             return StatusCode(500, new { error = "TTS not configured" });
         }
 
-        // OpenAI voices: alloy, echo, fable, onyx, nova, shimmer
-        // nova and shimmer work well for Chinese
-        var voice = request.Voice ?? "nova";
         var client = _httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
 
         var payload = new StringContent(
             System.Text.Json.JsonSerializer.Serialize(new { 
                 model = "tts-1",
-                input = request.Text,
+                input = text,
                 voice = voice,
                 response_format = "mp3"
             }),
